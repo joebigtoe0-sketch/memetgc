@@ -14,20 +14,28 @@ import economyRouter from "./routes/economy.js";
 import { registerSocketHandlers, loadCardRegistry } from "./game/socket.js";
 
 const PORT = parseInt(process.env.PORT ?? "3001", 10);
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN ?? "http://localhost:3000";
+const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN ?? "*";
+
+// Allow multiple origins (comma-separated) or wildcard
+const corsOrigin: string | string[] | boolean =
+  CLIENT_ORIGIN === "*"
+    ? true
+    : CLIENT_ORIGIN.includes(",")
+    ? CLIENT_ORIGIN.split(",").map((o) => o.trim())
+    : CLIENT_ORIGIN;
 
 const app = express();
 const httpServer = createServer(app);
 
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
   cors: {
-    origin: CLIENT_ORIGIN,
+    origin: corsOrigin,
     methods: ["GET", "POST"],
-    credentials: true,
+    credentials: CLIENT_ORIGIN !== "*",
   },
 });
 
-app.use(cors({ origin: CLIENT_ORIGIN, credentials: true }));
+app.use(cors({ origin: corsOrigin, credentials: CLIENT_ORIGIN !== "*" }));
 app.use(express.json());
 
 app.use("/api/auth", authRouter);
