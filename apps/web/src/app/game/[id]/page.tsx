@@ -1,0 +1,40 @@
+"use client";
+
+import React, { useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useGameStore } from "@/store/gameStore";
+import { useSocket } from "@/hooks/useSocket";
+import GameBoard from "@/components/Game/GameBoard";
+
+export default function GamePage() {
+  const params = useParams();
+  const router = useRouter();
+  const { gameState, gameId, connected } = useGameStore();
+
+  useSocket();
+
+  useEffect(() => {
+    if (!gameId && !gameState) {
+      router.push("/");
+    }
+  }, [gameId, gameState, router]);
+
+  if (!gameState) {
+    return (
+      <div
+        className="h-full w-full flex items-center justify-center flex-col gap-4"
+        style={{ background: "#060810", color: "#4060a0" }}
+      >
+        <div className="text-4xl animate-pulse">🎮</div>
+        <p className="text-sm">Loading game {String(params.id).slice(0, 8)}...</p>
+        {!connected && <p className="text-xs" style={{ color: "#ff4444" }}>Reconnecting...</p>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full w-full overflow-hidden">
+      <GameBoard />
+    </div>
+  );
+}
