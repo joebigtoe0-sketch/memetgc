@@ -117,6 +117,18 @@ export function registerSocketHandlers(
       }
     }
 
+    // If this user is already in an active game room (e.g. page refresh), re-join and resync
+    if (authenticatedUserId) {
+      const existingRoom = getRoomByUserId(authenticatedUserId);
+      if (existingRoom && existingRoom.players[authenticatedUserId]) {
+        existingRoom.players[authenticatedUserId]!.socketId = socket.id;
+        socket.join(existingRoom.gameId);
+        socket.emit("match:found", existingRoom.gameId);
+        const sanitized = sanitizeState(existingRoom.state, authenticatedUserId);
+        socket.emit("game:state_update", sanitized);
+      }
+    }
+
     socket.on("queue:join", async ({ mode, deckId, heroId }) => {
       if (!authenticatedUserId || !authenticatedUsername) {
         socket.emit("game:error", "Not authenticated");

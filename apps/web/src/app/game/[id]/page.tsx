@@ -3,15 +3,12 @@
 import React, { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useGameStore } from "@/store/gameStore";
-import { useSocket } from "@/hooks/useSocket";
 import GameBoard from "@/components/Game/GameBoard";
 
 export default function GamePage() {
   const params = useParams();
   const router = useRouter();
   const { gameState, gameId, connected } = useGameStore();
-
-  useSocket();
 
   useEffect(() => {
     if (!gameId && !gameState) {
