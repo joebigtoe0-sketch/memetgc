@@ -1,0 +1,9 @@
+[phases.build]
+cmds = [
+  "pnpm install --frozen-lockfile",
+  "pnpm --filter @memetgc/types build",
+  "pnpm --filter @memetgc/web build"
+]
+
+[start]
+cmd = "node apps/web/.next/standalone/server.js"
