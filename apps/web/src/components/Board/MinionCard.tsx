@@ -1,8 +1,16 @@
 "use client";
 
 import React from "react";
-import { FACTION_COLORS } from "@/lib/constants";
 import type { MinionSlot } from "@memetgc/types";
+
+const FAC: Record<string, string> = {
+  bitcoin: "#f7931a",
+  ethereum: "#7b8cf4",
+  solana: "#19e08a",
+  meme: "#ff5fae",
+  stable: "#2bbd86",
+  degen: "#9aa3b2",
+};
 
 interface Props {
   slot: MinionSlot;
@@ -14,128 +22,148 @@ interface Props {
 }
 
 export default function MinionCard({ slot, isEnemy, isSelected, isValidTarget, isAttacking, onClick }: Props) {
-  const faction = FACTION_COLORS[slot.card.faction] ?? FACTION_COLORS.degen!;
-  const canAct = !isEnemy && !slot.hasAttacked && (!slot.summoningSickness || slot.hasCharge);
+  const fac = FAC[slot.card.faction] ?? FAC.degen;
+  const isDamaged = slot.currentHealth < (slot.card.health ?? slot.maxHealth ?? slot.currentHealth);
+  const hp1 = isDamaged ? "#ff6a5a" : "#ff8f7e";
+  const hp2 = isDamaged ? "#9c1209" : "#c2271c";
+  const sick = !!(slot.summoningSickness && !slot.hasCharge && !isEnemy);
+  const attacked = !!(slot.hasAttacked && !isEnemy);
+  const taunt = slot.hasTaunt;
+  const shield = slot.hasDivineShield;
+
+  const atk = (slot.currentAttack ?? 0) + (slot.tempAttackBoost ?? 0);
+
+  // Glow border for interactive states
+  let borderColor = "#caa24a";
+  let outerShadow = `0 6px 12px rgba(0,0,0,.55), 0 1px 0 rgba(255,240,190,.3)`;
+  if (isValidTarget) {
+    borderColor = "#e0e040";
+    outerShadow = `0 0 16px 4px rgba(224,224,64,0.7), 0 6px 12px rgba(0,0,0,.55)`;
+  } else if (isSelected || isAttacking) {
+    borderColor = "#40e080";
+    outerShadow = `0 0 16px 4px rgba(64,224,128,0.7), 0 6px 12px rgba(0,0,0,.55)`;
+  } else if (taunt) {
+    outerShadow = `0 0 0 2px rgba(231,199,104,.9), 0 0 14px rgba(231,199,104,.55)`;
+  }
 
   return (
     <div
       onClick={onClick}
-      className="relative flex flex-col items-center justify-between cursor-pointer select-none"
       style={{
-        width: 72,
-        height: 88,
-        background: "linear-gradient(160deg, #1a1d2e 0%, #0d0f1a 100%)",
-        border: `2px solid ${isSelected ? "#40e080" : isValidTarget ? "#e0e040" : isAttacking ? "#e04020" : faction.base}`,
-        borderRadius: 8,
-        boxShadow: isSelected
-          ? "0 0 14px 4px rgba(64,224,128,0.7)"
-          : isValidTarget
-          ? "0 0 14px 4px rgba(224,224,64,0.7)"
-          : isAttacking
-          ? "0 0 14px 4px rgba(224,64,32,0.8)"
-          : `0 0 8px 2px ${faction.glow}`,
-        transition: "all 0.15s ease",
-        transform: isSelected || isAttacking ? "scale(1.08)" : "scale(1)",
-        opacity: !canAct && !isEnemy ? 0.8 : 1,
-        overflow: "hidden",
+        position: "relative",
+        width: 104,
+        height: 132,
+        fontFamily: "var(--font-archivo,'Archivo',sans-serif)",
+        borderRadius: 11,
+        cursor: "pointer",
+        transform: (isSelected || isAttacking || isValidTarget) ? "scale(1.06) translateY(-4px)" : "scale(1)",
+        transition: "transform 0.15s ease, box-shadow 0.15s ease",
+        animation: taunt ? "bmTaunt 1.8s ease-in-out infinite" : "none",
+        boxShadow: taunt && !isSelected && !isValidTarget
+          ? "0 0 0 2px rgba(231,199,104,.9), 0 0 14px rgba(231,199,104,.55)"
+          : undefined,
       }}
     >
-      {/* Art area */}
-      <div
-        className="w-full flex-1 flex items-center justify-center overflow-hidden"
-        style={{
-          background: `repeating-linear-gradient(45deg, ${faction.base}12, ${faction.base}12 3px, transparent 3px, transparent 10px)`,
-          borderBottom: `1px solid ${faction.base}44`,
-        }}
-      >
-        {slot.card.art_url ? (
-          <img src={slot.card.art_url} alt={slot.card.name} className="w-full h-full object-cover" />
-        ) : (
-          <span className="text-xs font-bold text-center px-1 leading-tight" style={{ color: faction.base, fontSize: 8 }}>
-            {slot.card.name.toUpperCase()}
-          </span>
-        )}
+      {/* Gold border frame */}
+      <div style={{
+        position: "absolute", inset: 0, borderRadius: 11, padding: 3, boxSizing: "border-box",
+        background: `linear-gradient(160deg,${borderColor},${borderColor}88 55%,${borderColor}44)`,
+        boxShadow: outerShadow,
+      }}>
+        {/* Inner faction-colored content */}
+        <div style={{
+          position: "relative", width: "100%", height: "100%", borderRadius: 9, overflow: "hidden",
+          background: `radial-gradient(120% 90% at 50% 0%,color-mix(in srgb,${fac} 22%,#1a1f29),#0e1219)`,
+          boxShadow: `inset 0 0 0 1.5px color-mix(in srgb,${fac} 55%,#000)`,
+        }}>
+          {/* Diagonal stripe pattern */}
+          <div style={{
+            position: "absolute", inset: 0,
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3,
+            background: `repeating-linear-gradient(135deg,color-mix(in srgb,${fac} 16%,transparent) 0 8px,transparent 8px 16px)`,
+          }}>
+            {slot.card.art_url ? (
+              <img src={slot.card.art_url} alt={slot.card.name} style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }} />
+            ) : (
+              <div style={{ font: `700 9px/1.1 var(--font-archivo,'Archivo',sans-serif)`, textAlign: "center", color: `color-mix(in srgb,${fac} 50%,#fff)`, textShadow: "0 1px 2px #000", padding: "0 6px" }}>
+                {(slot.card.name ?? "").toUpperCase()}
+              </div>
+            )}
+          </div>
+
+          {/* Divine Shield inner glow */}
+          {shield && (
+            <div style={{
+              position: "absolute", inset: 0, borderRadius: 9,
+              boxShadow: "inset 0 0 0 2.5px rgba(240,244,255,.95), inset 0 0 12px rgba(200,220,255,.7)",
+              animation: "bmShield 1.6s ease-in-out infinite",
+              pointerEvents: "none",
+            }} />
+          )}
+        </div>
       </div>
 
-      {/* Name */}
-      <div className="w-full text-center px-1" style={{ background: "rgba(0,0,0,0.6)", padding: "2px 2px" }}>
-        <span className="text-white font-bold truncate block" style={{ fontSize: 7 }}>
-          {slot.card.name}
+      {/* Name tag (top-center, outside frame) */}
+      <div style={{
+        position: "absolute", top: -7, left: "50%", transform: "translateX(-50%)",
+        maxWidth: "92%", padding: "2px 7px", borderRadius: 5, zIndex: 3,
+        background: "linear-gradient(#2f3645,#161b24)",
+        border: `1px solid color-mix(in srgb,${fac} 40%,#0a0d12)`,
+        boxShadow: "0 2px 4px rgba(0,0,0,.5)",
+        font: `700 8.5px/1 var(--font-cinzel,'Cinzel',serif)`,
+        color: "#f3e8cc", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+      }}>
+        {slot.card.name}
+      </div>
+
+      {/* Attack bubble (bottom-left) */}
+      <div style={{
+        position: "absolute", bottom: -8, left: -8, zIndex: 4,
+        width: 30, height: 30,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        borderRadius: "50%",
+        background: "radial-gradient(circle at 38% 30%,#ffe7a8,#d97a16 70%)",
+        boxShadow: "0 0 0 2px #caa24a, 0 2px 5px rgba(0,0,0,.6)",
+      }}>
+        <span style={{ font: `800 15px/1 var(--font-mono,'JetBrains Mono',monospace)`, color: "#3a1d00", textShadow: "0 1px 0 rgba(255,255,255,.3)" }}>
+          {atk}
         </span>
       </div>
 
-      {/* Keyword icons */}
-      <div className="absolute top-1 left-1 flex flex-col gap-0.5">
-        {slot.hasTaunt && (
-          <div className="w-3.5 h-3.5 rounded-full bg-yellow-400 flex items-center justify-center" title="HODL">
-            <span style={{ fontSize: 7, fontWeight: 900 }}>H</span>
-          </div>
-        )}
-        {slot.hasDivineShield && (
-          <div className="w-3.5 h-3.5 rounded-full bg-white/90 flex items-center justify-center" title="Moon Shot">
-            <span style={{ fontSize: 7, fontWeight: 900, color: "#000" }}>M</span>
-          </div>
-        )}
-      </div>
-
-      {/* Attack badge (bottom left) */}
-      <div
-        className="absolute bottom-1 left-1 flex items-center justify-center font-black text-white rounded-full"
-        style={{
-          width: 18,
-          height: 18,
-          fontSize: 9,
-          background: "radial-gradient(circle, #ffd877, #d97a16)",
-          border: "1.5px solid rgba(255,255,255,0.3)",
-          boxShadow: "0 0 5px #ffd87788",
-          textShadow: "0 1px 2px rgba(0,0,0,0.9)",
-        }}
-      >
-        {slot.currentAttack + (slot.tempAttackBoost ?? 0)}
-      </div>
-
-      {/* Health badge (bottom right) */}
-      <div
-        className="absolute bottom-1 right-1 flex items-center justify-center font-black text-white rounded-full"
-        style={{
-          width: 18,
-          height: 18,
-          fontSize: 9,
-          background:
-            slot.currentHealth < (slot.card.health ?? slot.maxHealth)
-              ? "radial-gradient(circle, #ff4444, #880000)"
-              : "radial-gradient(circle, #ff8f7e, #c2271c)",
-          border: "1.5px solid rgba(255,255,255,0.3)",
-          boxShadow: "0 0 5px #ff8f7e88",
-          textShadow: "0 1px 2px rgba(0,0,0,0.9)",
-        }}
-      >
-        {slot.currentHealth}
+      {/* Health bubble (bottom-right) */}
+      <div style={{
+        position: "absolute", bottom: -8, right: -8, zIndex: 4,
+        width: 30, height: 30,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        borderRadius: "50%",
+        background: `radial-gradient(circle at 38% 30%,${hp1},${hp2} 70%)`,
+        boxShadow: "0 0 0 2px #caa24a, 0 2px 5px rgba(0,0,0,.6)",
+      }}>
+        <span style={{ font: `800 15px/1 var(--font-mono,'JetBrains Mono',monospace)`, color: "#fff", textShadow: "0 1px 2px rgba(0,0,0,.6)" }}>
+          {slot.currentHealth}
+        </span>
       </div>
 
       {/* Summoning sickness overlay */}
-      {slot.summoningSickness && !slot.hasCharge && !isEnemy && (
-        <div
-          className="absolute inset-0 rounded"
-          style={{ background: "rgba(0,0,0,0.35)", backdropFilter: "blur(1px)" }}
-        />
+      {sick && (
+        <div style={{ position: "absolute", inset: 0, borderRadius: 11, background: "rgba(8,10,16,.45)", backdropFilter: "saturate(.4)", zIndex: 2, pointerEvents: "none" }} />
       )}
 
       {/* Attacked overlay */}
-      {slot.hasAttacked && !isEnemy && (
-        <div
-          className="absolute inset-0 rounded"
-          style={{ background: "rgba(0,0,0,0.2)" }}
-        />
+      {attacked && (
+        <div style={{ position: "absolute", inset: 0, borderRadius: 11, background: "rgba(0,0,0,0.25)", zIndex: 2, pointerEvents: "none" }} />
       )}
 
-      {/* Taunt ring */}
-      {slot.hasTaunt && (
-        <div
-          className="absolute inset-0 rounded pointer-events-none animate-pulse"
-          style={{ border: "2px solid rgba(231,199,104,0.6)", borderRadius: 8 }}
-        />
-      )}
+      <style>{`
+        @keyframes bmTaunt {
+          0%, 100% { box-shadow: 0 0 0 2px rgba(231,199,104,.9), 0 0 14px rgba(231,199,104,.55); }
+          50% { box-shadow: 0 0 0 3px rgba(255,228,150,1), 0 0 22px rgba(231,199,104,.85); }
+        }
+        @keyframes bmShield {
+          0%, 100% { opacity: .55; }
+          50% { opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 }

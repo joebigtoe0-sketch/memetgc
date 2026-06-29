@@ -1,7 +1,23 @@
 "use client";
 
 import React from "react";
-import { FACTION_COLORS } from "@/lib/constants";
+
+const FAC: Record<string, string> = {
+  bitcoin: "#f7931a",
+  ethereum: "#7b8cf4",
+  solana: "#19e08a",
+  meme: "#ff5fae",
+  stable: "#2bbd86",
+  degen: "#9aa3b2",
+};
+
+const GLYPH: Record<string, string> = {
+  bitcoin: "₿", ethereum: "Ξ", solana: "◎", meme: "🐸", stable: "$", degen: "∞",
+};
+
+const FACTION_NAME: Record<string, string> = {
+  bitcoin: "BITCOIN", ethereum: "ETHEREUM", solana: "SOLANA", meme: "MEME", stable: "STABLE", degen: "DEGEN",
+};
 
 interface Props {
   heroName: string;
@@ -36,23 +52,31 @@ export default function HeroZone({
   onHeroPowerClick,
   secretCount = 0,
 }: Props) {
-  const fac = FACTION_COLORS[faction] ?? FACTION_COLORS.degen!;
+  const fac = FAC[faction] ?? FAC.degen;
+  const glyph = GLYPH[faction] ?? "∞";
+  const facName = FACTION_NAME[faction] ?? faction.toUpperCase();
   const isDangerous = hp <= 10;
 
+  const portraitSize = isEnemy ? 88 : 96;
+  const portraitBorder = isValidTarget ? "#e0e040" : isDangerous ? "#ff3a3a" : fac;
+  const portraitShadow = isValidTarget
+    ? "0 0 22px rgba(224,224,64,.55)"
+    : isDangerous
+    ? "0 0 22px rgba(255,50,50,.5)"
+    : `0 0 22px color-mix(in srgb,${fac} 45%,transparent)`;
+
   return (
-    <div className="flex flex-col items-center gap-2">
-      {/* Secrets row */}
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+      {/* Secrets */}
       {secretCount > 0 && (
-        <div className="flex gap-1">
+        <div style={{ display: "flex", gap: 4 }}>
           {Array.from({ length: secretCount }).map((_, i) => (
-            <div
-              key={i}
-              className="w-6 h-6 rounded border flex items-center justify-center text-xs font-bold"
-              style={{ background: "#1a0d2e", border: "1px solid #9b6dff", color: "#9b6dff" }}
-              title="Smart Contract (Secret)"
-            >
-              SC
-            </div>
+            <div key={i} style={{
+              width: 20, height: 20, borderRadius: 5,
+              background: "#1a0d2e", border: "1px solid #9b6dff",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              font: `700 7px var(--font-mono,'JetBrains Mono',monospace)`, color: "#9b6dff",
+            }}>SC</div>
           ))}
         </div>
       )}
@@ -60,93 +84,124 @@ export default function HeroZone({
       {/* Hero portrait */}
       <div
         onClick={onHeroClick}
-        className="relative flex flex-col items-center justify-center cursor-pointer"
         style={{
-          width: 80,
-          height: 80,
-          background: `radial-gradient(ellipse, ${fac.bg} 0%, #0d0f1a 70%)`,
-          border: `2px solid ${isValidTarget ? "#e0e040" : isDangerous ? "#ff3a3a" : fac.base}`,
+          position: "relative",
+          width: portraitSize, height: portraitSize,
           borderRadius: "50%",
-          boxShadow: isValidTarget
-            ? "0 0 16px 6px rgba(224,224,64,0.7)"
-            : isDangerous
-            ? "0 0 14px 6px rgba(255,50,50,0.5)"
-            : `0 0 10px 3px ${fac.glow}`,
-          transition: "all 0.2s",
-          transform: isValidTarget ? "scale(1.05)" : "scale(1)",
+          background: `radial-gradient(circle at 40% 30%,color-mix(in srgb,${fac} 30%,#2a2030),#140f1a)`,
+          border: `2.5px solid ${portraitBorder}`,
+          boxShadow: portraitShadow,
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+          cursor: onHeroClick ? "pointer" : "default",
+          transform: isValidTarget ? "scale(1.06)" : "scale(1)",
+          transition: "transform 0.15s, box-shadow 0.15s",
         }}
       >
-        <span className="text-2xl font-black" style={{ color: fac.base }}>
-          {heroName[0]}
+        <span style={{
+          font: `900 ${isEnemy ? 34 : 38}px/1 var(--font-cinzel,'Cinzel',serif)`,
+          color: "#fff",
+        }}>
+          {glyph}
         </span>
-        <span className="text-xs font-medium" style={{ color: fac.base, fontSize: 9, marginTop: 2 }}>
-          {heroName}
-        </span>
-      </div>
 
-      {/* HP + Armor row */}
-      <div className="flex gap-1 items-center">
+        {/* HP bubble (bottom-right of portrait) */}
+        <div style={{
+          position: "absolute", bottom: -4, right: -4,
+          width: 30, height: 30,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          borderRadius: "50%",
+          background: isDangerous
+            ? "radial-gradient(circle at 38% 30%,#ff8f7e,#c2271c 70%)"
+            : "radial-gradient(circle at 38% 30%,#ff8f7e,#c2271c 70%)",
+          boxShadow: `0 0 0 2px #caa24a, ${isDangerous ? "0 0 8px rgba(255,50,50,.7)" : ""}`,
+          font: `800 14px/1 var(--font-mono,'JetBrains Mono',monospace)`,
+          color: "#fff", textShadow: "0 1px 2px rgba(0,0,0,.6)",
+        }}>
+          {hp}
+        </div>
+
+        {/* Armor bubble (over HP) */}
         {armor > 0 && (
-          <div
-            className="flex items-center justify-center rounded font-black text-white"
-            style={{
-              width: 28,
-              height: 24,
-              background: "linear-gradient(135deg, #7df0c0, #1f9c6e)",
-              border: "1.5px solid rgba(255,255,255,0.3)",
-              fontSize: 11,
-              boxShadow: "0 0 6px #7df0c0",
-            }}
-          >
+          <div style={{
+            position: "absolute", bottom: -4, left: -4,
+            width: 26, height: 26,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            borderRadius: "50%",
+            background: "radial-gradient(circle at 38% 30%,#dfe5ec,#7e8a99 70%)",
+            boxShadow: "0 0 0 2px #caa24a",
+            font: `800 12px/1 var(--font-mono,'JetBrains Mono',monospace)`,
+            color: "#1c222c",
+          }}>
             {armor}
           </div>
         )}
-        <div
-          className="flex items-center justify-center rounded font-black text-white"
-          style={{
-            width: 36,
-            height: 28,
-            background: isDangerous ? "linear-gradient(135deg, #ff4444, #880000)" : "linear-gradient(135deg, #ff8f7e, #c2271c)",
-            border: "1.5px solid rgba(255,255,255,0.3)",
-            fontSize: 14,
-            boxShadow: isDangerous ? "0 0 8px rgba(255,50,50,0.7)" : "0 0 6px #ff8f7e66",
-          }}
-        >
-          {hp}
-        </div>
       </div>
 
-      {/* Weapon */}
+      {/* Hero name + faction */}
+      <div style={{ textAlign: isEnemy ? "left" : "right" }}>
+        <div style={{ font: `800 14px 'Cinzel',serif`, color: "#f3e8cc" }}>{heroName}</div>
+        <div style={{ font: `600 9px var(--font-mono,'JetBrains Mono',monospace)`, color: fac, letterSpacing: "1px" }}>{facName}</div>
+      </div>
+
+      {/* Weapon card */}
       {hasWeapon && (
-        <div
-          className="flex items-center gap-1 px-2 py-1 rounded"
-          style={{ background: "rgba(255,216,119,0.15)", border: "1px solid #ffd877" }}
-        >
-          <span style={{ color: "#ffd877", fontSize: 10 }}>⚔️ {weaponAttack}/{weaponDurability}</span>
+        <div style={{
+          position: "relative", width: 50, height: 64, borderRadius: 8,
+          background: `linear-gradient(150deg,color-mix(in srgb,${fac} 35%,#1a1f29),#0d1017)`,
+          border: `2px solid #caa24a`,
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+          boxShadow: "0 6px 14px rgba(0,0,0,.5)",
+          font: `700 8px var(--font-cinzel,'Cinzel',serif)`, color: "#dff7ec", textAlign: "center",
+        }}>
+          <span style={{ fontSize: 9 }}>⚔️</span>
+          <div style={{ position: "absolute", bottom: -6, left: -6, width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "radial-gradient(circle at 38% 30%,#ffe7a8,#d97a16)", boxShadow: "0 0 0 2px #caa24a", font: `800 10px var(--font-mono,'JetBrains Mono',monospace)`, color: "#3a1d00" }}>{weaponAttack}</div>
+          <div style={{ position: "absolute", bottom: -6, right: -6, width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "radial-gradient(circle at 38% 30%,#dfe5ec,#7e8a99)", boxShadow: "0 0 0 2px #caa24a", font: `800 10px var(--font-mono,'JetBrains Mono',monospace)`, color: "#1c222c" }}>{weaponDurability}</div>
         </div>
       )}
 
-      {/* Hero Power (player side only) */}
+      {/* Hero Power button (player side only) */}
       {!isEnemy && heroPowerName && (
         <button
           onClick={onHeroPowerClick}
           disabled={heroPowerUsed}
-          className="px-2 py-1 rounded text-xs font-bold transition-all"
           style={{
-            background: heroPowerUsed
-              ? "rgba(50,50,60,0.6)"
-              : `linear-gradient(135deg, ${fac.base}33, ${fac.base}66)`,
-            border: `1px solid ${heroPowerUsed ? "#333" : fac.base}`,
-            color: heroPowerUsed ? "#555" : fac.base,
+            position: "relative",
+            width: 72, height: 72,
+            borderRadius: "50%",
             cursor: heroPowerUsed ? "not-allowed" : "pointer",
-            boxShadow: heroPowerUsed ? "none" : `0 0 8px ${fac.glow}`,
-            fontSize: 9,
+            border: `2px solid ${heroPowerUsed ? "#3a4050" : "#e0b13a"}`,
+            background: heroPowerUsed ? "radial-gradient(circle at 40% 30%,#2a3040,#0e1015)" : "radial-gradient(circle at 40% 30%,#3a4150,#12161f)",
+            boxShadow: heroPowerUsed ? "none" : `0 0 18px rgba(231,199,104,.4)`,
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+            animation: heroPowerUsed ? "none" : "pulseGlow 2.4s ease-in-out infinite",
+            opacity: heroPowerUsed ? 0.5 : 1,
           }}
         >
-          ⚡ {heroPowerName}
-          {heroPowerUsed && " (used)"}
+          <span style={{ font: `900 13px var(--font-cinzel,'Cinzel',serif)`, color: heroPowerUsed ? "#5a6478" : "#f3e8cc" }}>
+            {heroPowerName}
+          </span>
+          <span style={{ font: `600 7px var(--font-archivo,'Archivo',sans-serif)`, color: heroPowerUsed ? "#4a5060" : "#c9b48a", letterSpacing: "1px" }}>
+            POWER
+          </span>
+          {/* Mana cost chip */}
+          <div style={{
+            position: "absolute", top: -8, right: -6,
+            width: 26, height: 26,
+            borderRadius: "50%",
+            background: "radial-gradient(circle at 38% 30%,#dcefff,#4a90e6 60%,#1f4f9e)",
+            boxShadow: "0 0 0 2px #d6b052",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            font: `800 12px var(--font-mono,'JetBrains Mono',monospace)`, color: "#fff",
+          }}>2</div>
         </button>
       )}
+
+      <style>{`
+        @keyframes pulseGlow {
+          0%, 100% { opacity: .55; }
+          50% { opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 }

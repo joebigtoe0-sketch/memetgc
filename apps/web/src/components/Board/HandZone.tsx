@@ -13,15 +13,21 @@ interface Props {
   onCardHover?: (card: CardData | null) => void;
 }
 
+// Card display in hand is scaled to 0.58× of 260px = ~151px wide (matches design)
+const CARD_SCALE = 0.58;
+
 export default function HandZone({ hand, selectedInstanceId, currentMana, onCardClick, onCardHover }: Props) {
-  const count = hand.length;
-  const fanSpread = Math.min(count * 8, 56);
+  const n = hand.length;
+  const mid = (n - 1) / 2;
 
   return (
-    <div className="relative flex items-end justify-center" style={{ height: 140, minWidth: 420 }}>
+    <div style={{ position: "relative", width: "100%", height: 260, pointerEvents: "none" }}>
       {hand.map((card, i) => {
         const instId = (card as Card & { instanceId?: string }).instanceId ?? card.id;
-        const rot = count <= 1 ? 0 : (-fanSpread / 2 + (i / (count - 1)) * fanSpread);
+        const off = i - mid;
+        const ang = off * 7;
+        const x = off * 168;
+        const y = Math.abs(off) * Math.abs(off) * 13;
         const costMod = (card as Card & { costModifier?: number }).costModifier ?? 0;
         const canPlay = (card.cost + costMod) <= currentMana;
         const isSelected = selectedInstanceId === instId;
@@ -29,50 +35,40 @@ export default function HandZone({ hand, selectedInstanceId, currentMana, onCard
         return (
           <div
             key={instId}
-            className="absolute cursor-pointer"
             style={{
+              position: "absolute",
+              left: "50%",
               bottom: 0,
-              left: `calc(50% + ${(i - (count - 1) / 2) * (count > 6 ? 40 : 52)}px)`,
-              transform: `rotate(${rot}deg) translateY(${isSelected ? -24 : 0}px)`,
+              transform: `translateX(calc(-50% + ${x}px)) translateY(${isSelected ? y - 30 : y}px) rotate(${ang}deg)`,
               transformOrigin: "bottom center",
-              zIndex: isSelected ? 50 : i + 1,
-              filter: canPlay ? "none" : "brightness(0.45) saturate(0.4)",
-              transition: "transform 0.15s ease, filter 0.15s ease",
+              zIndex: isSelected ? 50 : 10 + i,
+              pointerEvents: "auto",
+              cursor: canPlay ? "pointer" : "default",
             }}
-            onClick={() => {
-              if (instId && canPlay) onCardClick?.(instId);
-            }}
+            onClick={() => { if (instId && canPlay) onCardClick?.(instId); }}
             onMouseEnter={() => onCardHover?.(card as CardData)}
             onMouseLeave={() => onCardHover?.(null)}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              onCardHover?.(card as CardData);
-            }}
           >
-            {/* Hover lift effect via CSS */}
             <div
-              className="group"
-              style={{ display: "contents" }}
+              style={{
+                transform: `scale(${CARD_SCALE})`,
+                transformOrigin: "top center",
+                filter: canPlay ? (isSelected ? "brightness(1.15)" : "none") : "brightness(0.45) saturate(0.3)",
+                transition: "filter 0.15s ease",
+              }}
+              onMouseEnter={(e) => {
+                if (canPlay) (e.currentTarget as HTMLDivElement).style.transform = `scale(${CARD_SCALE}) translateY(-18px)`;
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLDivElement).style.transform = `scale(${CARD_SCALE}) translateY(0)`;
+              }}
             >
-              <div
-                style={{
-                  transition: "transform 0.15s ease",
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLDivElement).style.transform = "translateY(-12px) scale(1.08)";
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLDivElement).style.transform = "";
-                }}
-              >
-                <CardComponent
-                  card={card}
-                  size="sm"
-                  interactive={canPlay}
-                  selected={isSelected}
-                  glowing={isSelected || (canPlay && !isSelected)}
-                />
-              </div>
+              <CardComponent
+                card={card as CardData}
+                size="lg"
+                selected={isSelected}
+                glowing={isSelected}
+              />
             </div>
           </div>
         );

@@ -134,8 +134,12 @@ function handleMulligan(
 ): { success: boolean; error?: string } {
   if (state.status !== "mulligan") return { success: false, error: "Not in mulligan phase" };
 
-  const player = state.players[state.activePlayerId]!;
-  state.pendingMulligan[state.activePlayerId] = true;
+  // Use the explicitly provided playerId (for AI), otherwise fall back to activePlayerId
+  const mulliganPlayerId = action.playerId ?? state.activePlayerId;
+  if (state.pendingMulligan[mulliganPlayerId]) return { success: false, error: "Already mulliganed" };
+
+  const player = state.players[mulliganPlayerId]!;
+  state.pendingMulligan[mulliganPlayerId] = true;
 
   // Replace cards not in keepInstanceIds
   const toKeep = new Set(action.keepInstanceIds);

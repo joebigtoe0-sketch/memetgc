@@ -120,7 +120,7 @@ export type GameAction =
   | { type: "attack"; attackerInstanceId: string; defenderInstanceId: string }
   | { type: "hero_power"; targetInstanceId?: string }
   | { type: "end_turn" }
-  | { type: "mulligan"; keepInstanceIds: string[] }
+  | { type: "mulligan"; keepInstanceIds: string[]; playerId?: string }
   | { type: "discover_choice"; cardId: string }
   | { type: "discard_to_ten"; discardInstanceIds: string[] }
   | { type: "tap_location" };

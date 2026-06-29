@@ -19,41 +19,35 @@ export default function Navbar() {
   const { username, fragments, rankTier, logout } = useAuthStore();
 
   return (
-    <nav
-      className="flex items-center justify-between px-4"
-      style={{
-        height: 52,
-        background: "rgba(6,8,16,0.95)",
-        borderBottom: "1px solid #1a2040",
-        backdropFilter: "blur(12px)",
-      }}
-    >
+    <nav style={{
+      position: "sticky", top: 0, zIndex: 50,
+      display: "flex", alignItems: "center", gap: 14, padding: "11px 22px",
+      background: "rgba(8,11,18,.86)", backdropFilter: "blur(10px)",
+      borderBottom: "1px solid rgba(231,199,104,.16)",
+      height: 52, boxSizing: "border-box",
+      fontFamily: "var(--font-archivo,'Archivo',sans-serif)",
+    }}>
       {/* Logo */}
-      <Link href="/" className="flex items-center gap-2 no-underline">
-        <span
-          className="font-black text-xl tracking-tight"
-          style={{ color: "#f7931a", textShadow: "0 0 10px rgba(247,147,26,0.5)" }}
-        >
-          DEGEN
-        </span>
-        <span className="font-black text-xl tracking-tight" style={{ color: "#7b8cf4" }}>
-          TCG
-        </span>
+      <Link href="/" style={{ display: "flex", alignItems: "center", gap: 9, paddingRight: 8, textDecoration: "none" }}>
+        <div style={{ width: 26, height: 26, borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(150deg,#f7c64a,#c2860f)", boxShadow: "0 0 10px rgba(231,199,104,.4)", font: `900 14px var(--font-mono,'JetBrains Mono',monospace)`, color: "#2a1a00" }}>D</div>
+        <span style={{ font: `800 14px var(--font-cinzel,'Cinzel',serif)`, letterSpacing: "1px", color: "#f3e8cc" }}>DEGEN TCG</span>
+        <span style={{ font: `700 9px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "2px", color: "#6a7488" }}>UI</span>
       </Link>
 
       {/* Nav links */}
-      <div className="flex items-center gap-1">
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
         {NAV_ITEMS.map((item) => {
           const active = pathname === item.href;
           return (
             <Link
               key={item.href}
               href={item.href}
-              className="px-3 py-1.5 rounded text-sm font-medium no-underline transition-all"
               style={{
-                color: active ? "#f7931a" : "#6080a0",
-                background: active ? "rgba(247,147,26,0.08)" : "transparent",
-                border: active ? "1px solid rgba(247,147,26,0.3)" : "1px solid transparent",
+                cursor: "pointer", padding: "8px 14px", borderRadius: 9, whiteSpace: "nowrap", textDecoration: "none",
+                font: `700 12px var(--font-archivo,'Archivo',sans-serif)`, letterSpacing: ".2px",
+                border: active ? "1px solid rgba(231,199,104,.6)" : "1px solid rgba(255,255,255,.1)",
+                background: active ? "linear-gradient(180deg,rgba(247,147,26,.25),rgba(247,147,26,.1))" : "rgba(255,255,255,.04)",
+                color: active ? "#ffd187" : "#aeb6c4",
               }}
             >
               {item.label}
@@ -62,29 +56,26 @@ export default function Navbar() {
         })}
       </div>
 
-      {/* Right side — user info */}
-      <div className="flex items-center gap-3">
+      {/* Right side */}
+      <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
         {username && (
           <>
-            {/* Fragments */}
-            <div className="flex items-center gap-1 text-xs" style={{ color: "#f7931a" }}>
-              <span>💎</span>
-              <span className="font-bold">{fragments.toLocaleString()}</span>
+            {fragments > 0 && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 10, background: "rgba(123,140,244,.10)", border: "1px solid rgba(123,140,244,.3)" }}>
+                <span style={{ font: `800 13px var(--font-mono,'JetBrains Mono',monospace)`, color: "#7b8cf4" }}>✦</span>
+                <span style={{ font: `800 14px var(--font-mono,'JetBrains Mono',monospace)`, color: "#c3ccff" }}>{fragments.toLocaleString()}</span>
+                <span style={{ font: `600 10px var(--font-archivo,'Archivo',sans-serif)`, color: "#8b93c4" }}>frags</span>
+              </div>
+            )}
+            {rankTier && rankTier !== "Unranked" && (
+              <div style={{ font: `700 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#f7931a", padding: "8px 12px", borderRadius: 9, background: "rgba(247,147,26,.1)", border: "1px solid rgba(247,147,26,.3)" }}>
+                {rankTier.toUpperCase()}
+              </div>
+            )}
+            <div title={username} style={{ width: 42, height: 42, borderRadius: 11, background: "linear-gradient(150deg,#2a3142,#161b25)", border: "1.5px solid rgba(231,199,104,.4)", display: "flex", alignItems: "center", justifyContent: "center", font: `800 16px var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc", cursor: "pointer" }}>
+              {username[0]?.toUpperCase()}
             </div>
-            {/* Rank */}
-            <div
-              className="px-2 py-0.5 rounded text-xs font-bold uppercase"
-              style={{ background: "rgba(30,50,100,0.4)", border: "1px solid #2a3560", color: "#6080c0" }}
-            >
-              {rankTier}
-            </div>
-            {/* Username */}
-            <span className="text-sm" style={{ color: "#8090b0" }}>{username}</span>
-            <button
-              onClick={logout}
-              className="text-xs px-2 py-1 rounded"
-              style={{ color: "#604040", background: "transparent", border: "none", cursor: "pointer" }}
-            >
+            <button onClick={logout} style={{ font: `600 11px var(--font-archivo,'Archivo',sans-serif)`, color: "#6a7488", background: "transparent", border: "none", cursor: "pointer", padding: "4px 8px", borderRadius: 6 }}>
               Logout
             </button>
           </>

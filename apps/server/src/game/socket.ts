@@ -3,7 +3,7 @@ import type { ServerToClientEvents, ClientToServerEvents, GameAction } from "@me
 import { verifyToken } from "../middleware/auth.js";
 import { prisma } from "@memetgc/db";
 import { joinQueue, leaveQueue, tryMatchmake, removeBySocketId, getQueueSize } from "../matchmaking/queue.js";
-import { createRoom, getRoom, getRoomByUserId, handlePlayerAction, type PlayerInfo } from "./room.js";
+import { createRoom, getRoom, getRoomByUserId, handlePlayerAction, initMulligan, type PlayerInfo } from "./room.js";
 import type { Card, Keyword, CardEffect, HeroPower, Faction } from "@memetgc/types";
 import { createPublicClient, http } from "viem";
 import { mainnet } from "viem/chains";
@@ -218,9 +218,8 @@ export function registerSocketHandlers(
         socket.join(gameId);
         socket.emit("match:found", gameId);
 
-        // Send initial state
-        const sanitized = sanitizeState(room.state, authenticatedUserId);
-        socket.emit("game:state_update", sanitized);
+        // Init mulligan (auto-mulligans AI, starts human timer, broadcasts state)
+        initMulligan(room, io);
         return;
       }
 
@@ -284,9 +283,8 @@ export function registerSocketHandlers(
         socket1?.emit("match:found", gameId);
         socket2?.emit("match:found", gameId);
 
-        // Send initial sanitized states
-        socket1?.emit("game:state_update", sanitizeState(room.state, entry1.userId));
-        socket2?.emit("game:state_update", sanitizeState(room.state, entry2.userId));
+        // Init mulligan (starts timers, broadcasts state to both)
+        initMulligan(room, io);
       } else {
         socket.emit("queue:status", {
           queueSize: getQueueSize(mode),
