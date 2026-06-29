@@ -20,9 +20,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body style={{ background: "#06080d", color: "#c8d0e0", fontFamily: "var(--font-archivo, system-ui, sans-serif)", minHeight: "100vh" }}>
         <Providers>
           <Navbar />
-          <main style={{ height: "calc(100vh - 52px)", overflow: "hidden" }}>
-            {children}
-          </main>
+          <div style={{ display: "flex", justifyContent: "center", padding: "16px 16px 0", background: "#06080d", minHeight: "calc(100vh - 52px)" }}>
+            <main style={{ width: "100%", maxWidth: 1480, height: "calc(100vh - 84px)", overflow: "hidden", borderRadius: 18, border: "1px solid rgba(231,199,104,.18)", boxShadow: "0 30px 80px rgba(0,0,0,.6)", position: "relative" }}>
+              {children}
+            </main>
+          </div>
         </Providers>
       </body>
     </html>

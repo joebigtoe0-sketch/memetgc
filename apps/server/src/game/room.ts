@@ -129,7 +129,12 @@ export function handlePlayerAction(
 
   room.lastActionAt = Date.now();
 
-  const result = applyAction(room.state, action, room.cardRegistry);
+  // For mulligan, always force the authenticated userId — never trust the client's playerId
+  const resolvedAction: GameAction = action.type === "mulligan"
+    ? { ...action, playerId: userId }
+    : action;
+
+  const result = applyAction(room.state, resolvedAction, room.cardRegistry);
 
   if (!result.success) {
     const player = room.players[userId];
