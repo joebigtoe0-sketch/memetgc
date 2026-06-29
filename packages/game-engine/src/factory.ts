@@ -88,6 +88,7 @@ export function createPlayerState(
     locationUsedThisTurn: false,
     board: Array(7).fill(null),
     hand: hand.map((c) => ({ ...c, instanceId: nextInstanceId() } as Card & { instanceId: string })) as Card[],
+    deckPile: shuffledDeck.map((c) => ({ ...c, instanceId: nextInstanceId() } as Card & { instanceId: string })) as Card[],
     deckCount: shuffledDeck.length,
     burnPile: [],
     secrets: [],

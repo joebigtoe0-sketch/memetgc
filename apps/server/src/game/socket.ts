@@ -318,12 +318,17 @@ export function registerSocketHandlers(
         return;
       }
 
-      if (room.state.activePlayerId !== authenticatedUserId && action.type !== "mulligan") {
+      if (room.state.activePlayerId !== authenticatedUserId && action.type !== "mulligan" && action.type !== "surrender") {
         socket.emit("game:error", "Not your turn");
         return;
       }
 
-      handlePlayerAction(room, authenticatedUserId, action, io);
+      // Inject the authenticated userId for actions that need it
+      const resolvedAction = (action.type === "mulligan" || action.type === "surrender")
+        ? { ...action, playerId: authenticatedUserId }
+        : action;
+
+      handlePlayerAction(room, authenticatedUserId, resolvedAction, io);
     });
 
     socket.on("disconnect", () => {

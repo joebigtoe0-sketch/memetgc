@@ -13,21 +13,21 @@ interface Props {
   onCardHover?: (card: CardData | null) => void;
 }
 
-// Card display in hand is scaled to 0.58× of 260px = ~151px wide (matches design)
-const CARD_SCALE = 0.58;
+// Card display in hand is scaled to 0.50× of ~260px wide = 130px
+const CARD_SCALE = 0.50;
 
 export default function HandZone({ hand, selectedInstanceId, currentMana, onCardClick, onCardHover }: Props) {
   const n = hand.length;
   const mid = (n - 1) / 2;
 
   return (
-    <div style={{ position: "relative", width: "100%", height: 260, pointerEvents: "none" }}>
+    <div style={{ position: "relative", width: "100%", height: "100%", pointerEvents: "none" }}>
       {hand.map((card, i) => {
         const instId = (card as Card & { instanceId?: string }).instanceId ?? card.id;
         const off = i - mid;
-        const ang = off * 7;
-        const x = off * 168;
-        const y = Math.abs(off) * Math.abs(off) * 13;
+        const ang = off * 6;
+        const x = off * 130;
+        const y = Math.abs(off) * Math.abs(off) * 8;
         const costMod = (card as Card & { costModifier?: number }).costModifier ?? 0;
         const canPlay = (card.cost + costMod) <= currentMana;
         const isSelected = selectedInstanceId === instId;

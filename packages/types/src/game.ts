@@ -50,6 +50,7 @@ export interface PlayerState {
   locationUsedThisTurn: boolean;
   board: (MinionSlot | null)[];
   hand: Card[];
+  deckPile: Card[];
   deckCount: number;
   burnPile: Card[];
   secrets: SecretSlot[];
@@ -121,6 +122,7 @@ export type GameAction =
   | { type: "hero_power"; targetInstanceId?: string }
   | { type: "end_turn" }
   | { type: "mulligan"; keepInstanceIds: string[]; playerId?: string }
+  | { type: "surrender"; playerId?: string }
   | { type: "discover_choice"; cardId: string }
   | { type: "discard_to_ten"; discardInstanceIds: string[] }
   | { type: "tap_location" };

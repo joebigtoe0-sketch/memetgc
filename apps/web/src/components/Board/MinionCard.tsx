@@ -19,9 +19,10 @@ interface Props {
   isValidTarget?: boolean;
   isAttacking?: boolean;
   onClick?: () => void;
+  onHover?: (hovered: boolean) => void;
 }
 
-export default function MinionCard({ slot, isEnemy, isSelected, isValidTarget, isAttacking, onClick }: Props) {
+export default function MinionCard({ slot, isEnemy, isSelected, isValidTarget, isAttacking, onClick, onHover }: Props) {
   const fac = FAC[slot.card.faction] ?? FAC.degen;
   const isDamaged = slot.currentHealth < (slot.card.health ?? slot.maxHealth ?? slot.currentHealth);
   const hp1 = isDamaged ? "#ff6a5a" : "#ff8f7e";
@@ -49,10 +50,12 @@ export default function MinionCard({ slot, isEnemy, isSelected, isValidTarget, i
   return (
     <div
       onClick={onClick}
+      onMouseEnter={() => onHover?.(true)}
+      onMouseLeave={() => onHover?.(false)}
       style={{
         position: "relative",
-        width: 104,
-        height: 132,
+        width: 96,
+        height: 116,
         fontFamily: "var(--font-archivo,'Archivo',sans-serif)",
         borderRadius: 11,
         cursor: "pointer",

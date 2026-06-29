@@ -418,18 +418,24 @@ function applyKeywordToSlot(slot: MinionSlot, keyword: string): void {
 }
 
 export function drawCard(player: PlayerState, animations: AnimationHint[]): void {
-  if (player.deckCount <= 0) {
+  if (!player.deckPile || player.deckPile.length <= 0) {
     player.fatigue++;
+    player.deckCount = 0;
     const { hp, armor } = applyDamageWithArmor(player.hp, player.armor, player.fatigue);
     player.hp = hp;
     player.armor = armor;
     animations.push({ type: "draw", data: { fatigue: player.fatigue, playerId: player.playerId } });
     return;
   }
-  player.deckCount--;
-  // In production, we'd pull actual card from shuffled deck array
-  // For now, we simulate by incrementing hand count placeholder
-  animations.push({ type: "draw", data: { playerId: player.playerId } });
+  const card = player.deckPile.shift()!;
+  player.deckCount = player.deckPile.length;
+  if (player.hand.length < 10) {
+    player.hand.push(card);
+    animations.push({ type: "draw", data: { playerId: player.playerId, cardId: card.id } });
+  } else {
+    player.burnPile.unshift(card);
+    animations.push({ type: "draw", data: { overdraw: true, playerId: player.playerId, cardId: card.id } });
+  }
 }
 
 function getCardById(id: string, ctx: EffectContext): Card | null {

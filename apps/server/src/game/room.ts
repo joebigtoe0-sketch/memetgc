@@ -129,8 +129,8 @@ export function handlePlayerAction(
 
   room.lastActionAt = Date.now();
 
-  // For mulligan, always force the authenticated userId — never trust the client's playerId
-  const resolvedAction: GameAction = action.type === "mulligan"
+  // For mulligan/surrender, always force the authenticated userId
+  const resolvedAction: GameAction = (action.type === "mulligan" || action.type === "surrender")
     ? { ...action, playerId: userId }
     : action;
 

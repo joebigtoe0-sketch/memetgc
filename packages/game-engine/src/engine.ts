@@ -84,6 +84,17 @@ function handleAction(
   const opponent = state.players[opponentId]!;
 
   switch (action.type) {
+    case "surrender": {
+      if (state.status !== "in_progress") return { success: false, error: "Game not in progress" };
+      const surrendererId = action.playerId ?? state.activePlayerId;
+      const winnerId = Object.keys(state.players).find((id) => id !== surrendererId)!;
+      state.status = "finished";
+      state.winner = winnerId;
+      state.endReason = "surrender";
+      animations.push({ type: "game_over", data: { winner: winnerId, loser: surrendererId } });
+      return { success: true };
+    }
+
     case "mulligan":
       return handleMulligan(state, action, animations, rng);
 
@@ -155,31 +166,18 @@ function handleMulligan(
         }
       }
 
-      // Draw replacements (simulate)
-      const replacements = returned.length;
-      for (let i = 0; i < replacements; i++) {
-        if (player.deckCount > 0) {
-          player.deckCount--;
-          // In full impl, draw actual card from shuffled deck. Placeholder for test:
-          const placeholder: Card & { instanceId: string } = {
-            id: `placeholder_${i}`,
-            name: "Card",
-            set: "genesis",
-            type: "minion",
-            faction: "bitcoin",
-            rarity: "common",
-            cost: 1,
-            attack: 1,
-            health: 1,
-            collectible: true,
-            craftable: true,
-            dust_value: 5,
-            craft_cost: 40,
-            instanceId: nextInstanceId(),
-          };
-          newHand.push(placeholder);
+      // Shuffle returned cards back into deckPile at random positions
+      for (const card of returned) {
+        const insertIdx = Math.floor(rng() * (player.deckPile.length + 1));
+        player.deckPile.splice(insertIdx, 0, card);
+      }
+      // Draw replacements from the actual deckPile
+      for (let i = 0; i < returned.length; i++) {
+        if (player.deckPile.length > 0) {
+          newHand.push(player.deckPile.shift()!);
         }
       }
+      player.deckCount = player.deckPile.length;
       player.hand = newHand;
 
   // Check if both players have mulliganed
