@@ -1,0 +1,20 @@
+{
+  "name": "memetgc",
+  "private": true,
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "type-check": "turbo run type-check",
+    "db:push": "turbo run db:push --filter=@memetgc/db",
+    "db:seed": "turbo run db:seed --filter=@memetgc/db",
+    "db:generate": "turbo run db:generate --filter=@memetgc/db",
+    "db:studio": "turbo run db:studio --filter=@memetgc/db"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.4",
+    "typescript": "^5.8.3",
+    "@types/node": "^22.15.29"
+  },
+  "packageManager": "pnpm@10.33.0"
+}
