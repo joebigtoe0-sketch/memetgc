@@ -147,6 +147,12 @@ export function registerSocketHandlers(
           socket.emit("game:error", "Need 1,000 $DEGEN to play ranked");
           return;
         }
+        // Ranked requires a custom (non-starter) deck the player built themselves
+        const rankedDeck = await prisma.deck.findFirst({ where: { id: deckId, userId: authenticatedUserId } });
+        if (!rankedDeck || rankedDeck.isStarter) {
+          socket.emit("game:error", "Ranked requires your own custom deck");
+          return;
+        }
       }
 
       leaveQueue(authenticatedUserId);

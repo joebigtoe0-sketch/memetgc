@@ -176,8 +176,7 @@ export default function Dashboard() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             <ModeCard name="Practice" tag="FREE · VS AI" desc="Learn the ropes against bots. No rewards." badge="Open" badgeColor="#9aa3b2" onClick={() => router.push("/play?mode=practice")} />
             <ModeCard name="Casual" tag="FREE · VS PLAYERS" desc="No stakes. Earn booster pack tickets." badge="Open" badgeColor="#7b8cf4" onClick={() => router.push("/play?mode=casual")} />
-            <ModeCard name="Ranked" tag="HOLD 1,000 $DEGEN" desc="Climb the ladder. Earn fragments & season rewards." badge="Unlocked" badgeColor="#f7931a" highlight onClick={() => router.push("/play?mode=ranked")} />
-            <ModeCard name="P2E Arena" tag="1,000 $DEGEN · ENTRY" desc="Prize-pool tournaments. NFT card rewards." badge="1 live" badgeColor="#19e08a" onClick={() => router.push("/play?mode=ranked")} />
+            <ModeCard name="Ranked" tag="HOLD 1,000 $DEGEN · OWN DECK" desc="Climb the ladder with your own deck. Earn fragments & season rewards." badge="Unlocked" badgeColor="#f7931a" highlight onClick={() => router.push("/play?mode=ranked")} />
           </div>
         </div>
 

@@ -149,26 +149,9 @@ router.get("/me", requireAuth, async (req: AuthRequest, res) => {
 });
 
 async function grantStarterContent(userId: string): Promise<void> {
-  const starterCardIds = [
-    "bitcoin_paper_hands", "bitcoin_baby_hodl", "bitcoin_block_defender",
-    "bitcoin_mining_rig", "bitcoin_cold_wallet", "bitcoin_stack_sats",
-    "bitcoin_hodl_the_line", "bitcoin_hardware_security", "bitcoin_maxi",
-    "bitcoin_the_halving",
-    "meme_moon_boy", "meme_doge_gang", "meme_pepe_deploy", "meme_hype_wave",
-    "meme_diamond_frog", "meme_viral_tweet", "meme_to_the_moon",
-    "meme_elon_shill", "meme_pump_it", "meme_100x_bet",
-    "stable_risk_manager", "stable_yield_farmer", "stable_liquidation",
-    "stable_flash_crash", "stable_collateral", "stable_peg_defence",
-    "stable_stablecoin", "stable_dai_hard", "stable_reserve_protocol", "stable_the_fed",
-  ];
-
-  for (const cardId of starterCardIds) {
-    await prisma.collectionEntry.upsert({
-      where: { userId_cardId: { userId, cardId } },
-      update: {},
-      create: { userId, cardId, quantity: 4 },
-    });
-  }
+  // New players do NOT own any cards. They get pre-made starter decks they can
+  // use in Practice/Casual, plus booster packs to start building their own
+  // collection (needed for Ranked).
 
   // Starter booster packs (opened from the Packs page)
   await prisma.packInventory.upsert({

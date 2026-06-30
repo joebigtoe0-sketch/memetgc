@@ -156,6 +156,94 @@ router.post("/", requireAuth, async (req: AuthRequest, res) => {
   res.status(201).json({ id: deck.id, name: deck.name });
 });
 
+async function recomputeFaction(deckId: string): Promise<void> {
+  const deckCards = await prisma.deckCard.findMany({ where: { deckId }, include: { card: true } });
+  const nonDegen = deckCards.filter((dc) => dc.card.faction !== "degen");
+  const primary = nonDegen.length > 0 ? nonDegen[0]!.card.faction : "degen";
+  const bonus = nonDegen.length > 0 && nonDegen.every((dc) => dc.card.faction === primary);
+  await prisma.deck.update({ where: { id: deckId }, data: { faction: primary, factionBonusActive: bonus } });
+}
+
+async function deckJson(deckId: string) {
+  const deck = await prisma.deck.findUnique({ where: { id: deckId }, include: { deckCards: true } });
+  if (!deck) return null;
+  return {
+    id: deck.id,
+    name: deck.name,
+    heroId: deck.heroId,
+    isStarter: deck.isStarter,
+    faction: deck.faction,
+    factionBonusActive: deck.factionBonusActive,
+    cards: deck.deckCards.map((dc) => ({ cardId: dc.cardId, quantity: dc.quantity })),
+    cardCount: deck.deckCards.reduce((s, dc) => s + dc.quantity, 0),
+  };
+}
+
+// POST /api/decks/new — create an empty, editable deck
+router.post("/new", requireAuth, async (req: AuthRequest, res) => {
+  const userId = req.user!.userId;
+  const name = (typeof req.body?.name === "string" ? req.body.name : "").slice(0, 50) || "New Deck";
+  const hero = await prisma.hero.findFirst({ orderBy: { id: "asc" } });
+  if (!hero) { res.status(400).json({ error: "No heroes available" }); return; }
+  const deck = await prisma.deck.create({
+    data: { userId, name, heroId: hero.id, faction: "degen", factionBonusActive: false, isStarter: false },
+  });
+  res.status(201).json(await deckJson(deck.id));
+});
+
+// PATCH /api/decks/:id — rename / change hero
+router.patch("/:id", requireAuth, async (req: AuthRequest, res) => {
+  const parsed = z.object({ name: z.string().min(1).max(50).optional(), heroId: z.string().optional() }).safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "Invalid data" }); return; }
+  const deck = await prisma.deck.findFirst({ where: { id: String(req.params.id), userId: req.user!.userId } });
+  if (!deck) { res.status(404).json({ error: "Deck not found" }); return; }
+  if (deck.isStarter) { res.status(403).json({ error: "Cannot edit starter decks" }); return; }
+  await prisma.deck.update({ where: { id: deck.id }, data: { ...(parsed.data.name ? { name: parsed.data.name } : {}), ...(parsed.data.heroId ? { heroId: parsed.data.heroId } : {}) } });
+  res.json(await deckJson(deck.id));
+});
+
+// POST /api/decks/:id/cards — add one copy of a card
+router.post("/:id/cards", requireAuth, async (req: AuthRequest, res) => {
+  const userId = req.user!.userId;
+  const cardId = String(req.body?.cardId ?? "");
+  const deck = await prisma.deck.findFirst({ where: { id: String(req.params.id), userId }, include: { deckCards: true } });
+  if (!deck) { res.status(404).json({ error: "Deck not found" }); return; }
+  if (deck.isStarter) { res.status(403).json({ error: "Cannot edit starter decks" }); return; }
+
+  const card = await prisma.card.findUnique({ where: { id: cardId } });
+  if (!card || !card.collectible) { res.status(400).json({ error: "Invalid card" }); return; }
+
+  const total = deck.deckCards.reduce((s, dc) => s + dc.quantity, 0);
+  if (total >= 30) { res.status(400).json({ error: "Deck is full (30 cards)" }); return; }
+
+  const existing = deck.deckCards.find((dc) => dc.cardId === cardId);
+  const have = existing?.quantity ?? 0;
+  const limit = COPY_LIMITS[card.rarity] ?? 1;
+  if (have + 1 > limit) { res.status(400).json({ error: `Max ${limit} copies of ${card.name}` }); return; }
+
+  const owned = await prisma.collectionEntry.findUnique({ where: { userId_cardId: { userId, cardId } } });
+  if ((owned?.quantity ?? 0) < have + 1) { res.status(400).json({ error: `You don't own enough copies of ${card.name}` }); return; }
+
+  if (existing) await prisma.deckCard.update({ where: { id: existing.id }, data: { quantity: have + 1 } });
+  else await prisma.deckCard.create({ data: { deckId: deck.id, cardId, quantity: 1 } });
+  await recomputeFaction(deck.id);
+  res.json(await deckJson(deck.id));
+});
+
+// DELETE /api/decks/:id/cards/:cardId — remove one copy of a card
+router.delete("/:id/cards/:cardId", requireAuth, async (req: AuthRequest, res) => {
+  const userId = req.user!.userId;
+  const deck = await prisma.deck.findFirst({ where: { id: String(req.params.id), userId }, include: { deckCards: true } });
+  if (!deck) { res.status(404).json({ error: "Deck not found" }); return; }
+  if (deck.isStarter) { res.status(403).json({ error: "Cannot edit starter decks" }); return; }
+  const existing = deck.deckCards.find((dc) => dc.cardId === String(req.params.cardId));
+  if (!existing) { res.status(400).json({ error: "Card not in deck" }); return; }
+  if (existing.quantity > 1) await prisma.deckCard.update({ where: { id: existing.id }, data: { quantity: existing.quantity - 1 } });
+  else await prisma.deckCard.delete({ where: { id: existing.id } });
+  await recomputeFaction(deck.id);
+  res.json(await deckJson(deck.id));
+});
+
 // DELETE /api/decks/:id
 router.delete("/:id", requireAuth, async (req: AuthRequest, res) => {
   const deckId = String(req.params.id);

@@ -24,6 +24,8 @@ export interface CardData {
   hasTaunt?: boolean;
   currentAttack?: number;
   currentHealth?: number;
+  /** How many copies the player owns — drives the frame tier (silver >50, gold >100). */
+  ownedCount?: number;
 }
 
 interface Props {
@@ -57,6 +59,30 @@ const GLYPH: Record<string, string> = {
   bitcoin: "₿", ethereum: "Ξ", solana: "◎", meme: "🐸", stable: "$", degen: "∞",
 };
 
+// Frame tier driven by how many copies you own: dark by default, silver >50, gold >100.
+const FRAME: Record<"dark" | "silver" | "gold", { bg: string; edge: string; glow: string }> = {
+  dark: {
+    bg: "linear-gradient(150deg,#171b22 0%,#262b34 38%,#0d1015 50%,#262b34 62%,#0a0c10 100%)",
+    edge: "rgba(255,255,255,.07)",
+    glow: "transparent",
+  },
+  silver: {
+    bg: "linear-gradient(150deg,#33373d 0%,#7e858f 17%,#d6dbe2 37%,#ffffff 50%,#d6dbe2 63%,#7e858f 83%,#2c3036 100%)",
+    edge: "rgba(255,255,255,.55)",
+    glow: "rgba(200,210,225,.5)",
+  },
+  gold: {
+    bg: "linear-gradient(150deg,#5e431a 0%,#a9842f 17%,#e7c768 37%,#fff2be 50%,#e7c768 63%,#a9842f 83%,#553c17 100%)",
+    edge: "rgba(255,240,190,.5)",
+    glow: "rgba(231,199,104,.55)",
+  },
+};
+function frameTier(owned?: number): "dark" | "silver" | "gold" {
+  if (owned != null && owned > 100) return "gold";
+  if (owned != null && owned > 50) return "silver";
+  return "dark";
+}
+
 // sm=0.5×, md=0.75×, lg=1× all based on a 260×380 design
 const SCALE: Record<string, number> = { sm: 0.5, md: 0.75, lg: 1 };
 // displayed outer size (the 260×380 scaled)
@@ -76,6 +102,8 @@ export default function CardComponent({
   const isLeg = card.rarity === "legendary";
   const scale = SCALE[size];
   const outer = OUTER[size];
+  const tier = frameTier(card.ownedCount);
+  const frame = FRAME[tier];
 
   // Stats
   const currentAtk = card.currentAttack ?? card.attack;
@@ -108,7 +136,11 @@ export default function CardComponent({
         flexShrink: 0,
         opacity: dimmed ? 0.5 : 1,
         cursor: onClick ? "pointer" : "default",
-        filter: isLeg ? `drop-shadow(0 0 13px rgba(224,137,15,0.6))` : glowing || selected ? `drop-shadow(0 0 10px ${fac})` : undefined,
+        filter: tier === "gold"
+          ? `drop-shadow(0 0 13px rgba(224,137,15,0.55))`
+          : tier === "silver"
+          ? `drop-shadow(0 0 11px rgba(200,210,225,0.5))`
+          : glowing || selected ? `drop-shadow(0 0 10px ${fac})` : undefined,
       }}
       onClick={onClick}
       onContextMenu={onRightClick}
@@ -116,11 +148,11 @@ export default function CardComponent({
       {/* Scaled inner — always renders at 260×380, scaled down */}
       <div style={{ width: 260, height: 380, transform: `scale(${scale})`, transformOrigin: "top left", position: "absolute", top: 0, left: 0 }}>
 
-        {/* Gold foil frame */}
+        {/* Frame (tier: dark default, silver >50 owned, gold >100 owned) */}
         <div style={{
           position: "absolute", inset: 0, borderRadius: 18,
-          background: "linear-gradient(150deg,#5e431a 0%,#a9842f 17%,#e7c768 37%,#fff2be 50%,#e7c768 63%,#a9842f 83%,#553c17 100%)",
-          boxShadow: `inset 0 0 0 1px rgba(255,240,190,.5), inset 0 0 6px rgba(0,0,0,.45), 0 10px 22px rgba(0,0,0,.55), 0 2px 4px rgba(0,0,0,.5)${selected ? `, 0 0 0 3px #40e080` : ""}`,
+          background: frame.bg,
+          boxShadow: `inset 0 0 0 1px ${frame.edge}, inset 0 0 6px rgba(0,0,0,.45), 0 10px 22px rgba(0,0,0,.55), 0 2px 4px rgba(0,0,0,.5)${tier !== "dark" ? `, 0 0 14px ${frame.glow}` : ""}${selected ? `, 0 0 0 3px #40e080` : ""}`,
           padding: 11,
           boxSizing: "border-box",
         }}>
