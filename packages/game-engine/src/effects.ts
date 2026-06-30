@@ -1,6 +1,6 @@
 import type { Card, CardEffect, GameState, AnimationHint, PlayerState } from "@memetgc/types";
 import type { MinionSlot } from "@memetgc/types";
-import { deepClone, nextInstanceId, applyDamageWithArmor } from "./utils.js";
+import { deepClone, nextInstanceId, applyDamageWithArmor, minionPassesTargetCondition } from "./utils.js";
 import { createMinionSlot } from "./factory.js";
 import { damageMinionSlot, damageHero } from "./combat.js";
 
@@ -11,6 +11,8 @@ export interface EffectContext {
   targetInstanceId?: string;
   animations: AnimationHint[];
   rng: () => number;
+  /** Single coin-flip result for the whole card play, used by coin_heads/coin_tails effects */
+  coinFlip?: "heads" | "tails";
 }
 
 /** Resolve all effects with a given trigger for a card */
@@ -25,17 +27,63 @@ export function resolveEffects(
   }
 }
 
+/**
+ * After a hero is healed, fire any board minion effects gated on "on_heal"
+ * (e.g. "Whenever your hero is healed, draw a card").
+ */
+export function fireHealTriggers(
+  state: GameState,
+  healedPlayerId: string,
+  animations: AnimationHint[],
+  rng: () => number,
+  cardRegistry?: Map<string, Card>
+): void {
+  const player = state.players[healedPlayerId];
+  if (!player) return;
+  for (const slot of player.board) {
+    if (!slot) continue;
+    for (const effect of slot.card.effects ?? []) {
+      if (effect.params?.condition !== "on_heal") continue;
+      const ctx: EffectContext = {
+        state,
+        activePlayerId: healedPlayerId,
+        sourceCard: slot.card,
+        animations,
+        rng,
+        cardRegistry,
+      } as EffectContext & { cardRegistry?: Map<string, Card> };
+      resolveEffect(effect, ctx);
+    }
+  }
+}
+
+/** Whole-effect gate for conditions like coin flips. Returns false to skip the effect entirely. */
+function effectGatePasses(effect: CardEffect, ctx: EffectContext): boolean {
+  const condition = effect.params?.condition as string | undefined;
+  if (!condition) return true;
+  switch (condition) {
+    case "coin_heads": return ctx.coinFlip === "heads";
+    case "coin_tails": return ctx.coinFlip === "tails";
+    default: return true; // per-target conditions handled at target resolution
+  }
+}
+
 function resolveEffect(effect: CardEffect, ctx: EffectContext): void {
+  if (!effectGatePasses(effect, ctx)) return;
+
   const activePlayer = ctx.state.players[ctx.activePlayerId]!;
   const opponentId = Object.keys(ctx.state.players).find((id) => id !== ctx.activePlayerId)!;
   const opponent = ctx.state.players[opponentId]!;
 
   const params = effect.params ?? {};
+  const targetCondition = params.condition as string | undefined;
+  const targetValue = params.value as number | undefined;
 
   switch (effect.action) {
     case "deal_damage": {
       const amount = (params.amount as number) ?? 0;
-      const targets = resolveTargets(effect.target, ctx, activePlayer, opponent);
+      const targets = resolveTargets(effect.target, ctx, activePlayer, opponent)
+        .filter((t) => t.type !== "minion" || minionPassesTargetCondition(t.slot, targetCondition, targetValue));
       for (const t of targets) {
         applyDamageToTarget(t, amount, ctx, activePlayer, opponent);
       }
@@ -99,7 +147,8 @@ function resolveEffect(effect: CardEffect, ctx: EffectContext): void {
     }
 
     case "destroy": {
-      const targets = resolveTargets(effect.target, ctx, activePlayer, opponent);
+      const targets = resolveTargets(effect.target, ctx, activePlayer, opponent)
+        .filter((t) => t.type !== "minion" || minionPassesTargetCondition(t.slot, targetCondition, targetValue));
       for (const t of targets) {
         if (t.type === "minion" && !isMinionImmuneToDestroy(t.slot)) {
           t.slot.currentHealth = 0;
@@ -222,6 +271,17 @@ function resolveEffect(effect: CardEffect, ctx: EffectContext): void {
         for (const card of activePlayer.hand) {
           (card as Card & { costModifier?: number }).costModifier = ((card as Card & { costModifier?: number }).costModifier ?? 0) + amount;
         }
+      } else if (effect.target === "random_card_in_hand_friendly") {
+        if (activePlayer.hand.length > 0) {
+          const card = activePlayer.hand[Math.floor(ctx.rng() * activePlayer.hand.length)]!;
+          (card as Card & { costModifier?: number }).costModifier = ((card as Card & { costModifier?: number }).costModifier ?? 0) + amount;
+        }
+      } else if (effect.target === "all_minions_friendly" || effect.target === "minion_friendly") {
+        for (const card of activePlayer.hand) {
+          if (card.type === "minion" && (!filter || matchesFilter(card, filter))) {
+            (card as Card & { costModifier?: number }).costModifier = ((card as Card & { costModifier?: number }).costModifier ?? 0) + amount;
+          }
+        }
       }
       break;
     }
@@ -323,9 +383,20 @@ function resolveTargets(
       const chosen = minions[Math.floor(ctx.rng() * minions.length)]!;
       return [{ type: "minion", slot: chosen, playerId: activePlayer.playerId }];
     }
-    case "chosen_minion":
+    case "chosen_minion": {
+      if (ctx.targetInstanceId) {
+        const ref = findMinionByInstanceId(ctx.targetInstanceId, activePlayer, opponent);
+        if (ref) return [ref];
+      }
+      return [];
+    }
     case "chosen_any": {
       if (ctx.targetInstanceId) {
+        if (ctx.targetInstanceId.startsWith("hero_")) {
+          const heroPlayerId = ctx.targetInstanceId.slice("hero_".length);
+          if (ctx.state.players[heroPlayerId]) return [{ type: "hero", playerId: heroPlayerId }];
+          return [];
+        }
         const ref = findMinionByInstanceId(ctx.targetInstanceId, activePlayer, opponent);
         if (ref) return [ref];
       }

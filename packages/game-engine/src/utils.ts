@@ -97,6 +97,93 @@ export function hasTauntMinion(board: (MinionSlot | null)[]): boolean {
   return board.some((s) => s !== null && s.hasTaunt);
 }
 
+/** Effective attack of a minion slot (base current + temporary boosts) */
+export function effectiveMinionAttack(slot: MinionSlot): number {
+  return (slot.currentAttack ?? 0) + (slot.tempAttackBoost ?? 0);
+}
+
+/** Whether a minion satisfies a per-target condition like "attack_lte" */
+export function minionPassesTargetCondition(
+  slot: MinionSlot,
+  condition?: string,
+  value?: number
+): boolean {
+  if (!condition) return true;
+  const atk = effectiveMinionAttack(slot);
+  switch (condition) {
+    case "attack_lte": return atk <= (value ?? Number.POSITIVE_INFINITY);
+    case "attack_gte": return atk >= (value ?? Number.NEGATIVE_INFINITY);
+    case "attack_eq": return atk === value;
+    case "health_lte": return slot.currentHealth <= (value ?? Number.POSITIVE_INFINITY);
+    case "health_gte": return slot.currentHealth >= (value ?? Number.NEGATIVE_INFINITY);
+    default: return true; // non-targeting conditions (coin_*, on_heal) never filter targets
+  }
+}
+
+/** Effect target types that require the player to manually pick a single target */
+const USER_PICK_TARGETS = new Set([
+  "chosen_minion",
+  "chosen_any",
+  "minion_friendly",
+  "minion_enemy",
+  "any_minion",
+]);
+
+export interface PlayCardTargeting {
+  /** True if this card has a battlecry/spell effect that needs a manually-picked target */
+  needsTarget: boolean;
+  /** Instance ids of legal targets — minion instanceIds and/or "hero_<playerId>" */
+  validIds: string[];
+}
+
+/**
+ * Compute the legal targets for playing a card, shared by client (highlight) and
+ * server (validation). Works on any board arrays, so the sanitized client state
+ * and the full server state can both call it.
+ */
+export function getPlayCardTargets(
+  card: Card,
+  friendlyBoard: (MinionSlot | null)[],
+  enemyBoard: (MinionSlot | null)[],
+  friendlyHeroId: string,
+  enemyHeroId: string
+): PlayCardTargeting {
+  const effects = card.effects ?? [];
+  const targeted = effects.find((e) => USER_PICK_TARGETS.has(e.target));
+  if (!targeted) return { needsTarget: false, validIds: [] };
+
+  const condition = targeted.params?.condition as string | undefined;
+  const value = targeted.params?.value as number | undefined;
+  const targetFilter = targeted.params?.target_filter as string | undefined; // "enemy" | "friendly"
+
+  const friendlyMinions = friendlyBoard.filter((s): s is MinionSlot => s !== null).map((s) => ({ slot: s, side: "friendly" as const }));
+  const enemyMinions = enemyBoard.filter((s): s is MinionSlot => s !== null).map((s) => ({ slot: s, side: "enemy" as const }));
+
+  let pool: { slot: MinionSlot; side: "friendly" | "enemy" }[] = [];
+  switch (targeted.target) {
+    case "minion_friendly": pool = friendlyMinions; break;
+    case "minion_enemy": pool = enemyMinions; break;
+    case "chosen_minion":
+    case "any_minion":
+    case "chosen_any":
+      pool = [...friendlyMinions, ...enemyMinions];
+      break;
+  }
+
+  if (targetFilter === "enemy") pool = pool.filter((m) => m.side === "enemy");
+  if (targetFilter === "friendly") pool = pool.filter((m) => m.side === "friendly");
+  pool = pool.filter((m) => minionPassesTargetCondition(m.slot, condition, value));
+
+  const validIds = pool.map((m) => m.slot.instanceId);
+
+  if (targeted.target === "chosen_any") {
+    if (targetFilter !== "friendly") validIds.push(enemyHeroId);
+    if (targetFilter !== "enemy") validIds.push(friendlyHeroId);
+  }
+
+  return { needsTarget: true, validIds };
+}
+
 /** Get current effective mana cost of a card for a player */
 export function getEffectiveCost(card: Card, player: PlayerState): number {
   const modifier = (card as Card & { costModifier?: number }).costModifier ?? 0;

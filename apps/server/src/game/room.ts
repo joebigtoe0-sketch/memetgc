@@ -231,7 +231,14 @@ function processAITurn(room: GameRoom, io: Server<ClientToServerEvents, ServerTo
   while (room.state.activePlayerId === aiPlayerId && room.state.status === "in_progress" && iterations < 20) {
     const action = getAIAction(room.state, aiPlayerId);
     const result = applyAction(room.state, action, room.cardRegistry);
-    if (!result.success) break;
+    if (!result.success) {
+      // Never stall the AI turn: if its chosen action was rejected, just end the turn
+      if (action.type !== "end_turn") {
+        const endResult = applyAction(room.state, { type: "end_turn" }, room.cardRegistry);
+        if (endResult.success) room.state = endResult.newState;
+      }
+      break;
+    }
     room.state = result.newState;
     iterations++;
     if (action.type === "end_turn") break;

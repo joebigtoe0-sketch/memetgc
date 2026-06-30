@@ -8,6 +8,7 @@ import HeroZone from "../Board/HeroZone";
 import HandZone from "../Board/HandZone";
 import MulliganScreen from "./MulliganScreen";
 import CardComponent from "../Card/CardComponent";
+import { getPlayCardTargets } from "@memetgc/game-engine";
 import type { MinionSlot, Card } from "@memetgc/types";
 import type { CardData } from "../Card/CardComponent";
 
@@ -227,6 +228,22 @@ export default function GameBoard() {
   }
   const validTargets = getValidTargets();
 
+  function getValidPlayTargets(): string[] {
+    if (phase !== "select_play_target" || !selectedCardInstanceId) return [];
+    const card = myState.hand.find(
+      (c) => (c as Card & { instanceId?: string }).instanceId === selectedCardInstanceId
+    ) as Card | undefined;
+    if (!card) return [];
+    return getPlayCardTargets(
+      card,
+      myState.board,
+      opponentState.board,
+      "hero_" + playerId,
+      "hero_" + opponentState.playerId
+    ).validIds;
+  }
+  const validPlayTargets = getValidPlayTargets();
+
   function doAttack(attacker: string, defender: string) {
     sendAction({ type: "attack", attackerInstanceId: attacker, defenderInstanceId: defender });
     setLungeId(attacker);
@@ -246,8 +263,13 @@ export default function GameBoard() {
       return;
     }
     if (phase === "select_play_target") {
-      sendAction({ type: "play_card", cardInstanceId: selectedCardInstanceId!, targetInstanceId: instanceId });
-      selectCard(null); setPhase("idle"); return;
+      if (validPlayTargets.includes(instanceId)) {
+        sendAction({ type: "play_card", cardInstanceId: selectedCardInstanceId!, targetInstanceId: instanceId });
+        selectCard(null); setPhase("idle");
+      } else {
+        cancelTargeting();
+      }
+      return;
     }
     if (!isEnemy) {
       const slot = myState.board.find((s): s is MinionSlot => s !== null && s.instanceId === instanceId);
@@ -259,20 +281,24 @@ export default function GameBoard() {
 
   function handleHeroClick(isEnemy: boolean) {
     if (!canAct) return;
-    if (isEnemy) {
-      if (phase === "select_attack_target" && selectedAttackerId) {
-        const heroId = "hero_" + opponentState.playerId;
-        if (validTargets.includes(heroId)) doAttack(selectedAttackerId, heroId);
-        else cancelTargeting();
-      } else if (phase === "select_play_target" && selectedCardInstanceId) {
-        sendAction({ type: "play_card", cardInstanceId: selectedCardInstanceId, targetInstanceId: "hero_" + opponentState.playerId });
+    const heroId = "hero_" + (isEnemy ? opponentState.playerId : playerId);
+    if (phase === "select_attack_target" && selectedAttackerId) {
+      if (isEnemy && validTargets.includes(heroId)) doAttack(selectedAttackerId, heroId);
+      else cancelTargeting();
+      return;
+    }
+    if (phase === "select_play_target" && selectedCardInstanceId) {
+      if (validPlayTargets.includes(heroId)) {
+        sendAction({ type: "play_card", cardInstanceId: selectedCardInstanceId, targetInstanceId: heroId });
         selectCard(null); setPhase("idle");
-      } else if (phase !== "idle") cancelTargeting();
-    } else {
-      if (phase !== "idle") { cancelTargeting(); return; }
-      if (myState.hasWeapon && !myState.heroHasAttacked) {
-        selectAttacker("hero_" + playerId); setPhase("select_attack_target");
+      } else {
+        cancelTargeting();
       }
+      return;
+    }
+    if (phase !== "idle") { cancelTargeting(); return; }
+    if (!isEnemy && myState.hasWeapon && !myState.heroHasAttacked) {
+      selectAttacker("hero_" + playerId); setPhase("select_attack_target");
     }
   }
 
@@ -302,7 +328,7 @@ export default function GameBoard() {
             <HeroZone
               heroName={opponentState.heroName} faction={opponentState.heroFaction}
               hp={opponentState.hp} armor={opponentState.armor} isEnemy
-              isValidTarget={phase === "select_attack_target" && validTargets.includes("hero_" + opponentState.playerId)}
+              isValidTarget={(phase === "select_attack_target" && validTargets.includes("hero_" + opponentState.playerId)) || (phase === "select_play_target" && validPlayTargets.includes("hero_" + opponentState.playerId))}
               onHeroClick={() => handleHeroClick(true)}
               secretCount={opponentState.secretCount}
               hasWeapon={opponentState.hasWeapon} weaponAttack={opponentState.weaponAttack} weaponDurability={opponentState.weaponDurability}
@@ -328,9 +354,12 @@ export default function GameBoard() {
           >
             {Array.from({ length: 7 }).map((_, i) => {
               const slot = opponentState.board[i];
-              const isValidTarget = phase === "select_attack_target" && slot ? validTargets.includes(slot.instanceId) : false;
+              const isValidTarget = slot
+                ? (phase === "select_attack_target" && validTargets.includes(slot.instanceId)) ||
+                  (phase === "select_play_target" && validPlayTargets.includes(slot.instanceId))
+                : false;
               return (
-                <BoardSlot key={i} highlighted={isValidTarget} dimmed={phase === "select_attack_target" && !isValidTarget && !!slot}
+                <BoardSlot key={i} highlighted={isValidTarget} dimmed={(phase === "select_attack_target" || phase === "select_play_target") && !isValidTarget && !!slot}
                   onClick={!slot && phase !== "idle" ? cancelTargeting : undefined}>
                   <div style={{ position: "relative" }}>
                     {slot && (
@@ -416,6 +445,7 @@ export default function GameBoard() {
               hp={myState.hp} armor={myState.armor}
               heroPowerName={myState.heroPower.name} heroPowerUsed={myState.heroPowerUsed}
               hasWeapon={myState.hasWeapon} weaponAttack={myState.weaponAttack} weaponDurability={myState.weaponDurability}
+              isValidTarget={phase === "select_play_target" && validPlayTargets.includes("hero_" + playerId)}
               onHeroClick={() => handleHeroClick(false)}
               onHeroPowerClick={() => { if (canAct && !myState.heroPowerUsed) sendAction({ type: "hero_power" }); }}
             />
@@ -441,24 +471,19 @@ export default function GameBoard() {
             {Array.from({ length: 7 }).map((_, i) => {
               const slot = myState.board[i];
               const isAttacking = slot?.instanceId === selectedAttackerId;
+              const isPlayTarget = slot ? phase === "select_play_target" && validPlayTargets.includes(slot.instanceId) : false;
               return (
                 <BoardSlot
                   key={i}
-                  highlighted={isAttacking || (phase === "select_play_target" && !slot)}
+                  highlighted={isAttacking || isPlayTarget}
                   glowing={isAttacking}
-                  clickable={!slot && phase === "select_play_target"}
-                  onClick={() => {
-                    if (phase === "select_attack_target") { cancelTargeting(); return; }
-                    if (!slot && phase === "select_play_target" && selectedCardInstanceId) {
-                      sendAction({ type: "play_card", cardInstanceId: selectedCardInstanceId, boardPosition: i });
-                      selectCard(null); setPhase("idle");
-                    } else if (!slot && phase === "select_play_target") cancelTargeting();
-                  }}
+                  dimmed={phase === "select_play_target" && !!slot && !isPlayTarget}
+                  onClick={!slot && phase !== "idle" ? cancelTargeting : undefined}
                 >
                   <div style={{ position: "relative" }}>
                     {slot && (
                       <MinionCard
-                        slot={slot} isSelected={isAttacking} isAttacking={isAttacking}
+                        slot={slot} isSelected={isAttacking} isAttacking={isAttacking} isValidTarget={isPlayTarget}
                         isLunging={lungeId === slot.instanceId}
                         isDamageFlash={damageFlashIds.has(slot.instanceId)}
                         onClick={() => handleMinionClick(slot.instanceId, false)}
@@ -483,11 +508,14 @@ export default function GameBoard() {
               newCardIds={newCardIds}
               onCardClick={(id) => {
                 if (!canAct) return;
-                const card = myState.hand.find((c) => (c as Card & { instanceId?: string }).instanceId === id);
+                const card = myState.hand.find((c) => (c as Card & { instanceId?: string }).instanceId === id) as Card | undefined;
                 if (!card) return;
-                const needsTarget = card.effects?.some((e) => e.target === "chosen_minion" || e.target === "chosen_any");
-                if (needsTarget) { selectCard(id); setPhase("select_play_target"); }
-                else { sendAction({ type: "play_card", cardInstanceId: id }); }
+                const t = getPlayCardTargets(card, myState.board, opponentState.board, "hero_" + playerId, "hero_" + opponentState.playerId);
+                if (t.needsTarget && t.validIds.length > 0) {
+                  selectCard(id); setPhase("select_play_target");
+                } else {
+                  sendAction({ type: "play_card", cardInstanceId: id });
+                }
               }}
               onCardHover={(card) => setZoomedCard(card)}
             />

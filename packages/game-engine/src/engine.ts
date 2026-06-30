@@ -8,7 +8,7 @@ import type {
   SanitizedGameState,
   OpponentView,
 } from "@memetgc/types";
-import { deepClone, seededRng, findEmptySlot, getEffectiveCost, nextInstanceId, applyDamageWithArmor, getValidAttackTargets } from "./utils.js";
+import { deepClone, seededRng, findEmptySlot, getEffectiveCost, nextInstanceId, applyDamageWithArmor, getValidAttackTargets, getPlayCardTargets } from "./utils.js";
 import { createMinionSlot } from "./factory.js";
 import {
   resolveMinionAttack,
@@ -16,7 +16,7 @@ import {
   resolveHeroAttacksMinion,
   resolveHeroAttacksHero,
 } from "./combat.js";
-import { resolveEffects, drawCard, type EffectContext } from "./effects.js";
+import { resolveEffects, drawCard, fireHealTriggers, type EffectContext } from "./effects.js";
 import { applyVolatility } from "./utils.js";
 
 export interface ActionResult {
@@ -36,10 +36,21 @@ export function applyAction(state: GameState, action: GameAction, cardRegistry?:
 
   const rng = seededRng(newState.seed + newState.turnNumber * 1000 + newState.actionLog.length);
 
+  // Snapshot hero HP so we can fire "on heal" triggers after the action resolves
+  const preHeroHp: Record<string, number> = {};
+  for (const [pid, p] of Object.entries(newState.players)) preHeroHp[pid] = p.hp;
+
   const result = handleAction(newState, action, animations, rng, cardRegistry);
 
   if (!result.success) {
     return { success: false, error: result.error, newState: state, animations: [] as AnimationHint[] };
+  }
+
+  // Fire heal-triggered minion abilities for any hero whose HP increased
+  for (const [pid, p] of Object.entries(newState.players)) {
+    if (p.hp > (preHeroHp[pid] ?? p.hp)) {
+      fireHealTriggers(newState, pid, animations, rng, cardRegistry);
+    }
   }
 
   // Check for dead minions after every action
@@ -235,6 +246,20 @@ function handlePlayCard(
 
   if (totalMana < cost) return { success: false, error: "Not enough Gas" };
 
+  // Validate the chosen target BEFORE spending mana / committing the card
+  const targeting = getPlayCardTargets(
+    card,
+    activePlayer.board,
+    opponent.board,
+    "hero_" + state.activePlayerId,
+    "hero_" + opponentId
+  );
+  if (targeting.needsTarget && targeting.validIds.length > 0) {
+    if (!action.targetInstanceId || !targeting.validIds.includes(action.targetInstanceId)) {
+      return { success: false, error: "Invalid target" };
+    }
+  }
+
   // Deduct mana (temp first)
   if (activePlayer.tempMana >= cost) {
     activePlayer.tempMana -= cost;
@@ -255,6 +280,7 @@ function handlePlayCard(
     animations,
     rng,
     cardRegistry,
+    coinFlip: rng() < 0.5 ? "heads" : "tails",
   } as EffectContext & { cardRegistry?: Map<string, Card> };
 
   switch (card.type) {
@@ -895,10 +921,26 @@ export function getAIAction(state: GameState, aiPlayerId: string): GameAction {
 
   if (playableCards.length > 0) {
     const card = playableCards[0]!;
-    return {
+    const targeting = getPlayCardTargets(
+      card,
+      player.board,
+      opponent.board,
+      "hero_" + aiPlayerId,
+      "hero_" + opponentId
+    );
+    const action: Extract<GameAction, { type: "play_card" }> = {
       type: "play_card",
       cardInstanceId: (card as Card & { instanceId: string }).instanceId,
     };
+    if (targeting.needsTarget && targeting.validIds.length > 0) {
+      // Prefer hitting an enemy minion/hero, otherwise take the first legal target
+      const enemyIds = new Set([
+        ...opponent.board.filter((s): s is MinionSlot => s !== null).map((s) => s.instanceId),
+        "hero_" + opponentId,
+      ]);
+      action.targetInstanceId = targeting.validIds.find((id) => enemyIds.has(id)) ?? targeting.validIds[0]!;
+    }
+    return action;
   }
 
   // Try attacking with minions
