@@ -3,14 +3,7 @@
 import React from "react";
 import type { MinionSlot } from "@memetgc/types";
 
-const FAC: Record<string, string> = {
-  bitcoin: "#f7931a",
-  ethereum: "#7b8cf4",
-  solana: "#19e08a",
-  meme: "#ff5fae",
-  stable: "#2bbd86",
-  degen: "#9aa3b2",
-};
+import { factionColor } from "@/lib/factions";
 
 interface Props {
   slot: MinionSlot;
@@ -25,7 +18,7 @@ interface Props {
 }
 
 export default function MinionCard({ slot, isEnemy, isSelected, isValidTarget, isAttacking, isLunging, isDamageFlash, onClick, onHover }: Props) {
-  const fac = FAC[slot.card.faction] ?? FAC.degen;
+  const fac = factionColor(slot.card.faction);
   const isDamaged = slot.currentHealth < (slot.card.health ?? slot.maxHealth ?? slot.currentHealth);
   const hp1 = isDamaged ? "#ff6a5a" : "#ff8f7e";
   const hp2 = isDamaged ? "#9c1209" : "#c2271c";

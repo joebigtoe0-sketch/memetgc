@@ -7,6 +7,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useGameStore } from "@/store/gameStore";
 import { useBalances } from "@/hooks/useBalances";
 import BottomNav from "./BottomNav";
+import { factionImageUrl } from "@/lib/factions";
 
 const RANK_TIERS = ["bronze", "silver", "gold", "platinum", "diamond", "degen"] as const;
 const TIER_COLOR: Record<string, string> = {
@@ -164,7 +165,7 @@ export default function Dashboard() {
         {/* CENTER — Play + modes */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
           <div style={{ position: "relative", borderRadius: 16, overflow: "hidden", padding: "26px 30px", minHeight: 158, display: "flex", flexDirection: "column", justifyContent: "center", background: "linear-gradient(110deg,rgba(247,147,26,.22),rgba(20,26,42,.35) 62%)", border: "1px solid rgba(247,147,26,.3)" }}>
-            <div style={{ position: "absolute", top: -46, right: 10, font: `900 190px/1 var(--font-cinzel,'Cinzel',serif)`, color: "rgba(247,147,26,.09)" }}>₿</div>
+            <img src={factionImageUrl("bitcoin")} alt="" draggable={false} style={{ position: "absolute", top: -20, right: 10, width: 200, height: 200, objectFit: "contain", opacity: 0.09, pointerEvents: "none" }} />
             <div style={{ font: `700 11px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "3px", color: "#ffd187" }}>RANKED LADDER · LIVE</div>
             <div style={{ font: `900 34px/1 var(--font-cinzel,'Cinzel',serif)`, color: "#fff", margin: "10px 0 18px" }}>Climb to Degen Rank</div>
             <div style={{ display: "flex", alignItems: "center", gap: 16 }}>

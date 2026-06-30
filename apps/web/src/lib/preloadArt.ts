@@ -7,6 +7,8 @@
  * cache so the browser serves them instantly on subsequent renders.
  */
 
+import { FACTIONS, factionImageUrl } from "@/lib/factions";
+
 const cache = new Map<string, HTMLImageElement>();
 let manifestLoaded = false;
 
@@ -26,12 +28,27 @@ export function preloadCardArt(ids: Array<string | undefined | null>): void {
   }
 }
 
+/** Preload all faction logo PNGs (once). */
+export function preloadFactionArt(): void {
+  if (typeof window === "undefined") return;
+  for (const id of FACTIONS) {
+    const key = `faction:${id}`;
+    if (cache.has(key)) continue;
+    const img = new Image();
+    img.decoding = "async";
+    img.src = factionImageUrl(id);
+    cache.set(key, img);
+  }
+}
+
 /**
  * Preload the entire generated art set once, using the manifest written by the
  * art generator. Safe to call multiple times — only fetches the manifest once.
  */
 export async function preloadAllCardArt(): Promise<void> {
-  if (typeof window === "undefined" || manifestLoaded) return;
+  if (typeof window === "undefined") return;
+  preloadFactionArt();
+  if (manifestLoaded) return;
   manifestLoaded = true;
   try {
     const res = await fetch("/card-art/manifest.json", { cache: "force-cache" });

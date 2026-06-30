@@ -6,15 +6,14 @@ import { api } from "@/lib/api";
 import { getSocket } from "@/hooks/useSocket";
 import { useGameStore } from "@/store/gameStore";
 
-const FAC: Record<string, string> = {
-  bitcoin: "#f7931a", ethereum: "#7b8cf4", solana: "#19e08a",
-  meme: "#ff5fae", stable: "#2bbd86", degen: "#9aa3b2",
-};
-const GLYPH: Record<string, string> = {
-  bitcoin: "₿", ethereum: "Ξ", solana: "◎", meme: "🐸", stable: "$", degen: "∞",
-};
-const FACTION_NAME: Record<string, string> = {
-  bitcoin: "BITCOIN", ethereum: "ETHEREUM", solana: "SOLANA", meme: "MEME", stable: "STABLE", degen: "DEGEN",
+import { FACTION_NAME, factionColor, factionDisplayName } from "@/lib/factions";
+import FactionIcon from "@/components/Faction/FactionIcon";
+import { preloadFactionArt } from "@/lib/preloadArt";
+
+// Faction bonuses are granted by the HERO's faction (not the deck).
+const HERO_FACTION_BONUS: Record<string, string> = {
+  bitcoin: "Start with +5 Armor",
+  meme: "Each turn: coin flip — extra card or free Hero Power",
 };
 
 interface Hero {
@@ -50,6 +49,7 @@ export default function HeroSelect() {
   const { connected } = useGameStore();
 
   useEffect(() => {
+    preloadFactionArt();
     (async () => {
       const [heroList, deckList, cardList] = await Promise.all([
         api.get<Hero[]>("/api/heroes"),
@@ -93,7 +93,7 @@ export default function HeroSelect() {
   }
 
   const SH = heroes.find((h) => h.id === selectedHero);
-  const sfc = SH ? (FAC[SH.faction] ?? FAC.degen) : "#9aa3b2";
+  const sfc = SH ? factionColor(SH.faction) : "#9aa3b2";
 
   return (
     <div style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", background: "radial-gradient(140% 90% at 50% -8%,#141b2a 0%,#090c13 60%,#06080d 100%)", fontFamily: "var(--font-archivo,'Archivo',sans-serif)", overflow: "auto" }}>
@@ -116,13 +116,13 @@ export default function HeroSelect() {
           <div style={{ font: `700 12px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "2px", color: "#8a93a6" }}>CHOOSE YOUR HERO</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 12 }}>
             {heroes.map((h) => {
-              const fc = FAC[h.faction] ?? FAC.degen;
+              const fc = factionColor(h.faction);
               const active = h.id === selectedHero;
               return (
                 <div key={h.id} onClick={() => setSelectedHero(h.id)} style={{ cursor: "pointer", padding: "16px 6px 12px", borderRadius: 14, display: "flex", flexDirection: "column", alignItems: "center", background: active ? `linear-gradient(160deg,color-mix(in srgb,${fc} 20%,transparent),rgba(20,26,42,.6))` : "rgba(255,255,255,.03)", border: `1.5px solid ${active ? fc : "rgba(255,255,255,.08)"}`, boxShadow: active ? `0 0 22px color-mix(in srgb,${fc} 40%,transparent)` : "none", transform: active ? "translateY(-3px)" : "none", transition: "all .15s ease" }}>
-                  <div style={{ width: 52, height: 52, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: `radial-gradient(circle at 40% 30%,color-mix(in srgb,${fc} 30%,#2a2030),#15101a)`, border: `2px solid ${fc}`, font: `900 24px var(--font-cinzel,'Cinzel',serif)`, color: "#fff" }}>{GLYPH[h.faction] ?? h.name[0]}</div>
+                  <FactionIcon faction={h.faction} size={52} borderWidth={2} />
                   <div style={{ font: `700 11px var(--font-cinzel,'Cinzel',serif)`, color: "#f1f4f9", marginTop: 9, textAlign: "center" }}>{h.name}</div>
-                  <div style={{ font: `700 7.5px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "1px", color: fc, marginTop: 5 }}>{FACTION_NAME[h.faction] ?? h.faction.toUpperCase()}</div>
+                  <div style={{ font: `700 7.5px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "1px", color: fc, marginTop: 5 }}>{factionDisplayName(h.faction)}</div>
                 </div>
               );
             })}
@@ -130,11 +130,11 @@ export default function HeroSelect() {
 
           {SH && (
             <div style={{ borderRadius: 16, padding: 24, background: "linear-gradient(150deg,rgba(255,255,255,.04),rgba(20,26,42,.5))", border: `1px solid ${sfc}44`, display: "flex", gap: 22, boxShadow: `0 0 30px ${sfc}22` }}>
-              <div style={{ width: 84, height: 84, flexShrink: 0, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: `radial-gradient(circle at 40% 30%,color-mix(in srgb,${sfc} 32%,#2a2030),#140f1a)`, border: `3px solid ${sfc}`, boxShadow: `0 0 28px color-mix(in srgb,${sfc} 45%,transparent)`, font: `900 38px var(--font-cinzel,'Cinzel',serif)`, color: "#fff" }}>{GLYPH[SH.faction] ?? SH.name[0]}</div>
+              <FactionIcon faction={SH.faction} size={84} borderWidth={3} glow />
               <div style={{ flex: 1 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <span style={{ font: `900 24px var(--font-cinzel,'Cinzel',serif)`, color: "#fff" }}>{SH.name}</span>
-                  <span style={{ padding: "3px 9px", borderRadius: 6, font: `700 9px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "1px", color: sfc, background: `color-mix(in srgb,${sfc} 16%,transparent)`, border: `1px solid color-mix(in srgb,${sfc} 40%,transparent)` }}>{FACTION_NAME[SH.faction] ?? SH.faction.toUpperCase()}</span>
+                  <span style={{ padding: "3px 9px", borderRadius: 6, font: `700 9px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "1px", color: sfc, background: `color-mix(in srgb,${sfc} 16%,transparent)`, border: `1px solid color-mix(in srgb,${sfc} 40%,transparent)` }}>{factionDisplayName(SH.faction)}</span>
                 </div>
                 <div style={{ font: `500 13px var(--font-archivo,'Archivo',sans-serif)`, color: "#aeb6c4", marginTop: 8, fontStyle: "italic", lineHeight: 1.5 }}>{SH.description}</div>
                 <div style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 14, padding: 14, borderRadius: 12, background: "rgba(0,0,0,.25)", border: "1px solid rgba(255,255,255,.07)" }}>
@@ -159,7 +159,7 @@ export default function HeroSelect() {
               const incomplete = d.cardCount !== 30;
               const locked = rankedLocked || incomplete;
               const hero = heroes.find((h) => h.id === d.heroId);
-              const fc = hero ? (FAC[hero.faction] ?? FAC.degen) : (FAC[d.faction ?? "degen"] ?? "#9aa3b2");
+              const fc = hero ? factionColor(hero.faction) : factionColor(d.faction ?? "degen");
               const curve = manaCurve(d);
               const maxBar = Math.max(1, ...curve);
               const sublabel = rankedLocked
@@ -171,7 +171,7 @@ export default function HeroSelect() {
               return (
                 <div key={d.id} onClick={() => { if (rankedLocked) return; setSelectedDeck(d.id); setSelectedHero(d.heroId); }} style={{ cursor: rankedLocked ? "not-allowed" : "pointer", opacity: rankedLocked ? 0.45 : 1, padding: 15, borderRadius: 13, background: active ? `linear-gradient(150deg,color-mix(in srgb,${fc} 16%,transparent),rgba(20,26,42,.5))` : "rgba(255,255,255,.03)", border: `1.5px solid ${borderColor}`, boxShadow: active ? `0 0 20px ${fc}33` : "none", transition: "all .15s ease" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <div style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", background: `radial-gradient(circle at 40% 30%,color-mix(in srgb,${fc} 35%,#2a2030),#15101a)`, border: `2px solid ${fc}`, font: `900 15px var(--font-cinzel,'Cinzel',serif)`, color: "#fff" }}>{hero ? (GLYPH[hero.faction] ?? hero.name[0]) : "?"}</div>
+                    {hero ? <FactionIcon faction={hero.faction} size={32} shape="rounded" borderWidth={2} /> : <div style={{ width: 32, height: 32, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", background: "#15101a", border: "2px solid #444", color: "#888", fontSize: 14 }}>?</div>}
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
                         <span style={{ font: `800 14px var(--font-cinzel,'Cinzel',serif)`, color: "#f1f4f9" }}>{d.name}</span>
@@ -225,11 +225,14 @@ export default function HeroSelect() {
           {(() => {
             const d = decks.find((x) => x.id === selectedDeck);
             const hero = heroes.find((h) => h.id === d?.heroId);
-            return d?.factionBonusActive ? (
-              <div style={{ textAlign: "center", font: `600 11px var(--font-archivo,'Archivo',sans-serif)`, color: hero ? FAC[hero.faction] : "#caa24a" }}>
-                {hero ? FACTION_NAME[hero.faction] : "Faction"} deck · Faction Bonus active
+            if (!hero) return null;
+            const bonus = HERO_FACTION_BONUS[hero.faction];
+            if (!bonus) return null;
+            return (
+              <div style={{ textAlign: "center", font: `600 11px var(--font-archivo,'Archivo',sans-serif)`, color: factionColor(hero.faction) }}>
+                {factionDisplayName(hero.faction)} Hero · {bonus}
               </div>
-            ) : null;
+            );
           })()}
         </div>
       </div>
@@ -259,7 +262,9 @@ function FindingOpponent({ mode, tier, hero, sfc, onCancel, statusMsg }: { mode:
       <div style={{ display: "flex", alignItems: "center", gap: 44, zIndex: 1 }}>
         {/* You */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-          <div style={{ ["--g" as string]: `${sfc}66`, width: 130, height: 130, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: `radial-gradient(circle at 40% 30%,color-mix(in srgb,${sfc} 30%,#1a1420),#0c0a12)`, border: `3px solid ${sfc}`, animation: "pulseGlow 2s ease-in-out infinite", font: `900 56px var(--font-cinzel,'Cinzel',serif)`, color: "#fff" }}>{hero ? (GLYPH[hero.faction] ?? hero.name[0]) : "?"}</div>
+          <div style={{ ["--g" as string]: `${sfc}66`, animation: "pulseGlow 2s ease-in-out infinite" }}>
+            {hero ? <FactionIcon faction={hero.faction} size={130} borderWidth={3} glow /> : <div style={{ width: 130, height: 130, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "#0c0a12", border: "3px solid #444", color: "#888", fontSize: 48 }}>?</div>}
+          </div>
           <div style={{ font: `900 18px var(--font-cinzel,'Cinzel',serif)`, color: "#fff" }}>{hero?.name ?? "You"}</div>
           <div style={{ font: `600 10px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6", letterSpacing: "1px" }}>YOU</div>
         </div>

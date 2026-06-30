@@ -9,7 +9,7 @@ import HandZone from "../Board/HandZone";
 import MulliganScreen from "./MulliganScreen";
 import CardComponent from "../Card/CardComponent";
 import { getPlayCardTargets } from "@memetgc/game-engine";
-import { preloadCardArt, preloadAllCardArt } from "@/lib/preloadArt";
+import { preloadCardArt, preloadAllCardArt, preloadFactionArt } from "@/lib/preloadArt";
 import type { MinionSlot, Card } from "@memetgc/types";
 import type { CardData } from "../Card/CardComponent";
 
@@ -20,10 +20,7 @@ interface Toast { id: string; text: string; color: string; }
 interface DamageFloat { id: string; entityKey: string; amount: number; isHeal: boolean; }
 interface LogEntry { id: string; text: string; turn: number; }
 
-const FAC: Record<string, string> = {
-  bitcoin: "#f7931a", ethereum: "#7b8cf4", solana: "#19e08a",
-  meme: "#ff5fae", stable: "#2bbd86", degen: "#9aa3b2",
-};
+import { factionColor } from "@/lib/factions";
 
 export default function GameBoard() {
   const { gameState, isMyTurn, selectedCardInstanceId, selectedAttackerId, lastActionError, playerId, pendingAnimations } = useGameStore();
@@ -76,6 +73,7 @@ export default function GameBoard() {
 
   // Preload the whole art set once so cards never visibly re-fetch mid-match
   useEffect(() => {
+    preloadFactionArt();
     void preloadAllCardArt();
   }, []);
 
@@ -694,7 +692,7 @@ function FloatNumber({ amount, isHeal }: { amount: number; isHeal: boolean }) {
 }
 
 function FaceDownHand({ count, faction }: { count: number; faction: string }) {
-  const fc = FAC[faction] ?? "#2a3142";
+  const fc = factionColor(faction);
   const n = Math.min(count, 10);
   const mid = (n - 1) / 2;
   if (n === 0) return null;

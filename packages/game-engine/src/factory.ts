@@ -1,6 +1,6 @@
 import type { Card, Faction } from "@memetgc/types";
 import type { MinionSlot, PlayerState, GameState, SecretSlot } from "@memetgc/types";
-import { nextInstanceId, detectFactionBonus, shuffle, seededRng, deepClone } from "./utils.js";
+import { nextInstanceId, shuffle, seededRng, deepClone } from "./utils.js";
 
 export function createMinionSlot(card: Card): MinionSlot {
   return {
@@ -41,7 +41,9 @@ export function createPlayerState(
   const rng = seededRng(seed + (isPlayer1 ? 0 : 1));
   const shuffledDeck = shuffle([...deck], rng);
 
-  const factionBonus = detectFactionBonus(deck);
+  // Faction bonus is tied to the HERO's faction, not the deck composition.
+  // This keeps things sane when mixing heroes with off-faction / custom decks.
+  const factionBonus = heroFaction;
 
   const handSize = isPlayer1 ? 3 : 4;
   const hand = shuffledDeck.splice(0, handSize);
@@ -93,7 +95,7 @@ export function createPlayerState(
     burnPile: [],
     secrets: [],
     factionBonus,
-    factionBonusActive: factionBonus !== null,
+    factionBonusActive: true,
     firstSpellDiscounted: false,
     firstMinionHasCharge: false,
     firstMinionPlayed: false,

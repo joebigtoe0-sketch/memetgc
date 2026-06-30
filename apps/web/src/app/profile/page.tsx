@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import AuthModal from "@/components/Auth/AuthModal";
+import { FACTION_LABEL, factionColor, factionImageUrl } from "@/lib/factions";
+import FactionIcon from "@/components/Faction/FactionIcon";
 import BottomNav from "@/components/Dashboard/BottomNav";
 
 interface FactionMastery { faction: string; level: number; }
@@ -19,14 +21,6 @@ interface Profile {
 
 const TIER_COLOR: Record<string, string> = { bronze: "#c8843c", silver: "#cfd6e0", gold: "#e7c768", platinum: "#7ad6ff", diamond: "#b58bff", degen: "#ff5fae" };
 const ROMAN = ["", "I", "II", "III", "IV", "V"];
-const FACTION: Record<string, { name: string; color: string; glyph: string }> = {
-  bitcoin: { name: "Bitcoin", color: "#f7931a", glyph: "₿" },
-  meme: { name: "Meme", color: "#ff5fae", glyph: "🐸" },
-  ethereum: { name: "Ethereum", color: "#7b8cf4", glyph: "Ξ" },
-  stable: { name: "Stable", color: "#2bbd86", glyph: "$" },
-  solana: { name: "Solana", color: "#19e08a", glyph: "◎" },
-  degen: { name: "Degen", color: "#9aa3b2", glyph: "∞" },
-};
 
 export default function ProfilePage() {
   const { token, hasUsername, username, walletAddress, logout } = useAuthStore();
@@ -43,7 +37,9 @@ export default function ProfilePage() {
   const winrate = games > 0 ? Math.round((wins / games) * 100) : 0;
   const wallet = walletAddress ?? p?.walletAddress ?? null;
   const mains = (p?.factionMastery ?? []).slice().sort((a, b) => b.level - a.level)[0];
-  const mainsMeta = mains ? FACTION[mains.faction] : null;
+  const mainsFaction = mains?.faction ?? "bitcoin";
+  const mainsColor = factionColor(mainsFaction);
+  const mainsName = FACTION_LABEL[mainsFaction as keyof typeof FACTION_LABEL] ?? "Bitcoin";
 
   return (
     <div style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", background: "radial-gradient(140% 90% at 50% -8%,#141b2a 0%,#090c13 60%,#06080d 100%)", fontFamily: "var(--font-archivo,'Archivo',sans-serif)" }}>
@@ -54,7 +50,12 @@ export default function ProfilePage() {
       <div style={{ flex: 1, overflowY: "auto", padding: "0 26px 16px" }}>
         {/* Banner */}
         <div style={{ position: "relative", overflow: "hidden", display: "flex", alignItems: "center", gap: 18, padding: 22, borderRadius: 18, background: `linear-gradient(110deg,color-mix(in srgb,${tc} 16%,transparent),rgba(18,23,35,.55) 60%)`, border: `1px solid ${tc}44` }}>
-          <div style={{ position: "absolute", top: -40, right: 24, font: `900 170px/1 var(--font-cinzel,'Cinzel',serif)`, color: `${tc}14`, pointerEvents: "none" }}>{mainsMeta?.glyph ?? "₿"}</div>
+          <img
+            src={factionImageUrl(mainsFaction)}
+            alt=""
+            draggable={false}
+            style={{ position: "absolute", top: -20, right: 24, width: 180, height: 180, objectFit: "contain", opacity: 0.08, pointerEvents: "none" }}
+          />
           <div style={{ width: 74, height: 74, borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(150deg,#243042,#12161f)", border: `2px solid ${tc}`, font: `900 32px var(--font-cinzel,'Cinzel',serif)`, color: tc, boxShadow: `0 0 22px ${tc}55` }}>
             {(username ?? "?")[0]?.toUpperCase()}
           </div>
@@ -69,7 +70,7 @@ export default function ProfilePage() {
               )}
             </div>
             <div style={{ font: `600 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6", marginTop: 8 }}>
-              Member since Genesis · {games} games played{mainsMeta ? <> · Mains <span style={{ color: mainsMeta.color }}>{mainsMeta.name}</span></> : null}
+              Member since Genesis · {games} games played{mains ? <> · Mains <span style={{ color: mainsColor }}>{mainsName}</span></> : null}
             </div>
           </div>
           <button onClick={logout} style={{ cursor: "pointer", padding: "9px 16px", borderRadius: 10, background: "rgba(255,90,90,.08)", border: "1px solid rgba(255,90,90,.3)", color: "#ff8a8a", font: `700 12px var(--font-archivo,'Archivo',sans-serif)` }}>Logout</button>
@@ -112,17 +113,18 @@ export default function ProfilePage() {
             <PanelTitle>Faction Mastery</PanelTitle>
             <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 14 }}>
               {(p?.factionMastery ?? []).slice().sort((a, b) => b.level - a.level).map((f) => {
-                const m = FACTION[f.faction] ?? FACTION.degen;
+                const color = factionColor(f.faction);
+                const name = FACTION_LABEL[f.faction as keyof typeof FACTION_LABEL] ?? f.faction;
                 const pct = Math.round((f.level / 20) * 100);
                 return (
                   <div key={f.faction} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <div style={{ width: 30, height: 30, borderRadius: 8, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: `${m.color}1f`, border: `1px solid ${m.color}55`, color: m.color, fontSize: 14 }}>{m.glyph}</div>
+                    <FactionIcon faction={f.faction} size={30} shape="rounded" borderWidth={1} />
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", font: `700 11px var(--font-archivo,'Archivo',sans-serif)`, color: "#e7ecf3", marginBottom: 5 }}>
-                        <span>{m.name}</span><span style={{ color: "#8a93a6" }}>Lvl {f.level}</span>
+                        <span>{name}</span><span style={{ color: "#8a93a6" }}>Lvl {f.level}</span>
                       </div>
                       <div style={{ height: 6, borderRadius: 4, background: "rgba(255,255,255,.06)", overflow: "hidden" }}>
-                        <div style={{ width: `${pct}%`, height: "100%", borderRadius: 4, background: `linear-gradient(90deg,${m.color},color-mix(in srgb,${m.color} 60%,#fff))` }} />
+                        <div style={{ width: `${pct}%`, height: "100%", borderRadius: 4, background: `linear-gradient(90deg,${color},color-mix(in srgb,${color} 60%,#fff))` }} />
                       </div>
                     </div>
                   </div>

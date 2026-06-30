@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { factionColor, factionImageUrl } from "@/lib/factions";
 
 export interface CardData {
   id: string;
@@ -39,24 +40,11 @@ interface Props {
   onRightClick?: (e: React.MouseEvent) => void;
 }
 
-const FAC: Record<string, string> = {
-  bitcoin: "#f7931a",
-  ethereum: "#7b8cf4",
-  solana: "#19e08a",
-  meme: "#ff5fae",
-  stable: "#2bbd86",
-  degen: "#9aa3b2",
-};
-
 const RARITY_GEM: Record<string, [string, string]> = {
   common:    ["#dfe6f0", "#8d95a3"],
   rare:      ["#7cc4ff", "#2b6fd0"],
   epic:      ["#d29bff", "#8a32d8"],
   legendary: ["#ffe07a", "#e0890f"],
-};
-
-const GLYPH: Record<string, string> = {
-  bitcoin: "₿", ethereum: "Ξ", solana: "◎", meme: "🐸", stable: "$", degen: "∞",
 };
 
 // Frame tier driven by how many copies you own: dark by default, silver >50, gold >100.
@@ -97,7 +85,7 @@ export default function CardComponent({
   onClick,
   onRightClick,
 }: Props) {
-  const fac = FAC[card.faction] ?? FAC.degen;
+  const fac = factionColor(card.faction);
   const [gem1, gem2] = RARITY_GEM[card.rarity] ?? RARITY_GEM.common;
   const isLeg = card.rarity === "legendary";
   const scale = SCALE[size];
@@ -179,9 +167,12 @@ export default function CardComponent({
                 display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
                 gap: 5, textAlign: "center", padding: "0 16px",
               }}>
-                <div style={{ font: `800 36px/1 var(--font-cinzel,'Cinzel',serif)`, color: fac, opacity: 0.4 }}>
-                  {GLYPH[card.faction] ?? "✦"}
-                </div>
+                <img
+                  src={factionImageUrl(card.faction)}
+                  alt=""
+                  draggable={false}
+                  style={{ width: Math.round(64 * scale), height: Math.round(64 * scale), objectFit: "contain", opacity: 0.45 }}
+                />
                 <div style={{ font: `800 12px/1.15 var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: ".5px", color: `color-mix(in srgb,${fac} 55%,#cfd6e0)`, textShadow: "0 1px 3px #000" }}>
                   {card.name.toUpperCase()}
                 </div>

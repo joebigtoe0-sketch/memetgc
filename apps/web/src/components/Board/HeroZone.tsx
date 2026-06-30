@@ -1,23 +1,8 @@
 "use client";
 
 import React from "react";
-
-const FAC: Record<string, string> = {
-  bitcoin: "#f7931a",
-  ethereum: "#7b8cf4",
-  solana: "#19e08a",
-  meme: "#ff5fae",
-  stable: "#2bbd86",
-  degen: "#9aa3b2",
-};
-
-const GLYPH: Record<string, string> = {
-  bitcoin: "₿", ethereum: "Ξ", solana: "◎", meme: "🐸", stable: "$", degen: "∞",
-};
-
-const FACTION_NAME: Record<string, string> = {
-  bitcoin: "BITCOIN", ethereum: "ETHEREUM", solana: "SOLANA", meme: "MEME", stable: "STABLE", degen: "DEGEN",
-};
+import { factionDisplayName, factionColor } from "@/lib/factions";
+import FactionIcon from "@/components/Faction/FactionIcon";
 
 interface Props {
   heroName: string;
@@ -52,9 +37,8 @@ export default function HeroZone({
   onHeroPowerClick,
   secretCount = 0,
 }: Props) {
-  const fac = FAC[faction] ?? FAC.degen;
-  const glyph = GLYPH[faction] ?? "∞";
-  const facName = FACTION_NAME[faction] ?? faction.toUpperCase();
+  const fac = factionColor(faction);
+  const facName = factionDisplayName(faction);
   const isDangerous = hp <= 10;
 
   const portraitSize = isEnemy ? 88 : 96;
@@ -86,23 +70,18 @@ export default function HeroZone({
         onClick={onHeroClick}
         style={{
           position: "relative",
-          width: portraitSize, height: portraitSize,
-          borderRadius: "50%",
-          background: `radial-gradient(circle at 40% 30%,color-mix(in srgb,${fac} 30%,#2a2030),#140f1a)`,
-          border: `2.5px solid ${portraitBorder}`,
-          boxShadow: portraitShadow,
-          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
           cursor: onHeroClick ? "pointer" : "default",
           transform: isValidTarget ? "scale(1.06)" : "scale(1)",
           transition: "transform 0.15s, box-shadow 0.15s",
+          boxShadow: portraitShadow,
         }}
       >
-        <span style={{
-          font: `900 ${isEnemy ? 34 : 38}px/1 var(--font-cinzel,'Cinzel',serif)`,
-          color: "#fff",
-        }}>
-          {glyph}
-        </span>
+        <FactionIcon
+          faction={faction}
+          size={portraitSize}
+          borderWidth={2.5}
+          style={{ borderColor: portraitBorder }}
+        />
 
         {/* HP bubble (bottom-right of portrait) */}
         <div style={{

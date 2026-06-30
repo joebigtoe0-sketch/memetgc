@@ -9,13 +9,12 @@ import type { CardData } from "@/components/Card/CardComponent";
 import { useAuthStore } from "@/store/authStore";
 import AuthModal from "@/components/Auth/AuthModal";
 import BottomNav from "@/components/Dashboard/BottomNav";
+import { factionColor, FACTIONS } from "@/lib/factions";
+import FactionIcon from "@/components/Faction/FactionIcon";
 
 interface CollectionEntry { cardId: string; quantity: number; card: CardData; }
 interface Deck { id: string; name: string; heroId: string; isStarter?: boolean; faction?: string; factionBonusActive?: boolean; cardCount: number; cards: { cardId: string; quantity: number }[]; }
 
-const FAC: Record<string, string> = { bitcoin: "#f7931a", ethereum: "#7b8cf4", solana: "#19e08a", meme: "#ff5fae", stable: "#2bbd86", degen: "#9aa3b2" };
-const GLYPH: Record<string, string> = { bitcoin: "₿", ethereum: "Ξ", solana: "◎", meme: "🐸", stable: "$", degen: "∞" };
-const FACTIONS = ["bitcoin", "ethereum", "solana", "meme", "stable", "degen"];
 const TYPES = ["", "minion", "spell", "weapon", "location", "hero"];
 const TYPE_LABEL: Record<string, string> = { "": "All", minion: "Minion", spell: "Spell", weapon: "Weapon", location: "Location", hero: "Hero" };
 const COPY_LIMIT: Record<string, number> = { common: 4, rare: 3, epic: 2, legendary: 1 };
@@ -70,7 +69,7 @@ export default function CollectionPage() {
   const deckFull = (deck?.cardCount ?? 0) >= 30;
   const deckComplete = (deck?.cardCount ?? 0) === 30;
   const isStarter = !!deck?.isStarter;
-  const deckFac = deck ? (FAC[deck.faction ?? "degen"] ?? "#9aa3b2") : "#9aa3b2";
+  const deckFac = deck ? factionColor(deck.faction ?? "degen") : "#9aa3b2";
 
   const copiesInDeck = (id: string) => deck?.cards.find((c) => c.cardId === id)?.quantity ?? 0;
   function canAdd(card: CardData): { ok: boolean; reason?: string } {
@@ -160,7 +159,9 @@ export default function CollectionPage() {
           <button onClick={newDeck} style={{ cursor: "pointer", height: 34, padding: "0 14px", borderRadius: 9, display: "flex", alignItems: "center", gap: 6, font: `800 12px var(--font-cinzel,'Cinzel',serif)`, color: "#2a1a00", background: "linear-gradient(180deg,#ffe07a,#e0890f)", border: "none", boxShadow: "0 4px 12px rgba(224,137,15,.3)" }}>+ New Deck</button>
           <div style={{ width: 1, height: 24, background: "rgba(255,255,255,.1)", margin: "0 2px" }} />
           {FACTIONS.map((f) => (
-            <FacBtn key={f} active={filterFaction === f} color={FAC[f]} onClick={() => setFilterFaction(filterFaction === f ? "" : f)}>{GLYPH[f]}</FacBtn>
+            <FacBtn key={f} active={filterFaction === f} color={factionColor(f)} onClick={() => setFilterFaction(filterFaction === f ? "" : f)}>
+              <FactionIcon faction={f} size={22} border={false} fit="contain" />
+            </FacBtn>
           ))}
           <input value={filterSearch} onChange={(e) => setFilterSearch(e.target.value)} placeholder="Search cards…" style={{ marginLeft: 8, padding: "8px 12px", borderRadius: 9, background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)", color: "#e7ecf3", font: `500 12px var(--font-archivo,'Archivo',sans-serif)`, width: 150, outline: "none" }} />
         </div>
@@ -203,7 +204,7 @@ export default function CollectionPage() {
                       onContextMenu={(e) => { e.preventDefault(); addCard(entry.card); }}
                     >
                       <CardComponent card={{ ...entry.card, ownedCount: entry.quantity }} size="md" interactive dimmed={inDeck > 0 && inDeck >= (COPY_LIMIT[entry.card.rarity] ?? 1)} />
-                      <div style={{ position: "absolute", bottom: -10, left: "50%", transform: "translateX(-50%)", padding: "2px 11px", borderRadius: 20, font: `800 11px var(--font-mono,'JetBrains Mono',monospace)`, background: "#0d1020", border: `1px solid ${FAC[entry.card.faction] ?? "#2a3560"}`, color: FAC[entry.card.faction] ?? "#9aa3b2", whiteSpace: "nowrap" }}>
+                      <div style={{ position: "absolute", bottom: -10, left: "50%", transform: "translateX(-50%)", padding: "2px 11px", borderRadius: 20, font: `800 11px var(--font-mono,'JetBrains Mono',monospace)`, background: "#0d1020", border: `1px solid ${factionColor(entry.card.faction)}`, color: factionColor(entry.card.faction), whiteSpace: "nowrap" }}>
                         ×{entry.quantity}{inDeck > 0 ? ` · ${inDeck} in deck` : ""}
                       </div>
                     </div>
@@ -218,7 +219,7 @@ export default function CollectionPage() {
         <div style={{ borderRadius: 16, background: "linear-gradient(150deg,rgba(255,255,255,.045),rgba(18,23,35,.6))", border: "1px solid rgba(255,255,255,.08)", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
           <div style={{ padding: 16, borderBottom: "1px solid rgba(255,255,255,.06)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 30, height: 30, borderRadius: 8, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: `radial-gradient(circle at 40% 30%,color-mix(in srgb,${deckFac} 35%,#2a2030),#15101a)`, border: `2px solid ${deckFac}`, font: `900 14px var(--font-cinzel,'Cinzel',serif)`, color: "#fff" }}>{deck ? GLYPH[deck.faction ?? "degen"] : "?"}</div>
+              {deck ? <FactionIcon faction={deck.faction ?? "degen"} size={30} shape="rounded" borderWidth={2} /> : <div style={{ width: 30, height: 30, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", background: "#15101a", border: "2px solid #444", color: "#888" }}>?</div>}
               <div style={{ flex: 1, minWidth: 0 }}>
                 {renaming ? (
                   <input autoFocus value={renameValue} onChange={(e) => setRenameValue(e.target.value)} onBlur={commitRename} onKeyDown={(e) => { if (e.key === "Enter") commitRename(); if (e.key === "Escape") setRenaming(false); }} maxLength={50}
