@@ -18,11 +18,13 @@ interface Props {
   isSelected?: boolean;
   isValidTarget?: boolean;
   isAttacking?: boolean;
+  isLunging?: boolean;
+  isDamageFlash?: boolean;
   onClick?: () => void;
   onHover?: (hovered: boolean) => void;
 }
 
-export default function MinionCard({ slot, isEnemy, isSelected, isValidTarget, isAttacking, onClick, onHover }: Props) {
+export default function MinionCard({ slot, isEnemy, isSelected, isValidTarget, isAttacking, isLunging, isDamageFlash, onClick, onHover }: Props) {
   const fac = FAC[slot.card.faction] ?? FAC.degen;
   const isDamaged = slot.currentHealth < (slot.card.health ?? slot.maxHealth ?? slot.currentHealth);
   const hp1 = isDamaged ? "#ff6a5a" : "#ff8f7e";
@@ -60,8 +62,12 @@ export default function MinionCard({ slot, isEnemy, isSelected, isValidTarget, i
         borderRadius: 11,
         cursor: "pointer",
         transform: (isSelected || isAttacking || isValidTarget) ? "scale(1.06) translateY(-4px)" : "scale(1)",
-        transition: "transform 0.15s ease, box-shadow 0.15s ease",
-        animation: taunt ? "bmTaunt 1.8s ease-in-out infinite" : "none",
+        transition: isLunging || isDamageFlash ? "none" : "transform 0.15s ease, box-shadow 0.15s ease",
+        animation: isLunging
+          ? `minionLunge 0.52s ease-in-out`
+          : isDamageFlash
+          ? `damageFlash 0.45s ease-in-out`
+          : taunt ? "bmTaunt 1.8s ease-in-out infinite" : "none",
         boxShadow: taunt && !isSelected && !isValidTarget
           ? "0 0 0 2px rgba(231,199,104,.9), 0 0 14px rgba(231,199,104,.55)"
           : undefined,
@@ -165,6 +171,16 @@ export default function MinionCard({ slot, isEnemy, isSelected, isValidTarget, i
         @keyframes bmShield {
           0%, 100% { opacity: .55; }
           50% { opacity: 1; }
+        }
+        @keyframes minionLunge {
+          0%   { transform: translateY(0) scale(1); }
+          30%  { transform: translateY(-44px) scale(1.08); }
+          60%  { transform: translateY(-44px) scale(1.06); }
+          100% { transform: translateY(0) scale(1); }
+        }
+        @keyframes damageFlash {
+          0%,100% { filter: none; }
+          35%     { filter: brightness(2.2) saturate(0.15) sepia(0.8) hue-rotate(-15deg); }
         }
       `}</style>
     </div>

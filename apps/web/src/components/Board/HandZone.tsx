@@ -9,6 +9,7 @@ interface Props {
   hand: (Card & { instanceId?: string })[];
   selectedInstanceId?: string | null;
   currentMana: number;
+  newCardIds?: string[];
   onCardClick?: (instanceId: string) => void;
   onCardHover?: (card: CardData | null) => void;
 }
@@ -16,7 +17,7 @@ interface Props {
 // Card display in hand is scaled to 0.50× of ~260px wide = 130px
 const CARD_SCALE = 0.50;
 
-export default function HandZone({ hand, selectedInstanceId, currentMana, onCardClick, onCardHover }: Props) {
+export default function HandZone({ hand, selectedInstanceId, currentMana, newCardIds = [], onCardClick, onCardHover }: Props) {
   const n = hand.length;
   const mid = (n - 1) / 2;
 
@@ -28,6 +29,7 @@ export default function HandZone({ hand, selectedInstanceId, currentMana, onCard
         const ang = off * 6;
         const x = off * 130;
         const y = Math.abs(off) * Math.abs(off) * 8;
+        const isNewCard = newCardIds.includes(instId);
         const costMod = (card as Card & { costModifier?: number }).costModifier ?? 0;
         const canPlay = (card.cost + costMod) <= currentMana;
         const isSelected = selectedInstanceId === instId;
@@ -55,6 +57,7 @@ export default function HandZone({ hand, selectedInstanceId, currentMana, onCard
                 transformOrigin: "top center",
                 filter: canPlay ? (isSelected ? "brightness(1.15)" : "none") : "brightness(0.45) saturate(0.3)",
                 transition: "filter 0.15s ease",
+                animation: isNewCard ? "drawCardIn 0.55s cubic-bezier(0.22,1,0.36,1) forwards" : "none",
               }}
               onMouseEnter={(e) => {
                 if (canPlay) (e.currentTarget as HTMLDivElement).style.transform = `scale(${CARD_SCALE}) translateY(-18px)`;
@@ -73,6 +76,13 @@ export default function HandZone({ hand, selectedInstanceId, currentMana, onCard
           </div>
         );
       })}
+      <style>{`
+        @keyframes drawCardIn {
+          0%   { opacity: 0; transform: scale(0.4) translateY(30px); filter: brightness(1.8); }
+          60%  { opacity: 1; transform: scale(${CARD_SCALE * 1.08}) translateY(-6px); filter: brightness(1.2); }
+          100% { opacity: 1; transform: scale(${CARD_SCALE}) translateY(0); filter: none; }
+        }
+      `}</style>
     </div>
   );
 }
