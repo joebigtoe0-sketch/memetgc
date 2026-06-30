@@ -3,78 +3,128 @@ import { prisma } from "@memetgc/db";
 import { signToken, requireAuth, type AuthRequest } from "../middleware/auth.js";
 import { z } from "zod";
 import crypto from "crypto";
+import nacl from "tweetnacl";
+import bs58 from "bs58";
 
 const router: ReturnType<typeof Router> = Router();
 
-const RegisterSchema = z.object({
-  username: z.string().min(3).max(20).regex(/^[a-zA-Z0-9_]+$/),
-  email: z.string().email().optional(),
-  password: z.string().min(6),
-});
+const WalletSchema = z.object({ walletAddress: z.string().min(32).max(64) });
+const VerifySchema = z.object({ walletAddress: z.string().min(32).max(64), signature: z.string().min(1) });
+const UsernameSchema = z.object({ username: z.string().min(3).max(20).regex(/^[a-zA-Z0-9_]+$/) });
 
-const LoginSchema = z.object({
-  username: z.string(),
-  password: z.string(),
-});
-
-function hashPassword(password: string): string {
-  return crypto.createHash("sha256").update(password + "degen_salt").digest("hex");
+function isValidSolanaAddress(addr: string): boolean {
+  try {
+    return bs58.decode(addr).length === 32;
+  } catch {
+    return false;
+  }
 }
 
-// POST /api/auth/register
-router.post("/register", async (req, res) => {
-  const parsed = RegisterSchema.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Invalid input", details: parsed.error.flatten() });
+function buildSignInMessage(wallet: string, nonce: string): string {
+  return `Sign in to Degen TCG\n\nWallet: ${wallet}\nNonce: ${nonce}`;
+}
+
+async function generateHandle(wallet: string): Promise<string> {
+  const base = `degen_${wallet.slice(0, 4)}${wallet.slice(-4)}`.toLowerCase();
+  let candidate = base;
+  for (let i = 0; i < 5; i++) {
+    const exists = await prisma.user.findUnique({ where: { username: candidate } });
+    if (!exists) return candidate;
+    candidate = `${base}_${crypto.randomBytes(2).toString("hex")}`;
+  }
+  return `${base}_${crypto.randomBytes(4).toString("hex")}`;
+}
+
+// POST /api/auth/nonce — begin Sign-In-With-Solana; returns a message to sign
+router.post("/nonce", async (req, res) => {
+  const parsed = WalletSchema.safeParse(req.body);
+  if (!parsed.success || !isValidSolanaAddress(parsed.data.walletAddress)) {
+    res.status(400).json({ error: "Invalid wallet address" });
     return;
   }
+  const walletAddress = parsed.data.walletAddress;
+  const nonce = crypto.randomBytes(16).toString("hex");
 
-  const { username, email, password } = parsed.data;
-
-  const existing = await prisma.user.findFirst({
-    where: { OR: [{ username }, ...(email ? [{ email }] : [])] },
-  });
-
-  if (existing) {
-    res.status(409).json({ error: "Username or email already taken" });
-    return;
+  let user = await prisma.user.findUnique({ where: { walletAddress } });
+  if (!user) {
+    const username = await generateHandle(walletAddress);
+    user = await prisma.user.create({
+      data: { username, walletAddress, hasUsername: false, isNewPlayer: true, authNonce: nonce },
+    });
+    try {
+      await grantStarterContent(user.id);
+    } catch (err) {
+      console.error("grantStarterContent failed:", err);
+    }
+  } else {
+    await prisma.user.update({ where: { id: user.id }, data: { authNonce: nonce } });
   }
 
-  const user = await prisma.user.create({
-    data: {
-      username,
-      email,
-      passwordHash: hashPassword(password),
-      fragments: 0,
-      isNewPlayer: true,
-    },
-  });
-
-  // Grant starter resources
-  await grantStarterContent(user.id);
-
-  const token = signToken({ userId: user.id, username: user.username });
-  res.status(201).json({ token, userId: user.id, username: user.username });
+  res.json({ message: buildSignInMessage(walletAddress, nonce) });
 });
 
-// POST /api/auth/login
-router.post("/login", async (req, res) => {
-  const parsed = LoginSchema.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Invalid input" });
+// POST /api/auth/verify — verify the signed nonce, return a JWT
+router.post("/verify", async (req, res) => {
+  const parsed = VerifySchema.safeParse(req.body);
+  if (!parsed.success || !isValidSolanaAddress(parsed.data.walletAddress)) {
+    res.status(400).json({ error: "Invalid request" });
+    return;
+  }
+  const { walletAddress, signature } = parsed.data;
+
+  const user = await prisma.user.findUnique({ where: { walletAddress } });
+  if (!user || !user.authNonce) {
+    res.status(401).json({ error: "Request a nonce first" });
     return;
   }
 
-  const { username, password } = parsed.data;
-  const user = await prisma.user.findUnique({ where: { username } });
+  const message = buildSignInMessage(walletAddress, user.authNonce);
+  let valid = false;
+  try {
+    valid = nacl.sign.detached.verify(
+      new TextEncoder().encode(message),
+      bs58.decode(signature),
+      bs58.decode(walletAddress)
+    );
+  } catch {
+    valid = false;
+  }
 
-  if (!user || user.passwordHash !== hashPassword(password)) {
-    res.status(401).json({ error: "Invalid credentials" });
+  if (!valid) {
+    res.status(401).json({ error: "Signature verification failed" });
     return;
   }
+
+  // Consume nonce so the signature can't be replayed
+  await prisma.user.update({ where: { id: user.id }, data: { authNonce: null } });
 
   const token = signToken({ userId: user.id, username: user.username });
-  res.json({ token, userId: user.id, username: user.username });
+  res.json({ token, userId: user.id, username: user.username, hasUsername: user.hasUsername });
+});
+
+// POST /api/auth/username — set chosen username (first-time onboarding / rename)
+router.post("/username", requireAuth, async (req: AuthRequest, res) => {
+  const parsed = UsernameSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Username must be 3-20 chars (letters, numbers, underscore)" });
+    return;
+  }
+  const username = parsed.data.username;
+
+  const existing = await prisma.user.findFirst({ where: { username, NOT: { id: req.user!.userId } } });
+  if (existing) {
+    res.status(409).json({ error: "Username already taken" });
+    return;
+  }
+
+  const user = await prisma.user.update({
+    where: { id: req.user!.userId },
+    data: { username, hasUsername: true },
+  });
+
+  // Reissue token so the embedded username stays in sync
+  const token = signToken({ userId: user.id, username: user.username });
+  res.json({ token, username: user.username, hasUsername: true });
 });
 
 // GET /api/auth/me
@@ -87,6 +137,7 @@ router.get("/me", requireAuth, async (req: AuthRequest, res) => {
   res.json({
     id: user.id,
     username: user.username,
+    hasUsername: user.hasUsername,
     fragments: user.fragments,
     rankTier: user.rankTier,
     rankStars: user.rankStars,
@@ -97,24 +148,7 @@ router.get("/me", requireAuth, async (req: AuthRequest, res) => {
   });
 });
 
-// POST /api/auth/wallet — link wallet
-router.post("/wallet", requireAuth, async (req: AuthRequest, res) => {
-  const { walletAddress } = req.body;
-  if (!walletAddress || typeof walletAddress !== "string") {
-    res.status(400).json({ error: "walletAddress required" });
-    return;
-  }
-
-  await prisma.user.update({
-    where: { id: req.user!.userId },
-    data: { walletAddress: walletAddress.toLowerCase() },
-  });
-
-  res.json({ success: true });
-});
-
 async function grantStarterContent(userId: string): Promise<void> {
-  // Fetch starter cards from DB
   const starterCardIds = [
     "bitcoin_paper_hands", "bitcoin_baby_hodl", "bitcoin_block_defender",
     "bitcoin_mining_rig", "bitcoin_cold_wallet", "bitcoin_stack_sats",
@@ -135,6 +169,16 @@ async function grantStarterContent(userId: string): Promise<void> {
       create: { userId, cardId, quantity: 4 },
     });
   }
+
+  // Starter booster packs (opened from the Packs page)
+  await prisma.packInventory.upsert({
+    where: { userId_packType: { userId, packType: "standard" } },
+    update: { quantity: { increment: 5 } },
+    create: { userId, packType: "standard", quantity: 5 },
+  });
+
+  // Some starter fragments to spend in the shop
+  await prisma.user.update({ where: { id: userId }, data: { fragments: { increment: 300 } } });
 
   const starterDecks = [
     {

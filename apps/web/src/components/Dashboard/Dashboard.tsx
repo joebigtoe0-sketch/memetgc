@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import { useGameStore } from "@/store/gameStore";
+import { useBalances } from "@/hooks/useBalances";
 import BottomNav from "./BottomNav";
 
 const RANK_TIERS = ["bronze", "silver", "gold", "platinum", "diamond", "degen"] as const;
@@ -48,6 +49,7 @@ export default function Dashboard() {
   const router = useRouter();
   const { username, fragments, walletAddress, setFragments } = useAuthStore();
   const { connected } = useGameStore();
+  const { degen, packs } = useBalances();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [quests, setQuests] = useState<Quest[]>([]);
   const resetIn = useResetCountdown();
@@ -94,8 +96,9 @@ export default function Dashboard() {
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <Chip icon="◆" label={`1,240 $DEGEN`} color="#e7c768" />
+          <Chip icon="◆" label={`${(degen ?? 0).toLocaleString()} $DEGEN`} color="#e7c768" />
           <Chip icon="✦" label={`${fragments.toLocaleString()} frags`} color="#7b8cf4" />
+          <Chip icon="🎁" label={`${packs} packs`} color="#19e08a" onClick={() => router.push("/packs")} />
           <Chip icon="●" label={walletAddress ? `${walletAddress.slice(0, 4)}..${walletAddress.slice(-2)}` : (connected ? "online" : "offline")} color={connected ? "#19e08a" : "#ff5555"} />
           <div style={{ width: 36, height: 36, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(150deg,#2a3344,#161b25)", border: "1px solid rgba(255,255,255,.1)", color: "#f3e8cc", font: `800 14px var(--font-cinzel,'Cinzel',serif)` }}>
             {(username ?? "?")[0]?.toUpperCase()}
@@ -235,9 +238,9 @@ export default function Dashboard() {
   );
 }
 
-function Chip({ icon, label, color }: { icon: string; label: string; color: string }) {
+function Chip({ icon, label, color, onClick }: { icon: string; label: string; color: string; onClick?: () => void }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 12px", borderRadius: 9, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)" }}>
+    <div onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 12px", borderRadius: 9, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)", cursor: onClick ? "pointer" : "default" }}>
       <span style={{ color, fontSize: 11 }}>{icon}</span>
       <span style={{ font: `700 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#e7ecf3" }}>{label}</span>
     </div>

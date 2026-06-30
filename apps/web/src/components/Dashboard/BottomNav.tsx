@@ -3,11 +3,12 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 
-type Tab = "play" | "collection" | "shop" | "profile";
+type Tab = "play" | "collection" | "packs" | "shop" | "profile";
 
 const TABS: { key: Tab; label: string; icon: string; href: string }[] = [
   { key: "play", label: "Play", icon: "⚔", href: "/" },
   { key: "collection", label: "Collection", icon: "🃏", href: "/collection" },
+  { key: "packs", label: "Packs", icon: "🎁", href: "/packs" },
   { key: "shop", label: "Shop", icon: "✦", href: "/shop" },
   { key: "profile", label: "Profile", icon: "◈", href: "/profile" },
 ];

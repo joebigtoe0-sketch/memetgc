@@ -61,11 +61,14 @@ model Hero {
 model User {
   id                    String    @id @default(cuid())
   username              String    @unique
+  hasUsername           Boolean   @default(false) @map("has_username")
+  authNonce             String?   @map("auth_nonce")
   email                 String?   @unique
   passwordHash          String?   @map("password_hash")
   walletAddress         String?   @unique @map("wallet_address")
   accessTier            String    @default("casual") @map("access_tier")
   fragments             Int       @default(0)
+  packsOpened           Int       @default(0) @map("packs_opened")
   rankTier              String    @default("bronze") @map("rank_tier")
   rankStars             Int       @default(0) @map("rank_stars")
   rankPoints            Int       @default(0) @map("rank_points")
@@ -87,8 +90,21 @@ model User {
   matchesAsP1   Match[]           @relation("Player1")
   matchesAsP2   Match[]           @relation("Player2")
   quests        DailyQuest[]
+  packs         PackInventory[]
 
   @@map("users")
+}
+
+model PackInventory {
+  id       String @id @default(cuid())
+  userId   String @map("user_id")
+  packType String @map("pack_type")
+  quantity Int    @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, packType])
+  @@map("pack_inventory")
 }
 
 model CollectionEntry {

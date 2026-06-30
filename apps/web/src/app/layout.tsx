@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "@solana/wallet-adapter-react-ui/styles.css";
 import Providers from "./providers";
 import { Cinzel, Archivo, JetBrains_Mono } from "next/font/google";
 

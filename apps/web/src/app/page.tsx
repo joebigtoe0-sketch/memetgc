@@ -8,7 +8,7 @@ import Dashboard from "@/components/Dashboard/Dashboard";
 import AuthModal from "@/components/Auth/AuthModal";
 
 export default function HomePage() {
-  const { token } = useAuthStore();
+  const { token, hasUsername } = useAuthStore();
   const { gameId } = useGameStore();
   const router = useRouter();
 
@@ -17,7 +17,7 @@ export default function HomePage() {
     if (gameId) router.push(`/game/${gameId}`);
   }, [gameId, router]);
 
-  if (!token) {
+  if (!token || !hasUsername) {
     return <AuthModal />;
   }
 
