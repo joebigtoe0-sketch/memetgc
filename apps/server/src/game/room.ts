@@ -2,6 +2,7 @@ import { applyAction, sanitizeState, getAIAction, createGameState } from "@memet
 import type { GameState, GameAction, Card, PlayerState, AnimationHint } from "@memetgc/types";
 import type { Server } from "socket.io";
 import type { ServerToClientEvents, ClientToServerEvents } from "@memetgc/types";
+import { recordMatchResults } from "./results.js";
 
 export interface PlayerInfo {
   socketId: string | null;
@@ -263,6 +264,8 @@ function cleanupRoom(room: GameRoom, io: Server<ClientToServerEvents, ServerToCl
     winner: room.state.winner ?? "",
     reason: room.state.endReason ?? "hero_death",
   });
+  // Persist season stats + daily-quest progress (fire-and-forget)
+  void recordMatchResults(room);
   rooms.delete(room.gameId);
 }
 

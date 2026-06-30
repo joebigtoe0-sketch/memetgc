@@ -4,16 +4,15 @@ import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
 import { useGameStore } from "@/store/gameStore";
-import HeroSelect from "@/components/HeroSelect/HeroSelect";
-import GameBoard from "@/components/Game/GameBoard";
+import Dashboard from "@/components/Dashboard/Dashboard";
 import AuthModal from "@/components/Auth/AuthModal";
 
 export default function HomePage() {
-  const { token, username } = useAuthStore();
+  const { token } = useAuthStore();
   const { gameId } = useGameStore();
   const router = useRouter();
 
-  // Redirect to game if in a match
+  // Reconnect: if a match is in progress, jump back into it
   useEffect(() => {
     if (gameId) router.push(`/game/${gameId}`);
   }, [gameId, router]);
@@ -22,9 +21,5 @@ export default function HomePage() {
     return <AuthModal />;
   }
 
-  return (
-    <div className="h-full w-full">
-      <HeroSelect />
-    </div>
-  );
+  return <Dashboard />;
 }

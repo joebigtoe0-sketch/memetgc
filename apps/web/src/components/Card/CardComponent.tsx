@@ -6,6 +6,7 @@ export interface CardData {
   id: string;
   name: string;
   cost: number;
+  costModifier?: number;
   type: string;
   faction: string;
   rarity: string;
@@ -86,6 +87,17 @@ export default function CardComponent({
   const rightVal = (card.type === "weapon" || card.type === "location") ? (card.durability ?? 0) : (currentHp ?? 0);
   const rightColors: [string, string] = (card.type === "weapon" || card.type === "location") ? ["#dfe5ec", "#7e8a99"] : ["#ff8f7e", "#c2271c"];
   const typeLabel = { minion: "Minion", spell: "Spell", weapon: "Weapon", hero: "Hero", location: "Location" }[card.type] ?? "Card";
+
+  // Effective cost reflecting in-game cost modifiers (e.g. "reduce cost of cards in hand")
+  const costMod = card.costModifier ?? 0;
+  const effectiveCost = Math.max(0, card.cost + costMod);
+  const costReduced = costMod < 0;
+  const costRaised = costMod > 0;
+  const costBubbleBg = costReduced
+    ? "radial-gradient(circle at 38% 30%,#d8ffe6 0%,#3fcf6e 52%,#157f3a 100%)"
+    : costRaised
+    ? "radial-gradient(circle at 38% 30%,#ffd8d8 0%,#e6604a 52%,#9e2718 100%)"
+    : "radial-gradient(circle at 38% 30%,#dcefff 0%,#4a90e6 52%,#1f4f9e 100%)";
 
   return (
     <div
@@ -222,11 +234,11 @@ export default function CardComponent({
           width: 52, height: 52,
           display: "flex", alignItems: "center", justifyContent: "center",
           borderRadius: "50%",
-          background: "radial-gradient(circle at 38% 30%,#dcefff 0%,#4a90e6 52%,#1f4f9e 100%)",
-          boxShadow: "0 0 0 3px #d6b052, 0 0 0 5px rgba(0,0,0,.65), 0 4px 9px rgba(0,0,0,.6), inset 0 -4px 6px rgba(0,0,0,.35), inset 0 4px 6px rgba(255,255,255,.4)",
+          background: costBubbleBg,
+          boxShadow: `0 0 0 3px #d6b052, 0 0 0 5px rgba(0,0,0,.65), 0 4px 9px rgba(0,0,0,.6), inset 0 -4px 6px rgba(0,0,0,.35), inset 0 4px 6px rgba(255,255,255,.4)${costReduced ? ", 0 0 12px rgba(63,207,110,.8)" : costRaised ? ", 0 0 12px rgba(230,96,74,.8)" : ""}`,
         }}>
           <span style={{ font: `800 27px/1 var(--font-mono,'JetBrains Mono',monospace)`, color: "#fff", textShadow: "0 2px 3px rgba(0,0,40,.7)" }}>
-            {card.cost}
+            {effectiveCost}
           </span>
         </div>
 

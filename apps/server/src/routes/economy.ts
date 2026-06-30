@@ -2,6 +2,7 @@ import { Router } from "express";
 import { prisma } from "@memetgc/db";
 import { requireAuth, type AuthRequest } from "../middleware/auth.js";
 import type { PackType } from "@memetgc/types";
+import { computeWinStreak } from "../game/results.js";
 
 const router: ReturnType<typeof Router> = Router();
 
@@ -102,6 +103,7 @@ router.get("/profile", requireAuth, async (req: AuthRequest, res) => {
     res.status(404).json({ error: "User not found" });
     return;
   }
+  const winStreak = await computeWinStreak(user.id);
   res.json({
     fragments: user.fragments,
     rankTier: user.rankTier,
@@ -109,6 +111,7 @@ router.get("/profile", requireAuth, async (req: AuthRequest, res) => {
     rankPoints: user.rankPoints,
     seasonWins: user.seasonWins,
     seasonLosses: user.seasonLosses,
+    winStreak,
     accessTier: user.accessTier,
     packStats: {
       standard_packs_since_epic: user.standardPacksEpic,

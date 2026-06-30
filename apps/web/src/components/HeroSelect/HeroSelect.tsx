@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { getSocket } from "@/hooks/useSocket";
 import { useGameStore } from "@/store/gameStore";
@@ -21,44 +22,64 @@ interface Hero {
   hp: number; armor: number;
   hero_power: { name: string; cost: number; description: string };
 }
-interface Deck { id: string; name: string; heroId: string; factionBonusActive: boolean; cardCount: number; }
+interface Deck { id: string; name: string; heroId: string; faction?: string; factionBonusActive: boolean; cardCount: number; cards: { cardId: string; quantity: number }[]; }
 type GameMode = "practice" | "casual" | "ranked";
 
-const MODES: { key: GameMode; name: string; tag: string; desc: string; fac: string; primary?: boolean }[] = [
-  { key: "practice", name: "Practice", tag: "FREE · VS AI", desc: "Learn the ropes against bots. No rewards.", fac: "#9aa3b2" },
-  { key: "casual", name: "Casual", tag: "FREE · VS PLAYERS", desc: "No stakes. Earn booster pack tickets.", fac: "#7b8cf4" },
-  { key: "ranked", name: "Ranked", tag: "HOLD 1,000 $DEGEN", desc: "Climb the ladder. Earn fragments & season rewards.", fac: "#f7931a", primary: true },
+const MODE_LABEL: Record<GameMode, string> = { practice: "PRACTICE", casual: "CASUAL", ranked: "RANKED" };
+
+const TIPS = [
+  "Swapping high-cost cards in your mulligan for a smoother early curve is usually correct.",
+  "Taunt minions force the enemy to deal with them first — use them to protect your hero.",
+  "Holding removal for a key threat beats spending it on the first minion you see.",
+  "Faction decks gain a passive bonus — keep your deck mono-faction to activate it.",
 ];
 
 export default function HeroSelect() {
+  const router = useRouter();
+  const search = useSearchParams();
+  const mode = (search.get("mode") as GameMode) ?? "practice";
+
   const [heroes, setHeroes] = useState<Hero[]>([]);
   const [decks, setDecks] = useState<Deck[]>([]);
+  const [costMap, setCostMap] = useState<Record<string, number>>({});
   const [selectedHero, setSelectedHero] = useState<string>("");
   const [selectedDeck, setSelectedDeck] = useState<string>("");
-  const [mode, setMode] = useState<GameMode>("practice");
   const [queueing, setQueueing] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
+  const [tier, setTier] = useState<{ rankTier: string; rankStars: number }>({ rankTier: "gold", rankStars: 2 });
   const { connected } = useGameStore();
 
   useEffect(() => {
     (async () => {
-      const [heroList, deckList] = await Promise.all([
+      const [heroList, deckList, cardList] = await Promise.all([
         api.get<Hero[]>("/api/heroes"),
         api.get<Deck[]>("/api/decks"),
+        api.get<{ id: string; cost: number }[]>("/api/cards?collectible=false"),
       ]);
       setHeroes(heroList);
       setDecks(deckList);
-      if (heroList[0]) setSelectedHero(heroList[0].id);
-      if (deckList[0]) setSelectedDeck(deckList[0].id);
+      setCostMap(Object.fromEntries(cardList.map((c) => [c.id, c.cost])));
+      if (deckList[0]) { setSelectedDeck(deckList[0].id); setSelectedHero(deckList[0].heroId); }
+      else if (heroList[0]) setSelectedHero(heroList[0].id);
     })();
+    api.get<{ rankTier: string; rankStars: number }>("/api/economy/profile").then(setTier).catch(() => {});
   }, []);
 
-  function handlePlayClick() {
+  function manaCurve(deck: Deck): number[] {
+    const buckets = new Array(8).fill(0);
+    for (const { cardId, quantity } of deck.cards ?? []) {
+      const cost = Math.min(7, costMap[cardId] ?? 0);
+      buckets[cost] += quantity;
+    }
+    return buckets;
+  }
+
+  function handleFindMatch() {
     if (!selectedHero || !selectedDeck || !connected) return;
     const socket = getSocket();
     if (!socket) return;
     setQueueing(true);
-    setStatusMsg(mode === "practice" ? "Starting practice game..." : "Finding opponent...");
+    setStatusMsg(mode === "practice" ? "Starting practice game..." : "Finding a worthy opponent");
     socket.emit("queue:join", { mode, deckId: selectedDeck, heroId: selectedHero });
     socket.once("game:error", (msg) => { setStatusMsg(`Error: ${msg}`); setQueueing(false); });
   }
@@ -73,105 +94,49 @@ export default function HeroSelect() {
   const sfc = SH ? (FAC[SH.faction] ?? FAC.degen) : "#9aa3b2";
 
   return (
-    <div style={{
-      minHeight: "100%", display: "flex", flexDirection: "column",
-      background: "radial-gradient(140% 90% at 50% -8%,#141b2a 0%,#090c13 60%,#06080d 100%)",
-      fontFamily: "var(--font-archivo,'Archivo',sans-serif)",
-      position: "relative", overflow: "auto",
-    }}>
-      {/* Subtle grid */}
+    <div style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", background: "radial-gradient(140% 90% at 50% -8%,#141b2a 0%,#090c13 60%,#06080d 100%)", fontFamily: "var(--font-archivo,'Archivo',sans-serif)", overflow: "auto" }}>
       <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(120% 80% at 80% -10%,rgba(247,147,26,.07),transparent 55%),radial-gradient(100% 80% at 0% 110%,rgba(123,140,244,.07),transparent 55%)", pointerEvents: "none" }} />
 
-      {/* Top bar */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 30px", borderBottom: "1px solid rgba(255,255,255,.06)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(150deg,#f7c64a,#c2860f)", boxShadow: "0 0 16px rgba(231,199,104,.45)", font: `900 20px/1 var(--font-mono,'JetBrains Mono',monospace)`, color: "#2a1a00" }}>D</div>
-          <div>
-            <div style={{ font: `900 19px/1 var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc", letterSpacing: ".5px" }}>DEGEN TCG</div>
-            <div style={{ font: `600 10px var(--font-mono,'JetBrains Mono',monospace)`, color: "#f7931a", letterSpacing: "2px", marginTop: 3 }}>GENESIS · SEASON 1</div>
-          </div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ padding: "6px 12px", borderRadius: 9, background: connected ? "rgba(25,224,138,.08)" : "rgba(255,50,50,.08)", border: `1px solid ${connected ? "rgba(25,224,138,.3)" : "rgba(255,50,50,.3)"}`, display: "flex", alignItems: "center", gap: 6 }}>
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: connected ? "#19e08a" : "#ff5555", boxShadow: connected ? "0 0 8px #19e08a" : "none" }} />
-            <span style={{ font: `700 11px var(--font-mono,'JetBrains Mono',monospace)`, color: connected ? "#7fe8bd" : "#ff8888" }}>
-              {connected ? "CONNECTED" : "OFFLINE"}
-            </span>
-          </div>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 30px" }}>
+        <button onClick={() => router.push("/")} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 7, padding: "8px 16px", borderRadius: 10, background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)", color: "#cdd4df", font: `700 12px var(--font-archivo,'Archivo',sans-serif)` }}>‹ Back</button>
+        <div style={{ font: `900 22px var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc", letterSpacing: "1px" }}>Battle Setup</div>
+        <div style={{ padding: "8px 14px", borderRadius: 10, background: "rgba(247,147,26,.1)", border: "1px solid rgba(247,147,26,.35)", color: "#ffce85", font: `700 11px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "1px" }}>
+          {MODE_LABEL[mode]} · {tier.rankTier[0]?.toUpperCase()}{tier.rankTier.slice(1)} {["", "I", "II", "III", "IV", "V"][Math.max(1, 5 - tier.rankStars)]}
         </div>
       </div>
 
-      {/* Main grid: Left hero select + Center play + Right decks */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 380px 320px", gap: 22, padding: "24px 30px", flex: 1 }}>
+      {/* Main */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: 26, padding: "8px 30px 30px", flex: 1 }}>
 
-        {/* LEFT — Hero select */}
+        {/* LEFT — heroes */}
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-          <div style={{ font: `700 12px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "2px", color: "#8a93a6", marginBottom: 2 }}>CHOOSE YOUR HERO</div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+          <div style={{ font: `700 12px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "2px", color: "#8a93a6" }}>CHOOSE YOUR HERO</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 12 }}>
             {heroes.map((h) => {
               const fc = FAC[h.faction] ?? FAC.degen;
               const active = h.id === selectedHero;
               return (
-                <div
-                  key={h.id}
-                  onClick={() => setSelectedHero(h.id)}
-                  style={{
-                    cursor: "pointer", padding: "14px 8px 12px", borderRadius: 14,
-                    display: "flex", flexDirection: "column", alignItems: "center",
-                    background: active ? `linear-gradient(160deg,color-mix(in srgb,${fc} 20%,transparent),rgba(20,26,42,.6))` : "rgba(255,255,255,.03)",
-                    border: `1.5px solid ${active ? fc : "rgba(255,255,255,.08)"}`,
-                    boxShadow: active ? `0 0 22px color-mix(in srgb,${fc} 40%,transparent)` : "none",
-                    transform: active ? "translateY(-3px)" : "none",
-                    transition: "all 0.15s ease",
-                  }}
-                >
-                  <div style={{
-                    width: 56, height: 56, borderRadius: "50%",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    background: `radial-gradient(circle at 40% 30%,color-mix(in srgb,${fc} 30%,#2a2030),#15101a)`,
-                    border: `2px solid ${fc}`,
-                    font: `900 26px var(--font-cinzel,'Cinzel',serif)`, color: "#fff",
-                  }}>
-                    {GLYPH[h.faction] ?? h.name[0]}
-                  </div>
-                  <div style={{ font: `700 12px var(--font-cinzel,'Cinzel',serif)`, color: "#f1f4f9", marginTop: 9, textAlign: "center" }}>{h.name}</div>
-                  <div style={{ font: `700 8px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "1px", color: fc, marginTop: 5 }}>{FACTION_NAME[h.faction] ?? h.faction.toUpperCase()}</div>
+                <div key={h.id} onClick={() => setSelectedHero(h.id)} style={{ cursor: "pointer", padding: "16px 6px 12px", borderRadius: 14, display: "flex", flexDirection: "column", alignItems: "center", background: active ? `linear-gradient(160deg,color-mix(in srgb,${fc} 20%,transparent),rgba(20,26,42,.6))` : "rgba(255,255,255,.03)", border: `1.5px solid ${active ? fc : "rgba(255,255,255,.08)"}`, boxShadow: active ? `0 0 22px color-mix(in srgb,${fc} 40%,transparent)` : "none", transform: active ? "translateY(-3px)" : "none", transition: "all .15s ease" }}>
+                  <div style={{ width: 52, height: 52, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: `radial-gradient(circle at 40% 30%,color-mix(in srgb,${fc} 30%,#2a2030),#15101a)`, border: `2px solid ${fc}`, font: `900 24px var(--font-cinzel,'Cinzel',serif)`, color: "#fff" }}>{GLYPH[h.faction] ?? h.name[0]}</div>
+                  <div style={{ font: `700 11px var(--font-cinzel,'Cinzel',serif)`, color: "#f1f4f9", marginTop: 9, textAlign: "center" }}>{h.name}</div>
+                  <div style={{ font: `700 7.5px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "1px", color: fc, marginTop: 5 }}>{FACTION_NAME[h.faction] ?? h.faction.toUpperCase()}</div>
                 </div>
               );
             })}
           </div>
 
-          {/* Selected hero detail */}
           {SH && (
-            <div style={{ borderRadius: 16, padding: 24, background: "linear-gradient(150deg,rgba(255,255,255,.04),rgba(20,26,42,.5))", border: "1px solid rgba(255,255,255,.08)", display: "flex", gap: 22 }}>
-              <div style={{
-                width: 80, height: 80, flexShrink: 0, borderRadius: "50%",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                background: `radial-gradient(circle at 40% 30%,color-mix(in srgb,${sfc} 32%,#2a2030),#140f1a)`,
-                border: `3px solid ${sfc}`,
-                boxShadow: `0 0 28px color-mix(in srgb,${sfc} 45%,transparent)`,
-                font: `900 36px var(--font-cinzel,'Cinzel',serif)`, color: "#fff",
-              }}>
-                {GLYPH[SH.faction] ?? SH.name[0]}
-              </div>
+            <div style={{ borderRadius: 16, padding: 24, background: "linear-gradient(150deg,rgba(255,255,255,.04),rgba(20,26,42,.5))", border: `1px solid ${sfc}44`, display: "flex", gap: 22, boxShadow: `0 0 30px ${sfc}22` }}>
+              <div style={{ width: 84, height: 84, flexShrink: 0, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: `radial-gradient(circle at 40% 30%,color-mix(in srgb,${sfc} 32%,#2a2030),#140f1a)`, border: `3px solid ${sfc}`, boxShadow: `0 0 28px color-mix(in srgb,${sfc} 45%,transparent)`, font: `900 38px var(--font-cinzel,'Cinzel',serif)`, color: "#fff" }}>{GLYPH[SH.faction] ?? SH.name[0]}</div>
               <div style={{ flex: 1 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <span style={{ font: `900 24px var(--font-cinzel,'Cinzel',serif)`, color: "#fff" }}>{SH.name}</span>
-                  <span style={{ padding: "3px 9px", borderRadius: 6, font: `700 9px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "1px", color: sfc, background: `color-mix(in srgb,${sfc} 16%,transparent)`, border: `1px solid color-mix(in srgb,${sfc} 40%,transparent)` }}>
-                    {FACTION_NAME[SH.faction] ?? SH.faction.toUpperCase()}
-                  </span>
+                  <span style={{ padding: "3px 9px", borderRadius: 6, font: `700 9px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "1px", color: sfc, background: `color-mix(in srgb,${sfc} 16%,transparent)`, border: `1px solid color-mix(in srgb,${sfc} 40%,transparent)` }}>{FACTION_NAME[SH.faction] ?? SH.faction.toUpperCase()}</span>
                 </div>
                 <div style={{ font: `500 13px var(--font-archivo,'Archivo',sans-serif)`, color: "#aeb6c4", marginTop: 8, fontStyle: "italic", lineHeight: 1.5 }}>{SH.description}</div>
                 <div style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 14, padding: 14, borderRadius: 12, background: "rgba(0,0,0,.25)", border: "1px solid rgba(255,255,255,.07)" }}>
-                  <div style={{
-                    position: "relative", width: 54, height: 54, flexShrink: 0,
-                    borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
-                    background: "radial-gradient(circle at 38% 30%,#dcefff,#4a90e6 55%,#1f4f9e)",
-                    boxShadow: "0 0 0 2px #d6b052, 0 0 14px rgba(74,144,230,.5)",
-                  }}>
-                    <span style={{ font: `800 22px var(--font-mono,'JetBrains Mono',monospace)`, color: "#fff" }}>{SH.hero_power.cost}</span>
-                  </div>
+                  <div style={{ width: 50, height: 50, flexShrink: 0, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "radial-gradient(circle at 38% 30%,#dcefff,#4a90e6 55%,#1f4f9e)", boxShadow: "0 0 0 2px #d6b052, 0 0 14px rgba(74,144,230,.5)", font: `800 21px var(--font-mono,'JetBrains Mono',monospace)`, color: "#fff" }}>{SH.hero_power.cost}</div>
                   <div>
                     <div style={{ font: `800 14px var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc" }}>Hero Power · {SH.hero_power.name}</div>
                     <div style={{ font: `500 12px var(--font-archivo,'Archivo',sans-serif)`, color: "#aeb6c4", marginTop: 3 }}>{SH.hero_power.description}</div>
@@ -182,156 +147,109 @@ export default function HeroSelect() {
           )}
         </div>
 
-        {/* CENTER — Mode select + Play button */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-          {/* Play banner */}
-          <div style={{
-            position: "relative", borderRadius: 18, overflow: "hidden", padding: "28px 30px",
-            minHeight: 160, display: "flex", flexDirection: "column", justifyContent: "flex-end",
-            background: "linear-gradient(110deg,rgba(247,147,26,.22),rgba(20,26,42,.4) 60%)",
-            border: "1px solid rgba(247,147,26,.3)",
-          }}>
-            <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(90deg,rgba(255,255,255,.03) 0 1px,transparent 1px 44px)", pointerEvents: "none" }} />
-            <div style={{ position: "absolute", top: -30, right: -10, font: `900 140px var(--font-cinzel,'Cinzel',serif)`, color: "rgba(247,147,26,.1)", lineHeight: 1 }}>₿</div>
-            <div style={{ font: `700 11px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "3px", color: "#ffd187" }}>RANKED LADDER · LIVE</div>
-            <div style={{ font: `900 30px/1 var(--font-cinzel,'Cinzel',serif)`, color: "#fff", margin: "8px 0 14px" }}>Climb to Degen Rank</div>
-            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-              {!queueing ? (
-                <button
-                  onClick={handlePlayClick}
-                  disabled={!selectedHero || !selectedDeck || !connected}
-                  style={{
-                    cursor: selectedHero && selectedDeck && connected ? "pointer" : "not-allowed",
-                    border: "none", padding: "14px 36px", borderRadius: 12,
-                    font: `800 16px var(--font-cinzel,'Cinzel',serif)`, letterSpacing: ".5px",
-                    color: "#2a1a00",
-                    background: "linear-gradient(180deg,#ffe07a,#e0890f)",
-                    boxShadow: "0 8px 20px rgba(224,137,15,.4), inset 0 1px 0 rgba(255,255,255,.5)",
-                    opacity: selectedHero && selectedDeck && connected ? 1 : 0.5,
-                  }}
-                >
-                  ▶  PLAY
-                </button>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{ width: 60, height: 60, borderRadius: "50%", border: "3px solid rgba(247,147,26,.2)", borderTopColor: "#f7931a", animation: "spinRing 1s linear infinite", flexShrink: 0 }} />
-                    <span style={{ font: `700 14px var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc" }}>{statusMsg}</span>
-                  </div>
-                  <button
-                    onClick={handleCancelQueue}
-                    style={{ cursor: "pointer", border: "1px solid rgba(255,90,90,.4)", background: "rgba(255,90,90,.08)", color: "#ff8a8a", padding: "10px 24px", borderRadius: 10, font: `700 12px var(--font-archivo,'Archivo',sans-serif)` }}
-                  >
-                    Cancel ✕
-                  </button>
-                </div>
-              )}
-              {!queueing && <span style={{ font: `600 11px var(--font-archivo,'Archivo',sans-serif)`, color: "#c9b48a" }}>Pick a mode below</span>}
-            </div>
-          </div>
-
-          {/* Mode cards */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            {MODES.map((m) => {
-              const active = mode === m.key;
-              return (
-                <div
-                  key={m.key}
-                  onClick={() => setMode(m.key)}
-                  style={{
-                    cursor: "pointer", borderRadius: 14, padding: "16px",
-                    background: active ? `linear-gradient(150deg,color-mix(in srgb,${m.fac} 16%,transparent),rgba(20,26,42,.5))` : "rgba(255,255,255,.03)",
-                    border: `1px solid ${active ? m.fac : "rgba(255,255,255,.08)"}`,
-                    boxShadow: active ? `0 10px 24px rgba(0,0,0,.35)` : "none",
-                    transition: "all 0.15s ease",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <span style={{ font: `800 16px var(--font-cinzel,'Cinzel',serif)`, color: "#f1f4f9" }}>{m.name}</span>
-                    <span style={{
-                      font: `700 9px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: ".5px",
-                      padding: "4px 9px", borderRadius: 6,
-                      color: m.fac, background: `color-mix(in srgb,${m.fac} 16%,transparent)`,
-                      border: `1px solid color-mix(in srgb,${m.fac} 40%,transparent)`,
-                    }}>
-                      {active ? "SELECTED" : "OPEN"}
-                    </span>
-                  </div>
-                  <div style={{ font: `600 9px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6", marginTop: 7, letterSpacing: ".5px" }}>{m.tag}</div>
-                  <div style={{ font: `500 11px var(--font-archivo,'Archivo',sans-serif)`, color: "#aeb6c4", marginTop: 8, lineHeight: 1.4 }}>{m.desc}</div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* RIGHT — Deck select */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div style={{ font: `700 12px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "2px", color: "#8a93a6", marginBottom: 2 }}>SELECT DECK</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {/* RIGHT — decks */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ font: `700 12px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "2px", color: "#8a93a6" }}>SELECT DECK</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
             {decks.map((d) => {
               const active = d.id === selectedDeck;
               const hero = heroes.find((h) => h.id === d.heroId);
-              const fc = hero ? (FAC[hero.faction] ?? FAC.degen) : "#9aa3b2";
+              const fc = hero ? (FAC[hero.faction] ?? FAC.degen) : (FAC[d.faction ?? "degen"] ?? "#9aa3b2");
+              const curve = manaCurve(d);
+              const maxBar = Math.max(1, ...curve);
               return (
-                <div
-                  key={d.id}
-                  onClick={() => setSelectedDeck(d.id)}
-                  style={{
-                    cursor: "pointer", padding: 15, borderRadius: 13,
-                    background: active ? `linear-gradient(150deg,color-mix(in srgb,${fc} 16%,transparent),rgba(20,26,42,.5))` : "rgba(255,255,255,.03)",
-                    border: `1.5px solid ${active ? fc : "rgba(255,255,255,.08)"}`,
-                    transition: "all 0.15s ease",
-                  }}
-                >
+                <div key={d.id} onClick={() => { setSelectedDeck(d.id); setSelectedHero(d.heroId); }} style={{ cursor: "pointer", padding: 15, borderRadius: 13, background: active ? `linear-gradient(150deg,color-mix(in srgb,${fc} 16%,transparent),rgba(20,26,42,.5))` : "rgba(255,255,255,.03)", border: `1.5px solid ${active ? fc : "rgba(255,255,255,.08)"}`, boxShadow: active ? `0 0 20px ${fc}33` : "none", transition: "all .15s ease" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <div style={{
-                      width: 34, height: 34, flexShrink: 0, borderRadius: 9,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      background: `radial-gradient(circle at 40% 30%,color-mix(in srgb,${fc} 35%,#2a2030),#15101a)`,
-                      border: `2px solid ${fc}`,
-                      font: `900 16px var(--font-cinzel,'Cinzel',serif)`, color: "#fff",
-                    }}>
-                      {hero ? (GLYPH[hero.faction] ?? hero.name[0]) : "?"}
-                    </div>
+                    <div style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", background: `radial-gradient(circle at 40% 30%,color-mix(in srgb,${fc} 35%,#2a2030),#15101a)`, border: `2px solid ${fc}`, font: `900 15px var(--font-cinzel,'Cinzel',serif)`, color: "#fff" }}>{hero ? (GLYPH[hero.faction] ?? hero.name[0]) : "?"}</div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ font: `800 15px var(--font-cinzel,'Cinzel',serif)`, color: "#f1f4f9" }}>{d.name}</div>
-                      <div style={{ font: `600 10px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6", marginTop: 2 }}>
-                        {hero?.name ?? "Unknown"} · {d.cardCount} cards
-                      </div>
+                      <div style={{ font: `800 14px var(--font-cinzel,'Cinzel',serif)`, color: "#f1f4f9" }}>{d.name}</div>
+                      <div style={{ font: `600 9.5px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6", marginTop: 2 }}>{hero?.name ?? "Unknown"} · {d.cardCount} cards</div>
                     </div>
-                    <div style={{
-                      width: 22, height: 22, borderRadius: "50%",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      font: "12px sans-serif", color: "#2a1a00",
-                      background: active ? fc : "transparent",
-                      border: active ? "none" : "1.5px solid rgba(255,255,255,.18)",
-                      opacity: active ? 1 : 0.4,
-                    }}>
-                      {active ? "✓" : ""}
-                    </div>
+                    {active && <div style={{ width: 20, height: 20, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: fc, color: "#15101a", fontSize: 11, fontWeight: 800 }}>✓</div>}
                   </div>
-                  {d.factionBonusActive && (
-                    <div style={{ marginTop: 8, font: `600 10px var(--font-archivo,'Archivo',sans-serif)`, color: fc }}>
-                      ✦ Faction Bonus active
-                    </div>
-                  )}
+                  {/* Mana curve */}
+                  <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 36, marginTop: 12 }}>
+                    {curve.map((v, i) => (
+                      <div key={i} style={{ flex: 1, height: `${(v / maxBar) * 100}%`, minHeight: 3, borderRadius: 2, background: `linear-gradient(180deg,${fc},${fc}66)`, opacity: v === 0 ? 0.18 : 1 }} title={`${i}${i === 7 ? "+" : ""} cost: ${v}`} />
+                    ))}
+                  </div>
                 </div>
               );
             })}
+            {decks.length === 0 && (
+              <div style={{ padding: 20, borderRadius: 12, background: "rgba(255,255,255,.025)", border: "1px solid rgba(255,255,255,.06)", color: "#6a7488", textAlign: "center", font: `500 12px var(--font-archivo,'Archivo',sans-serif)` }}>No decks found.</div>
+            )}
           </div>
 
-          {decks.length === 0 && (
-            <div style={{ padding: "20px", borderRadius: 12, background: "rgba(255,255,255,.025)", border: "1px solid rgba(255,255,255,.06)", color: "#6a7488", textAlign: "center", font: `500 12px var(--font-archivo,'Archivo',sans-serif)` }}>
-              No decks found. The database may not be seeded yet.
-            </div>
-          )}
+          <button onClick={handleFindMatch} disabled={!selectedHero || !selectedDeck || !connected} style={{ cursor: selectedHero && selectedDeck && connected ? "pointer" : "not-allowed", border: "none", padding: "16px", borderRadius: 13, font: `900 17px var(--font-cinzel,'Cinzel',serif)`, letterSpacing: ".5px", color: "#2a1a00", background: "linear-gradient(180deg,#ffe07a,#e0890f)", boxShadow: "0 10px 24px rgba(224,137,15,.4), inset 0 1px 0 rgba(255,255,255,.5)", opacity: selectedHero && selectedDeck && connected ? 1 : 0.5 }}>
+            FIND MATCH ›
+          </button>
+          {(() => {
+            const d = decks.find((x) => x.id === selectedDeck);
+            const hero = heroes.find((h) => h.id === d?.heroId);
+            return d?.factionBonusActive ? (
+              <div style={{ textAlign: "center", font: `600 11px var(--font-archivo,'Archivo',sans-serif)`, color: hero ? FAC[hero.faction] : "#caa24a" }}>
+                {hero ? FACTION_NAME[hero.faction] : "Faction"} deck · Faction Bonus active
+              </div>
+            ) : null;
+          })()}
         </div>
       </div>
 
-      <style>{`
-        @keyframes spinRing { to { transform: rotate(360deg); } }
-      `}</style>
+      {queueing && <FindingOpponent mode={mode} tier={tier} hero={SH} sfc={sfc} onCancel={handleCancelQueue} statusMsg={statusMsg} />}
+
+      <style>{`@keyframes spinRing { to { transform: rotate(360deg); } } @keyframes pulseGlow { 0%,100% { box-shadow: 0 0 22px var(--g); } 50% { box-shadow: 0 0 42px var(--g); } }`}</style>
+    </div>
+  );
+}
+
+function FindingOpponent({ mode, tier, hero, sfc, onCancel, statusMsg }: { mode: GameMode; tier: { rankTier: string; rankStars: number }; hero?: Hero; sfc: string; onCancel: () => void; statusMsg: string }) {
+  const [secs, setSecs] = useState(0);
+  const [tip] = useState(() => TIPS[Math.floor(Math.random() * TIPS.length)]);
+  useEffect(() => { const id = setInterval(() => setSecs((s) => s + 1), 1000); return () => clearInterval(id); }, []);
+  const mm = String(Math.floor(secs / 60)).padStart(1, "0");
+  const ss = String(secs % 60).padStart(2, "0");
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "radial-gradient(120% 90% at 50% 40%,#0d1422 0%,#070a12 70%)", fontFamily: "var(--font-archivo,'Archivo',sans-serif)" }}>
+      <div style={{ position: "absolute", inset: 0, backgroundImage: "linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px)", backgroundSize: "44px 44px", maskImage: "radial-gradient(70% 60% at 50% 45%,#000,transparent)" }} />
+
+      <div style={{ font: `700 12px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "4px", color: "#f7931a", marginBottom: 40, zIndex: 1 }}>
+        {MODE_LABEL[mode]} · {tier.rankTier[0]?.toUpperCase()}{tier.rankTier.slice(1)} {["", "I", "II", "III", "IV", "V"][Math.max(1, 5 - tier.rankStars)]}
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 44, zIndex: 1 }}>
+        {/* You */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+          <div style={{ ["--g" as string]: `${sfc}66`, width: 130, height: 130, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: `radial-gradient(circle at 40% 30%,color-mix(in srgb,${sfc} 30%,#1a1420),#0c0a12)`, border: `3px solid ${sfc}`, animation: "pulseGlow 2s ease-in-out infinite", font: `900 56px var(--font-cinzel,'Cinzel',serif)`, color: "#fff" }}>{hero ? (GLYPH[hero.faction] ?? hero.name[0]) : "?"}</div>
+          <div style={{ font: `900 18px var(--font-cinzel,'Cinzel',serif)`, color: "#fff" }}>{hero?.name ?? "You"}</div>
+          <div style={{ font: `600 10px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6", letterSpacing: "1px" }}>YOU</div>
+        </div>
+
+        {/* VS / timer */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+          <div style={{ width: 64, height: 64, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid rgba(247,147,26,.5)", borderTopColor: "#f7931a", animation: "spinRing 1.4s linear infinite" }}>
+            <span style={{ font: `900 20px var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc" }}>VS</span>
+          </div>
+          <div style={{ font: `800 16px var(--font-mono,'JetBrains Mono',monospace)`, color: "#f7931a" }}>{mm}:{ss}</div>
+        </div>
+
+        {/* Opponent */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 130, height: 130, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(255,255,255,.02)", border: "3px dashed rgba(255,255,255,.18)", font: `900 56px var(--font-cinzel,'Cinzel',serif)`, color: "rgba(255,255,255,.25)" }}>?</div>
+          <div style={{ font: `900 18px var(--font-cinzel,'Cinzel',serif)`, color: "#6a7488" }}>Searching…</div>
+          <div style={{ font: `600 10px var(--font-mono,'JetBrains Mono',monospace)`, color: "#566072", letterSpacing: "1px" }}>OPPONENT</div>
+        </div>
+      </div>
+
+      <div style={{ font: `900 24px var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc", margin: "44px 0 18px", zIndex: 1 }}>{statusMsg || "Finding a worthy opponent"}</div>
+
+      <div style={{ maxWidth: 460, padding: "14px 20px", borderRadius: 12, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)", zIndex: 1 }}>
+        <span style={{ font: `800 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#f7931a", marginRight: 8 }}>TIP</span>
+        <span style={{ font: `500 12px var(--font-archivo,'Archivo',sans-serif)`, color: "#aeb6c4", lineHeight: 1.5 }}>{tip}</span>
+      </div>
+
+      <button onClick={onCancel} style={{ cursor: "pointer", marginTop: 30, padding: "11px 26px", borderRadius: 10, border: "1px solid rgba(255,90,90,.4)", background: "rgba(255,90,90,.08)", color: "#ff8a8a", font: `700 13px var(--font-archivo,'Archivo',sans-serif)`, zIndex: 1 }}>Cancel ✕</button>
     </div>
   );
 }
