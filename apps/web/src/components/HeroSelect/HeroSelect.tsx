@@ -155,21 +155,30 @@ export default function HeroSelect() {
           <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
             {decks.map((d) => {
               const active = d.id === selectedDeck;
-              const locked = mode === "ranked" && d.isStarter;
+              const rankedLocked = mode === "ranked" && d.isStarter;
+              const incomplete = d.cardCount !== 30;
+              const locked = rankedLocked || incomplete;
               const hero = heroes.find((h) => h.id === d.heroId);
               const fc = hero ? (FAC[hero.faction] ?? FAC.degen) : (FAC[d.faction ?? "degen"] ?? "#9aa3b2");
               const curve = manaCurve(d);
               const maxBar = Math.max(1, ...curve);
+              const sublabel = rankedLocked
+                ? "Not allowed in Ranked"
+                : incomplete
+                ? `Incomplete · ${d.cardCount}/30 cards`
+                : `${hero?.name ?? "Unknown"} · ${d.cardCount} cards`;
+              const borderColor = active ? fc : incomplete ? "rgba(202,162,74,.35)" : "rgba(255,255,255,.08)";
               return (
-                <div key={d.id} onClick={() => { if (locked) return; setSelectedDeck(d.id); setSelectedHero(d.heroId); }} style={{ cursor: locked ? "not-allowed" : "pointer", opacity: locked ? 0.45 : 1, padding: 15, borderRadius: 13, background: active ? `linear-gradient(150deg,color-mix(in srgb,${fc} 16%,transparent),rgba(20,26,42,.5))` : "rgba(255,255,255,.03)", border: `1.5px solid ${active ? fc : "rgba(255,255,255,.08)"}`, boxShadow: active ? `0 0 20px ${fc}33` : "none", transition: "all .15s ease" }}>
+                <div key={d.id} onClick={() => { if (rankedLocked) return; setSelectedDeck(d.id); setSelectedHero(d.heroId); }} style={{ cursor: rankedLocked ? "not-allowed" : "pointer", opacity: rankedLocked ? 0.45 : 1, padding: 15, borderRadius: 13, background: active ? `linear-gradient(150deg,color-mix(in srgb,${fc} 16%,transparent),rgba(20,26,42,.5))` : "rgba(255,255,255,.03)", border: `1.5px solid ${borderColor}`, boxShadow: active ? `0 0 20px ${fc}33` : "none", transition: "all .15s ease" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                     <div style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", background: `radial-gradient(circle at 40% 30%,color-mix(in srgb,${fc} 35%,#2a2030),#15101a)`, border: `2px solid ${fc}`, font: `900 15px var(--font-cinzel,'Cinzel',serif)`, color: "#fff" }}>{hero ? (GLYPH[hero.faction] ?? hero.name[0]) : "?"}</div>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
                         <span style={{ font: `800 14px var(--font-cinzel,'Cinzel',serif)`, color: "#f1f4f9" }}>{d.name}</span>
                         {d.isStarter && <span style={{ font: `700 7px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: ".5px", padding: "2px 6px", borderRadius: 5, color: "#caa24a", background: "rgba(231,199,104,.12)", border: "1px solid rgba(231,199,104,.3)" }}>STARTER</span>}
+                        {incomplete && !d.isStarter && <span style={{ font: `700 7px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: ".5px", padding: "2px 6px", borderRadius: 5, color: "#caa24a", background: "rgba(202,162,74,.12)", border: "1px solid rgba(202,162,74,.3)" }}>INCOMPLETE</span>}
                       </div>
-                      <div style={{ font: `600 9.5px var(--font-mono,'JetBrains Mono',monospace)`, color: locked ? "#ff8a8a" : "#8a93a6", marginTop: 3 }}>{locked ? "Not allowed in Ranked" : `${hero?.name ?? "Unknown"} · ${d.cardCount} cards`}</div>
+                      <div style={{ font: `600 9.5px var(--font-mono,'JetBrains Mono',monospace)`, color: locked ? "#caa24a" : "#8a93a6", marginTop: 3 }}>{sublabel}</div>
                     </div>
                     {active && <div style={{ width: 20, height: 20, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: fc, color: "#15101a", fontSize: 11, fontWeight: 800 }}>✓</div>}
                   </div>
@@ -198,11 +207,19 @@ export default function HeroSelect() {
           {(() => {
             const sd = decks.find((x) => x.id === selectedDeck);
             const rankedBlocked = mode === "ranked" && (!sd || sd.isStarter);
-            const ready = !!selectedHero && !!selectedDeck && connected && !rankedBlocked;
+            const incomplete = !sd || sd.cardCount !== 30;
+            const ready = !!selectedHero && !!selectedDeck && connected && !rankedBlocked && !incomplete;
             return (
-              <button onClick={handleFindMatch} disabled={!ready} style={{ cursor: ready ? "pointer" : "not-allowed", border: "none", padding: "16px", borderRadius: 13, font: `900 17px var(--font-cinzel,'Cinzel',serif)`, letterSpacing: ".5px", color: "#2a1a00", background: "linear-gradient(180deg,#ffe07a,#e0890f)", boxShadow: "0 10px 24px rgba(224,137,15,.4), inset 0 1px 0 rgba(255,255,255,.5)", opacity: ready ? 1 : 0.5 }}>
-                FIND MATCH ›
-              </button>
+              <>
+                <button onClick={handleFindMatch} disabled={!ready} style={{ cursor: ready ? "pointer" : "not-allowed", border: "none", padding: "16px", borderRadius: 13, font: `900 17px var(--font-cinzel,'Cinzel',serif)`, letterSpacing: ".5px", color: "#2a1a00", background: "linear-gradient(180deg,#ffe07a,#e0890f)", boxShadow: "0 10px 24px rgba(224,137,15,.4), inset 0 1px 0 rgba(255,255,255,.5)", opacity: ready ? 1 : 0.5 }}>
+                  FIND MATCH ›
+                </button>
+                {sd && incomplete && (
+                  <div style={{ textAlign: "center", font: `600 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#caa24a" }}>
+                    Deck needs 30 cards to play ({sd.cardCount}/30)
+                  </div>
+                )}
+              </>
             );
           })()}
           {(() => {

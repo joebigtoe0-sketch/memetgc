@@ -68,6 +68,7 @@ export default function CollectionPage() {
 
   const deck = decks.find((d) => d.id === selectedDeck);
   const deckFull = (deck?.cardCount ?? 0) >= 30;
+  const deckComplete = (deck?.cardCount ?? 0) === 30;
   const isStarter = !!deck?.isStarter;
   const deckFac = deck ? (FAC[deck.faction ?? "degen"] ?? "#9aa3b2") : "#9aa3b2";
 
@@ -259,7 +260,10 @@ export default function CollectionPage() {
           </div>
 
           <div style={{ padding: 12, borderTop: "1px solid rgba(255,255,255,.06)" }}>
-            <button onClick={() => router.push("/play")} disabled={!deck || (deck.cardCount ?? 0) === 0} style={{ width: "100%", cursor: deck && deck.cardCount > 0 ? "pointer" : "not-allowed", padding: "12px", borderRadius: 11, border: "none", color: "#2a1a00", background: "linear-gradient(180deg,#ffe07a,#e0890f)", boxShadow: "0 6px 16px rgba(224,137,15,.35)", font: `900 14px var(--font-cinzel,'Cinzel',serif)`, opacity: deck && deck.cardCount > 0 ? 1 : 0.5 }}>SAVE & PLAY</button>
+            <button onClick={() => router.push("/play")} disabled={!deckComplete} style={{ width: "100%", cursor: deckComplete ? "pointer" : "not-allowed", padding: "12px", borderRadius: 11, border: "none", color: "#2a1a00", background: "linear-gradient(180deg,#ffe07a,#e0890f)", boxShadow: "0 6px 16px rgba(224,137,15,.35)", font: `900 14px var(--font-cinzel,'Cinzel',serif)`, opacity: deckComplete ? 1 : 0.5 }}>SAVE & PLAY</button>
+            {!deckComplete && deck && (
+              <div style={{ marginTop: 8, textAlign: "center", font: `600 10px var(--font-mono,'JetBrains Mono',monospace)`, color: "#caa24a" }}>Need 30 cards to play ({deck.cardCount}/30)</div>
+            )}
           </div>
         </div>
       </div>

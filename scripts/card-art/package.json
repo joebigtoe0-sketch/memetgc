@@ -1,0 +1,21 @@
+{
+  "name": "@memetgc/card-art",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate": "tsx src/generate.ts --source=seed",
+    "generate:dry": "tsx src/generate.ts --source=seed --dry-run --limit=3",
+    "generate:db": "tsx src/generate.ts --source=db",
+    "sync:db": "tsx src/syncToDb.ts"
+  },
+  "dependencies": {
+    "@memetgc/db": "workspace:*",
+    "dotenv": "^16.5.0",
+    "openai": "^4.104.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  }
+}

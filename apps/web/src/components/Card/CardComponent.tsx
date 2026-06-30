@@ -115,6 +115,7 @@ export default function CardComponent({
   const rightVal = (card.type === "weapon" || card.type === "location") ? (card.durability ?? 0) : (currentHp ?? 0);
   const rightColors: [string, string] = (card.type === "weapon" || card.type === "location") ? ["#dfe5ec", "#7e8a99"] : ["#ff8f7e", "#c2271c"];
   const typeLabel = { minion: "Minion", spell: "Spell", weapon: "Weapon", hero: "Hero", location: "Location" }[card.type] ?? "Card";
+  const artSrc = card.art_url ?? `/card-art/${card.id}.png`;
 
   // Effective cost reflecting in-game cost modifiers (e.g. "reduce cost of cards in hand")
   const costMod = card.costModifier ?? 0;
@@ -173,25 +174,27 @@ export default function CardComponent({
               background: `repeating-linear-gradient(135deg, color-mix(in srgb,${fac} 26%,#171c26) 0 11px, #13171f 11px 22px)`,
               boxShadow: `inset 0 0 0 2px rgba(0,0,0,.55), 0 0 0 2px ${fac}, 0 0 0 4px rgba(0,0,0,.7), 0 0 14px color-mix(in srgb,${fac} 45%,transparent)`,
             }}>
-              {card.art_url ? (
-                <img src={card.art_url} alt={card.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              ) : (
-                <div style={{
-                  position: "absolute", inset: 0,
-                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                  gap: 5, textAlign: "center", padding: "0 16px",
-                }}>
-                  <div style={{ font: `800 36px/1 var(--font-cinzel,'Cinzel',serif)`, color: fac, opacity: 0.4 }}>
-                    {GLYPH[card.faction] ?? "✦"}
-                  </div>
-                  <div style={{ font: `800 12px/1.15 var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: ".5px", color: `color-mix(in srgb,${fac} 55%,#cfd6e0)`, textShadow: "0 1px 3px #000" }}>
-                    {card.name.toUpperCase()}
-                  </div>
-                  <div style={{ font: `700 7.5px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "1.5px", color: "rgba(255,255,255,.32)" }}>
-                    ART PLACEHOLDER
-                  </div>
+              <div style={{
+                position: "absolute", inset: 0,
+                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                gap: 5, textAlign: "center", padding: "0 16px",
+              }}>
+                <div style={{ font: `800 36px/1 var(--font-cinzel,'Cinzel',serif)`, color: fac, opacity: 0.4 }}>
+                  {GLYPH[card.faction] ?? "✦"}
                 </div>
-              )}
+                <div style={{ font: `800 12px/1.15 var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: ".5px", color: `color-mix(in srgb,${fac} 55%,#cfd6e0)`, textShadow: "0 1px 3px #000" }}>
+                  {card.name.toUpperCase()}
+                </div>
+                <div style={{ font: `700 7.5px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "1.5px", color: "rgba(255,255,255,.32)" }}>
+                  ART PLACEHOLDER
+                </div>
+              </div>
+              <img
+                src={artSrc}
+                alt={card.name}
+                style={{ position: "relative", zIndex: 1, width: "100%", height: "100%", objectFit: "cover" }}
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+              />
               {/* Legendary sheen */}
               {isLeg && (
                 <div style={{

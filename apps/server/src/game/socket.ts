@@ -147,12 +147,24 @@ export function registerSocketHandlers(
           socket.emit("game:error", "Need 1,000 $DEGEN to play ranked");
           return;
         }
-        // Ranked requires a custom (non-starter) deck the player built themselves
-        const rankedDeck = await prisma.deck.findFirst({ where: { id: deckId, userId: authenticatedUserId } });
-        if (!rankedDeck || rankedDeck.isStarter) {
-          socket.emit("game:error", "Ranked requires your own custom deck");
-          return;
-        }
+      }
+
+      const deckRecord = await prisma.deck.findFirst({
+        where: { id: deckId, userId: authenticatedUserId },
+        include: { deckCards: true },
+      });
+      if (!deckRecord) {
+        socket.emit("game:error", "Deck not found");
+        return;
+      }
+      const cardCount = deckRecord.deckCards.reduce((s, dc) => s + dc.quantity, 0);
+      if (cardCount !== 30) {
+        socket.emit("game:error", `Deck must have 30 cards (${cardCount}/30)`);
+        return;
+      }
+      if (mode === "ranked" && deckRecord.isStarter) {
+        socket.emit("game:error", "Ranked requires your own custom deck");
+        return;
       }
 
       leaveQueue(authenticatedUserId);
@@ -161,8 +173,8 @@ export function registerSocketHandlers(
         // Immediately match with AI
         const deck = await getDeckCards(deckId, authenticatedUserId);
         const hero = await prisma.hero.findUnique({ where: { id: heroId } });
-        if (!hero || deck.length === 0) {
-          socket.emit("game:error", "Invalid deck or hero");
+        if (!hero || deck.length !== 30) {
+          socket.emit("game:error", deck.length === 0 ? "Invalid deck or hero" : `Deck must have 30 cards (${deck.length}/30)`);
           return;
         }
 

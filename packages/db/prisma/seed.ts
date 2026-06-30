@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { ART_LABELS } from "./art-labels";
 
 const prisma = new PrismaClient();
 
@@ -112,7 +113,7 @@ const HEROES = [
   },
 ];
 
-const CARDS = [
+export const CARDS = [
   // --- TOKENS / SPECIAL ---
   {
     id: "token_1_1",
@@ -1005,10 +1006,14 @@ async function main() {
 
   console.log("Seeding cards...");
   for (const card of CARDS) {
+    const cardData = {
+      ...card,
+      artLabel: ART_LABELS[card.id] ?? (card as { artLabel?: string }).artLabel ?? null,
+    };
     await prisma.card.upsert({
       where: { id: card.id },
-      update: card as Parameters<typeof prisma.card.upsert>[0]["create"],
-      create: card as Parameters<typeof prisma.card.upsert>[0]["create"],
+      update: cardData as Parameters<typeof prisma.card.upsert>[0]["create"],
+      create: cardData as Parameters<typeof prisma.card.upsert>[0]["create"],
     });
   }
 
@@ -1068,6 +1073,10 @@ async function main() {
   console.log("Seed complete!");
 }
 
-main()
-  .catch(console.error)
-  .finally(() => prisma.$disconnect());
+const isSeedEntry = process.argv[1]?.replace(/\\/g, "/").includes("prisma/seed");
+
+if (isSeedEntry) {
+  main()
+    .catch(console.error)
+    .finally(() => prisma.$disconnect());
+}
