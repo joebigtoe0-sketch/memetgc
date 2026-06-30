@@ -172,6 +172,7 @@ export default function GameBoard() {
     if (!canAct) return;
     if (phase === "select_attack_target") {
       if (validTargets.includes(instanceId)) doAttack(selectedAttackerId!, instanceId);
+      else cancelTargeting();
       return;
     }
     if (phase === "select_play_target") {
@@ -192,11 +193,18 @@ export default function GameBoard() {
       if (phase === "select_attack_target" && selectedAttackerId) {
         const heroId = "hero_" + opponentState.playerId;
         if (validTargets.includes(heroId)) doAttack(selectedAttackerId, heroId);
+        else cancelTargeting();
       } else if (phase === "select_play_target" && selectedCardInstanceId) {
         sendAction({ type: "play_card", cardInstanceId: selectedCardInstanceId, targetInstanceId: "hero_" + opponentState.playerId });
         selectCard(null); setPhase("idle");
+      } else if (phase !== "idle") {
+        cancelTargeting();
       }
     } else {
+      if (phase !== "idle") {
+        cancelTargeting();
+        return;
+      }
       if (myState.hasWeapon && !myState.heroHasAttacked && canAct) {
         selectAttacker("hero_" + playerId); setPhase("select_attack_target");
       }
@@ -209,7 +217,26 @@ export default function GameBoard() {
     selectCard(null); selectAttacker(null); setPhase("idle");
   }
 
+  function cancelTargeting() {
+    selectCard(null);
+    selectAttacker(null);
+    setPhase("idle");
+    setActionError(null);
+  }
+
+  function handleBoardBackgroundClick(e: React.MouseEvent) {
+    if (phase === "idle") return;
+    if (e.target !== e.currentTarget) return;
+    cancelTargeting();
+  }
+
   const manaAvailable = myState.mana + myState.tempMana;
+  const turnTimeRatio = turnSecondsLeft / TURN_SECONDS;
+  const turnBarColor =
+    !isMyTurn ? "rgba(255,255,255,.12)"
+    : turnTimeRatio > 0.5 ? "#2ee88a"
+    : turnTimeRatio > 0.25 ? "#f0c040"
+    : "#ff4444";
 
   return (
     <div style={{
@@ -241,12 +268,20 @@ export default function GameBoard() {
         </div>
 
         {/* Opponent board — center, slots at bottom */}
-        <div style={{ flex: 1, display: "flex", alignItems: "flex-end", justifyContent: "center", gap: 8, padding: "0 8px 4px" }}>
+        <div
+          onClick={handleBoardBackgroundClick}
+          style={{ flex: 1, display: "flex", alignItems: "flex-end", justifyContent: "center", gap: 8, padding: "0 8px 4px", cursor: phase !== "idle" ? "pointer" : "default" }}
+        >
           {Array.from({ length: 7 }).map((_, i) => {
             const slot = opponentState.board[i];
             const isValidTarget = phase === "select_attack_target" && slot ? validTargets.includes(slot.instanceId) : false;
             return (
-              <BoardSlot key={i} highlighted={isValidTarget} dimmed={phase === "select_attack_target" && !isValidTarget && !!slot}>
+              <BoardSlot
+                key={i}
+                highlighted={isValidTarget}
+                dimmed={phase === "select_attack_target" && !isValidTarget && !!slot}
+                onClick={!slot && phase !== "idle" ? cancelTargeting : undefined}
+              >
                 {slot && (
                   <MinionCard
                     slot={slot} isEnemy isValidTarget={isValidTarget}
@@ -270,7 +305,21 @@ export default function GameBoard() {
 
       {/* ══════════════ CENTER BAR ══════════════ */}
       <div style={{ flex: "0 0 50px", position: "relative", display: "flex", alignItems: "center" }}>
-        <div style={{ position: "absolute", left: 0, right: 0, top: "50%", height: 1, background: "linear-gradient(90deg,transparent,rgba(231,199,104,.4),transparent)", pointerEvents: "none" }} />
+        {/* Turn timer bar — drains left → right */}
+        <div style={{
+          position: "absolute", left: 140, right: 140, top: "50%", transform: "translateY(-50%)",
+          height: 6, borderRadius: 4, background: "rgba(255,255,255,.06)",
+          border: "1px solid rgba(255,255,255,.08)", overflow: "hidden", pointerEvents: "none",
+        }}>
+          <div style={{
+            height: "100%",
+            width: isMyTurn ? `${turnTimeRatio * 100}%` : "0%",
+            borderRadius: 3,
+            background: turnBarColor,
+            boxShadow: isMyTurn ? `0 0 10px ${turnBarColor}88` : "none",
+            transition: "width 1s linear, background 0.4s ease, box-shadow 0.4s ease",
+          }} />
+        </div>
 
         {/* Turn badge */}
         <div style={{ position: "absolute", left: 16, zIndex: 10, padding: "6px 14px", borderRadius: 9, background: isMyTurn ? "rgba(25,224,138,.1)" : "rgba(255,255,255,.04)", border: `1px solid ${isMyTurn ? "rgba(25,224,138,.35)" : "rgba(255,255,255,.1)"}`, display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
@@ -291,7 +340,7 @@ export default function GameBoard() {
           <button onClick={() => setShowSurrenderConfirm(true)} title="Surrender" style={{ cursor: "pointer", width: 32, height: 32, borderRadius: 7, background: "rgba(100,20,20,.7)", border: "1px solid rgba(255,80,80,.3)", color: "#ff8888", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" }}>🏳</button>
           <button onClick={() => { window.location.href = "/"; }} style={{ cursor: "pointer", width: 32, height: 32, borderRadius: 7, background: "rgba(8,11,18,.7)", border: "1px solid rgba(255,255,255,.12)", color: "#c4ccd8", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" }}>⚙</button>
           {phase !== "idle" ? (
-            <button onClick={() => { selectCard(null); selectAttacker(null); setPhase("idle"); setActionError(null); }} style={{ cursor: "pointer", padding: "7px 16px", borderRadius: 9, border: "2px solid rgba(255,140,60,.6)", background: "rgba(255,90,30,.08)", color: "#ffaa66", font: `800 13px var(--font-cinzel,'Cinzel',serif)` }}>CANCEL</button>
+            <button onClick={cancelTargeting} style={{ cursor: "pointer", padding: "7px 16px", borderRadius: 9, border: "2px solid rgba(255,140,60,.6)", background: "rgba(255,90,30,.08)", color: "#ffaa66", font: `800 13px var(--font-cinzel,'Cinzel',serif)` }}>CANCEL</button>
           ) : (
             <button onClick={handleEndTurn} disabled={!canAct} style={{ cursor: canAct ? "pointer" : "not-allowed", padding: "8px 20px", borderRadius: 9, border: `2px solid ${canAct ? "#e0b13a" : "rgba(255,255,255,.1)"}`, background: canAct ? "linear-gradient(180deg,#3a4150,#1c2230)" : "rgba(20,22,30,.7)", boxShadow: canAct ? "0 0 18px rgba(231,199,104,.3),inset 0 1px 0 rgba(255,240,190,.25)" : "none", color: canAct ? "#f3e8cc" : "#4a5060", font: `800 14px var(--font-cinzel,'Cinzel',serif)`, animation: canAct ? "pulseEndTurn 2s ease-in-out infinite" : "none" }}>
               END TURN
@@ -329,7 +378,10 @@ export default function GameBoard() {
         <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0, overflow: "visible" }}>
 
           {/* Player board — slots at top of center column */}
-          <div style={{ flex: 1, display: "flex", alignItems: "flex-start", justifyContent: "center", gap: 8, padding: "6px 0 0" }}>
+          <div
+            onClick={handleBoardBackgroundClick}
+            style={{ flex: 1, display: "flex", alignItems: "flex-start", justifyContent: "center", gap: 8, padding: "6px 0 0", cursor: phase !== "idle" ? "pointer" : "default" }}
+          >
             {Array.from({ length: 7 }).map((_, i) => {
               const slot = myState.board[i];
               const isAttacking = slot?.instanceId === selectedAttackerId;
@@ -340,9 +392,15 @@ export default function GameBoard() {
                   glowing={isAttacking}
                   clickable={!slot && phase === "select_play_target"}
                   onClick={() => {
+                    if (phase === "select_attack_target") {
+                      cancelTargeting();
+                      return;
+                    }
                     if (!slot && phase === "select_play_target" && selectedCardInstanceId) {
                       sendAction({ type: "play_card", cardInstanceId: selectedCardInstanceId, boardPosition: i });
                       selectCard(null); setPhase("idle");
+                    } else if (!slot && phase === "select_play_target") {
+                      cancelTargeting();
                     }
                   }}
                 >

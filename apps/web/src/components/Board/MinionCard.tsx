@@ -51,7 +51,7 @@ export default function MinionCard({ slot, isEnemy, isSelected, isValidTarget, i
 
   return (
     <div
-      onClick={onClick}
+      onClick={(e) => { e.stopPropagation(); onClick?.(); }}
       onMouseEnter={() => onHover?.(true)}
       onMouseLeave={() => onHover?.(false)}
       style={{
