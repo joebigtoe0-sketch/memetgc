@@ -14,14 +14,25 @@ Batch-generates trading card art using OpenAI's image API, following the style f
 - **Type-aware prompts** — weapons/locations/spells get object-focused poses (no cartoon eyes on gear)
 - **Card-crop composition** — subjects framed for the 158px-tall art window
 
+## Subject rules
+
+**Bitcoin** — humans allowed (traders, maxis, vault guards) **or** fantasy creatures (golems, dwarves, vault guardians).
+
+**All other factions** — no humans except Hero cards and Legendary KOL minions; Common/Rare/Epic must be creatures, monsters, or anthropomorphized objects.
+
+Faction archetypes and the 12 canonical sample briefs live in `cards.json`. Full catalog in `packages/db/prisma/art-labels.ts`.
+
 ## Commands
 
 ```bash
+# Generate all missing art (skips existing PNGs)
+pnpm art:generate
+
+# Regenerate only cards that previously had human characters (keeps approved art)
+pnpm art:regenerate-humans
+
 # Dry run — writes prompts to logs/, no API cost
 pnpm art:dry
-
-# Generate all missing art (from seed data)
-pnpm art:generate
 
 # Regenerate specific cards with upgraded prompts
 pnpm --filter @memetgc/card-art generate -- --card-id=bitcoin_paper_hands --force

@@ -7,6 +7,7 @@
     "generate": "tsx src/generate.ts --source=seed",
     "generate:dry": "tsx src/generate.ts --source=seed --dry-run --limit=3",
     "generate:db": "tsx src/generate.ts --source=db",
+    "regenerate:humans": "tsx src/generate.ts --source=seed --force-humans",
     "sync:db": "tsx src/syncToDb.ts"
   },
   "dependencies": {

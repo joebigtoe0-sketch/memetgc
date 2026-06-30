@@ -1,3 +1,5 @@
+import { allowsHumanSubjects } from "./creature-rules.js";
+
 export interface CardForArt {
   id: string;
   name: string;
@@ -83,6 +85,12 @@ export function buildCardPrompt(card: CardForArt, subjectDescription: string): s
   const composition = getComposition(card);
   const glow = getLegendaryGlow(card, palette);
 
+  const subjectRule = allowsHumanSubjects(card)
+    ? card.faction === "bitcoin"
+      ? "Bitcoin cards may depict human characters (traders, guards, maxis) or fantasy creatures (golems, dwarves) per the brief."
+      : "Subject may be a human only if the brief specifies it (heroes/legendary KOL)."
+    : "Subject must be a creature, monster, or anthropomorphized object — never a realistic human in a suit or as a person.";
+
   return `
 A ${card.rarity}-tier digital painting of ${subject}.
 
@@ -95,6 +103,8 @@ Lighting: single dramatic rim light from upper-left at 45 degrees, warm key ligh
 Palette: ${palette.primary}, ${palette.secondary}, and ${palette.accent} as the dominant colors. Mood: ${palette.mood}${glow}.
 
 Composition: subject centered in frame, ${composition}, simplified atmospheric background with soft blur, no busy detail behind subject.
+
+${subjectRule}
 
 Trading card game illustration, painted comic book style. NOT photorealistic, NOT 3D render, NOT photograph, NOT anime.
 `.trim();

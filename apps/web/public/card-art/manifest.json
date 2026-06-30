@@ -18,5 +18,20 @@
   "meme_viral_tweet": "/card-art/meme_viral_tweet.png",
   "meme_elon_shill": "/card-art/meme_elon_shill.png",
   "meme_pump_it": "/card-art/meme_pump_it.png",
-  "meme_100x_bet": "/card-art/meme_100x_bet.png"
+  "meme_100x_bet": "/card-art/meme_100x_bet.png",
+  "bitcoin_hardware_security": "/card-art/bitcoin_hardware_security.png",
+  "stable_risk_manager": "/card-art/stable_risk_manager.png",
+  "stable_yield_farmer": "/card-art/stable_yield_farmer.png",
+  "stable_liquidation": "/card-art/stable_liquidation.png",
+  "stable_flash_crash": "/card-art/stable_flash_crash.png",
+  "stable_collateral": "/card-art/stable_collateral.png",
+  "stable_peg_defence": "/card-art/stable_peg_defence.png",
+  "stable_stablecoin": "/card-art/stable_stablecoin.png",
+  "meme_to_the_moon": "/card-art/meme_to_the_moon.png",
+  "stable_dai_hard": "/card-art/stable_dai_hard.png",
+  "stable_reserve_protocol": "/card-art/stable_reserve_protocol.png",
+  "stable_the_fed": "/card-art/stable_the_fed.png",
+  "degen_rug_pull": "/card-art/degen_rug_pull.png",
+  "ethereum_the_exchange": "/card-art/ethereum_the_exchange.png",
+  "card_hero_satoshi": "/card-art/card_hero_satoshi.png"
 }

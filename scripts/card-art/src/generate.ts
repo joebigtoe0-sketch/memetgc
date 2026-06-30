@@ -7,6 +7,12 @@ import { prisma } from "@memetgc/db";
 import { CARDS as SEED_CARDS } from "../../../packages/db/prisma/seed.js";
 import { ART_LABELS } from "../../../packages/db/prisma/art-labels.js";
 import { buildCardPrompt, type CardForArt } from "./promptBuilder.js";
+import {
+  BRIEF_FEW_SHOT,
+  CREATURE_SUBJECT_RULES,
+  FORCE_HUMAN_REGEN_IDS,
+  getSampleArtBriefs,
+} from "./creature-rules.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "../../..");
@@ -19,17 +25,12 @@ const QUALITY = (process.env.IMAGE_QUALITY ?? "high") as "low" | "medium" | "hig
 const DELAY_MS = Number(process.env.IMAGE_DELAY_MS ?? "1500");
 const BRIEF_MODEL = process.env.BRIEF_MODEL ?? "gpt-4.1";
 
-const BRIEF_FEW_SHOT = `
-Examples of good card art briefs (subject only, no style words):
-- Paper Hands: a small panicked goblin-like trader made of crumpled paper, eyes wide, mid-sprint, papers flying off his body as he flees
-- Diamond Hands: a battle-worn crypto trader encased from the waist down in glowing crystalline diamond, fists clenched, refusing to move
-- Cold Wallet: a frost-covered metal hardware wallet floating in cold mist, glowing bitcoin symbol on its screen, icy vapor curling off the edges
-- Moon Boy: a hyperactive kid astronaut in a cardboard rocket backpack mid-leap, manic grin, finger pointing at a crescent moon
-`.trim();
+const SAMPLE_ART_BRIEFS = getSampleArtBriefs();
 
 interface CliArgs {
   cardId?: string;
   force: boolean;
+  forceHumans: boolean;
   limit?: number;
   dryRun: boolean;
   all: boolean;
@@ -37,9 +38,10 @@ interface CliArgs {
 }
 
 function parseArgs(): CliArgs {
-  const args: CliArgs = { force: false, dryRun: false, all: false, source: "db" };
+  const args: CliArgs = { force: false, forceHumans: false, dryRun: false, all: false, source: "db" };
   for (const arg of process.argv.slice(2)) {
     if (arg === "--force") args.force = true;
+    else if (arg === "--force-humans") args.forceHumans = true;
     else if (arg === "--dry-run") args.dryRun = true;
     else if (arg === "--all") args.all = true;
     else if (arg === "--source=seed") args.source = "seed";
@@ -66,9 +68,19 @@ function publicArtUrl(cardId: string): string {
 function resolveArtBrief(card: { id: string; artLabel?: string | null }): string | null {
   const fromCard = card.artLabel?.trim();
   if (fromCard) return fromCard;
+  const fromSample = SAMPLE_ART_BRIEFS[card.id]?.trim();
+  if (fromSample) return fromSample;
   const fromCatalog = ART_LABELS[card.id]?.trim();
   if (fromCatalog) return fromCatalog;
   return null;
+}
+
+function shouldForceRegenerate(cardId: string, args: CliArgs, outputPath: string): boolean {
+  if (args.force) return true;
+  if (args.forceHumans && (FORCE_HUMAN_REGEN_IDS as readonly string[]).includes(cardId)) {
+    return fs.existsSync(outputPath);
+  }
+  return false;
 }
 
 async function generateArtBrief(client: OpenAI, card: CardForArt): Promise<string> {
@@ -76,14 +88,17 @@ async function generateArtBrief(client: OpenAI, card: CardForArt): Promise<strin
     model: BRIEF_MODEL,
     messages: [{
       role: "user",
-      content: `${BRIEF_FEW_SHOT}
+      content: `${CREATURE_SUBJECT_RULES}
 
-Write ONE creative visual description (max 40 words) for a trading card called "${card.name}" (${card.type}, ${card.faction} faction).
+${BRIEF_FEW_SHOT}
+
+Write ONE creative visual description (max 40 words) for a trading card called "${card.name}" (${card.type}, ${card.rarity}, ${card.faction} faction).
 Card ability: "${card.text ?? ""}".
 Flavor: "${(card as { flavorText?: string }).flavorText ?? ""}".
 
 Rules:
-- Describe ONLY what is depicted — memorable character/object concepts, not literal ability text
+- Follow the creature archetype rules above strictly
+- Describe ONLY what is depicted — memorable creature/object concepts, not literal ability text
 - No art style words (no "digital painting", "cel-shaded", etc.)
 - Start lowercase, no leading "a/an/the"
 - Be specific and funny where the card is comedic`,
@@ -106,7 +121,6 @@ async function generateImage(client: OpenAI, prompt: string): Promise<Buffer> {
       if (model === "dall-e-3") {
         params.size = SIZE === "1024x1536" ? "1024x1792" : SIZE;
         params.quality = QUALITY === "high" ? "hd" : "standard";
-        params.response_format = "b64_json";
       } else {
         params.size = SIZE;
         params.quality = QUALITY;
@@ -217,7 +231,15 @@ async function run(): Promise<void> {
   }
 
   let pending = cards.filter((c) => c.collectible !== false);
-  if (!args.all) pending = pending.filter((c) => !c.artUrl || args.force);
+  if (!args.all && !args.force && !args.forceHumans) {
+    pending = pending.filter((c) => !c.artUrl);
+  }
+
+  if (args.forceHumans) {
+    const humanSet = new Set(FORCE_HUMAN_REGEN_IDS);
+    pending = pending.filter((c) => humanSet.has(c.id as typeof FORCE_HUMAN_REGEN_IDS[number]));
+  }
+
   if (args.limit && args.limit > 0) pending = pending.slice(0, args.limit);
 
   console.log(`\nDegen TCG — Card Art Generator`);
@@ -239,7 +261,7 @@ async function run(): Promise<void> {
     const outputPath = path.join(OUTPUT_DIR, `${card.id}.png`);
     const url = publicArtUrl(card.id);
 
-    if (!args.force && fs.existsSync(outputPath)) {
+    if (!shouldForceRegenerate(card.id, args, outputPath) && fs.existsSync(outputPath)) {
       console.log(`[SKIP] ${card.id} — art file exists`);
       continue;
     }
