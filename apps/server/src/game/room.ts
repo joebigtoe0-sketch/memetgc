@@ -222,37 +222,78 @@ function clearTurnTimer(room: GameRoom): void {
   }
 }
 
+// Delay between individual AI actions so a human can follow the AI playing/attacking
+// one card at a time, instead of everything happening instantly.
+const AI_ACTION_DELAY_MS = 1100;
+const AI_MAX_ACTIONS = 20;
+
 function processAITurn(room: GameRoom, io: Server<ClientToServerEvents, ServerToClientEvents>): void {
   if (room.state.status !== "in_progress") return;
 
   const aiPlayerId = Object.keys(room.players).find((id) => room.players[id]?.isAI);
   if (!aiPlayerId || room.state.activePlayerId !== aiPlayerId) return;
 
-  let iterations = 0;
-  while (room.state.activePlayerId === aiPlayerId && room.state.status === "in_progress" && iterations < 20) {
-    const action = getAIAction(room.state, aiPlayerId);
-    const result = applyAction(room.state, action, room.cardRegistry);
-    if (!result.success) {
-      // Never stall the AI turn: if its chosen action was rejected, just end the turn
-      if (action.type !== "end_turn") {
-        const endResult = applyAction(room.state, { type: "end_turn" }, room.cardRegistry);
-        if (endResult.success) room.state = endResult.newState;
-      }
-      break;
-    }
-    room.state = result.newState;
-    iterations++;
-    if (action.type === "end_turn") break;
-  }
+  stepAITurn(room, io, aiPlayerId, 0);
+}
 
-  broadcastState(room, io, []);
+/**
+ * Executes ONE AI action, broadcasts it, then schedules the next step after a delay.
+ * Mirrors the human action flow (one applyAction + one broadcast per action) so the
+ * client sees the AI act incrementally rather than all at once.
+ */
+function stepAITurn(
+  room: GameRoom,
+  io: Server<ClientToServerEvents, ServerToClientEvents>,
+  aiPlayerId: string,
+  iterations: number
+): void {
+  // Bail if the room was torn down (e.g. opponent surrendered/disconnected mid-turn)
+  if (!rooms.has(room.gameId)) return;
+  if (room.state.status === "finished") { cleanupRoom(room, io); return; }
+  if (room.state.status !== "in_progress") return;
 
-  if (room.state.status === "finished") {
-    cleanupRoom(room, io);
+  // Turn already handed back to the human (e.g. AI ended turn last step)
+  if (room.state.activePlayerId !== aiPlayerId) {
+    scheduleActiveTurnTimer(room, io);
     return;
   }
 
-  // After AI turn, schedule human turn timer
+  // Safety cap: force end turn if the AI somehow loops
+  if (iterations >= AI_MAX_ACTIONS) {
+    finishAITurn(room, io);
+    return;
+  }
+
+  const action = getAIAction(room.state, aiPlayerId);
+  const result = applyAction(room.state, action, room.cardRegistry);
+
+  if (!result.success) {
+    // Never stall: if the chosen action was rejected, just end the turn
+    finishAITurn(room, io);
+    return;
+  }
+
+  room.state = result.newState;
+  broadcastState(room, io, result.animations);
+
+  if (room.state.status === "finished") { cleanupRoom(room, io); return; }
+
+  if (action.type === "end_turn") {
+    // handleEndTurn already switched the active player back to the human
+    scheduleActiveTurnTimer(room, io);
+    return;
+  }
+
+  setTimeout(() => stepAITurn(room, io, aiPlayerId, iterations + 1), AI_ACTION_DELAY_MS);
+}
+
+function finishAITurn(room: GameRoom, io: Server<ClientToServerEvents, ServerToClientEvents>): void {
+  const endResult = applyAction(room.state, { type: "end_turn" }, room.cardRegistry);
+  if (endResult.success) {
+    room.state = endResult.newState;
+    broadcastState(room, io, endResult.animations);
+  }
+  if (room.state.status === "finished") { cleanupRoom(room, io); return; }
   scheduleActiveTurnTimer(room, io);
 }
 

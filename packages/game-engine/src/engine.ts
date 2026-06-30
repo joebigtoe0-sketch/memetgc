@@ -764,11 +764,12 @@ function startTurn(state: GameState, animations: AnimationHint[], rng: () => num
   if (activePlayer.factionBonusActive && activePlayer.factionBonus === "meme") {
     const flip = rng() > 0.5;
     if (flip) {
+      // Heads: draw an extra card. Mark the bonus so the UI can explain the 2nd draw.
+      animations.push({ type: "draw", data: { memeBonus: "extra_draw", playerId: activePlayer.playerId } });
       drawCard(activePlayer, animations);
-      animations.push({ type: "draw", data: { memeBonus: "extra_draw" } });
     } else {
       activePlayer.heroPowerUsed = false; // Free hero power this turn (cost 0)
-      animations.push({ type: "spell_cast", data: { memeBonus: "free_hero_power" } });
+      animations.push({ type: "spell_cast", data: { memeBonus: "free_hero_power", playerId: activePlayer.playerId } });
     }
   }
 

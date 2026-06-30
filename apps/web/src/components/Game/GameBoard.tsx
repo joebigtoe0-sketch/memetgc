@@ -9,6 +9,7 @@ import HandZone from "../Board/HandZone";
 import MulliganScreen from "./MulliganScreen";
 import CardComponent from "../Card/CardComponent";
 import { getPlayCardTargets } from "@memetgc/game-engine";
+import { preloadCardArt, preloadAllCardArt } from "@/lib/preloadArt";
 import type { MinionSlot, Card } from "@memetgc/types";
 import type { CardData } from "../Card/CardComponent";
 
@@ -72,6 +73,23 @@ export default function GameBoard() {
   useEffect(() => {
     if (showLog) logEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [logEntries, showLog]);
+
+  // Preload the whole art set once so cards never visibly re-fetch mid-match
+  useEffect(() => {
+    void preloadAllCardArt();
+  }, []);
+
+  // Preload art for every card currently visible (hand + both boards + graveyards)
+  useEffect(() => {
+    if (!gameState) return;
+    const ids: Array<string | undefined> = [];
+    for (const c of gameState.myState.hand) ids.push((c as Card).id);
+    for (const s of gameState.myState.board) if (s) ids.push(s.card.id);
+    for (const s of gameState.opponentState.board) if (s) ids.push(s.card.id);
+    for (const c of gameState.myState.burnPile ?? []) ids.push(c.id);
+    for (const c of gameState.opponentState.burnPile ?? []) ids.push(c.id);
+    preloadCardArt(ids);
+  }, [gameState]);
 
   // Detect newly drawn cards
   useEffect(() => {
@@ -160,12 +178,22 @@ export default function GameBoard() {
     if (!pendingAnimations?.length) return;
     for (const anim of pendingAnimations) {
       if (anim.type === "draw") {
-        const d = anim.data as { overdraw?: boolean; fatigue?: number; playerId?: string };
-        if (d.playerId === playerId) {
+        const d = anim.data as { overdraw?: boolean; fatigue?: number; playerId?: string; memeBonus?: string };
+        if (d.memeBonus === "extra_draw") {
+          // Meme faction coin-flip bonus — explains the extra card so it doesn't look like a bug
+          if (d.playerId === playerId) { addToast("🎲 Meme Bonus: +1 card!", "#ff5fae"); addLog("Meme bonus: drew an extra card", gameState?.turnNumber ?? 0); }
+          else addLog("Opponent's Meme bonus: extra card", gameState?.turnNumber ?? 0);
+        } else if (d.playerId === playerId) {
           if (d.fatigue) { addToast(`💀 Fatigue! −${d.fatigue} HP`, "#ff5555"); addLog(`Fatigue: ${d.fatigue} damage`, gameState?.turnNumber ?? 0); }
           else if (d.overdraw) { addToast("🔥 Overdraw — card burned", "#ff9944"); addLog("Card burned (overdraw)", gameState?.turnNumber ?? 0); }
           else addLog("Drew a card", gameState?.turnNumber ?? 0);
         } else addLog("Opponent drew a card", gameState?.turnNumber ?? 0);
+      } else if (anim.type === "spell_cast") {
+        const d = anim.data as { memeBonus?: string; playerId?: string };
+        if (d.memeBonus === "free_hero_power") {
+          if (d.playerId === playerId) { addToast("🎲 Meme Bonus: free Hero Power!", "#ff5fae"); addLog("Meme bonus: free hero power this turn", gameState?.turnNumber ?? 0); }
+          else addLog("Opponent's Meme bonus: free hero power", gameState?.turnNumber ?? 0);
+        }
       } else if (anim.type === "death") {
         const d = anim.data as { cardId?: string };
         addToast("💀 Minion destroyed", "#ff8888");

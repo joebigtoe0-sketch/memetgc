@@ -85,19 +85,22 @@ export default function MinionCard({ slot, isEnemy, isSelected, isValidTarget, i
           background: `radial-gradient(120% 90% at 50% 0%,color-mix(in srgb,${fac} 22%,#1a1f29),#0e1219)`,
           boxShadow: `inset 0 0 0 1.5px color-mix(in srgb,${fac} 55%,#000)`,
         }}>
-          {/* Diagonal stripe pattern */}
+          {/* Art window: full card image, with name fallback underneath (shows on 404) */}
           <div style={{
             position: "absolute", inset: 0,
             display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3,
             background: `repeating-linear-gradient(135deg,color-mix(in srgb,${fac} 16%,transparent) 0 8px,transparent 8px 16px)`,
           }}>
-            {slot.card.art_url ? (
-              <img src={slot.card.art_url} alt={slot.card.name} style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }} />
-            ) : (
-              <div style={{ font: `700 9px/1.1 var(--font-archivo,'Archivo',sans-serif)`, textAlign: "center", color: `color-mix(in srgb,${fac} 50%,#fff)`, textShadow: "0 1px 2px #000", padding: "0 6px" }}>
-                {(slot.card.name ?? "").toUpperCase()}
-              </div>
-            )}
+            <div style={{ font: `700 9px/1.1 var(--font-archivo,'Archivo',sans-serif)`, textAlign: "center", color: `color-mix(in srgb,${fac} 50%,#fff)`, textShadow: "0 1px 2px #000", padding: "0 6px" }}>
+              {(slot.card.name ?? "").toUpperCase()}
+            </div>
+            <img
+              src={slot.card.art_url ?? `/card-art/${slot.card.id}.png`}
+              alt={slot.card.name}
+              loading="eager"
+              style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }}
+              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+            />
           </div>
 
           {/* Divine Shield inner glow */}
