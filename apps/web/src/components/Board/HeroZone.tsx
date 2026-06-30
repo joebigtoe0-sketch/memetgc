@@ -42,7 +42,6 @@ export default function HeroZone({
   const isDangerous = hp <= 10;
 
   const portraitSize = isEnemy ? 88 : 96;
-  const portraitBorder = isValidTarget ? "#e0e040" : isDangerous ? "#ff3a3a" : fac;
   const portraitShadow = isValidTarget
     ? "0 0 22px rgba(224,224,64,.55)"
     : isDangerous
@@ -76,12 +75,7 @@ export default function HeroZone({
           boxShadow: portraitShadow,
         }}
       >
-        <FactionIcon
-          faction={faction}
-          size={portraitSize}
-          borderWidth={2.5}
-          style={{ borderColor: portraitBorder }}
-        />
+        <FactionIcon faction={faction} size={portraitSize} />
 
         {/* HP bubble (bottom-right of portrait) */}
         <div style={{

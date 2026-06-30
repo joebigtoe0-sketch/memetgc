@@ -160,7 +160,7 @@ export default function CollectionPage() {
           <div style={{ width: 1, height: 24, background: "rgba(255,255,255,.1)", margin: "0 2px" }} />
           {FACTIONS.map((f) => (
             <FacBtn key={f} active={filterFaction === f} color={factionColor(f)} onClick={() => setFilterFaction(filterFaction === f ? "" : f)}>
-              <FactionIcon faction={f} size={22} border={false} fit="contain" />
+              <FactionIcon faction={f} size={22} />
             </FacBtn>
           ))}
           <input value={filterSearch} onChange={(e) => setFilterSearch(e.target.value)} placeholder="Search cards…" style={{ marginLeft: 8, padding: "8px 12px", borderRadius: 9, background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)", color: "#e7ecf3", font: `500 12px var(--font-archivo,'Archivo',sans-serif)`, width: 150, outline: "none" }} />
@@ -219,7 +219,7 @@ export default function CollectionPage() {
         <div style={{ borderRadius: 16, background: "linear-gradient(150deg,rgba(255,255,255,.045),rgba(18,23,35,.6))", border: "1px solid rgba(255,255,255,.08)", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
           <div style={{ padding: 16, borderBottom: "1px solid rgba(255,255,255,.06)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              {deck ? <FactionIcon faction={deck.faction ?? "degen"} size={30} shape="rounded" borderWidth={2} /> : <div style={{ width: 30, height: 30, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", background: "#15101a", border: "2px solid #444", color: "#888" }}>?</div>}
+              {deck ? <FactionIcon faction={deck.faction ?? "degen"} size={30} /> : <span style={{ width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", color: "#888" }}>?</span>}
               <div style={{ flex: 1, minWidth: 0 }}>
                 {renaming ? (
                   <input autoFocus value={renameValue} onChange={(e) => setRenameValue(e.target.value)} onBlur={commitRename} onKeyDown={(e) => { if (e.key === "Enter") commitRename(); if (e.key === "Escape") setRenaming(false); }} maxLength={50}

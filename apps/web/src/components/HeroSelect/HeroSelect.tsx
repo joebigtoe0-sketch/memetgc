@@ -120,7 +120,7 @@ export default function HeroSelect() {
               const active = h.id === selectedHero;
               return (
                 <div key={h.id} onClick={() => setSelectedHero(h.id)} style={{ cursor: "pointer", padding: "16px 6px 12px", borderRadius: 14, display: "flex", flexDirection: "column", alignItems: "center", background: active ? `linear-gradient(160deg,color-mix(in srgb,${fc} 20%,transparent),rgba(20,26,42,.6))` : "rgba(255,255,255,.03)", border: `1.5px solid ${active ? fc : "rgba(255,255,255,.08)"}`, boxShadow: active ? `0 0 22px color-mix(in srgb,${fc} 40%,transparent)` : "none", transform: active ? "translateY(-3px)" : "none", transition: "all .15s ease" }}>
-                  <FactionIcon faction={h.faction} size={52} borderWidth={2} />
+                  <FactionIcon faction={h.faction} size={52} />
                   <div style={{ font: `700 11px var(--font-cinzel,'Cinzel',serif)`, color: "#f1f4f9", marginTop: 9, textAlign: "center" }}>{h.name}</div>
                   <div style={{ font: `700 7.5px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "1px", color: fc, marginTop: 5 }}>{factionDisplayName(h.faction)}</div>
                 </div>
@@ -130,7 +130,7 @@ export default function HeroSelect() {
 
           {SH && (
             <div style={{ borderRadius: 16, padding: 24, background: "linear-gradient(150deg,rgba(255,255,255,.04),rgba(20,26,42,.5))", border: `1px solid ${sfc}44`, display: "flex", gap: 22, boxShadow: `0 0 30px ${sfc}22` }}>
-              <FactionIcon faction={SH.faction} size={84} borderWidth={3} glow />
+              <FactionIcon faction={SH.faction} size={84} glow />
               <div style={{ flex: 1 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <span style={{ font: `900 24px var(--font-cinzel,'Cinzel',serif)`, color: "#fff" }}>{SH.name}</span>
@@ -171,7 +171,7 @@ export default function HeroSelect() {
               return (
                 <div key={d.id} onClick={() => { if (rankedLocked) return; setSelectedDeck(d.id); setSelectedHero(d.heroId); }} style={{ cursor: rankedLocked ? "not-allowed" : "pointer", opacity: rankedLocked ? 0.45 : 1, padding: 15, borderRadius: 13, background: active ? `linear-gradient(150deg,color-mix(in srgb,${fc} 16%,transparent),rgba(20,26,42,.5))` : "rgba(255,255,255,.03)", border: `1.5px solid ${borderColor}`, boxShadow: active ? `0 0 20px ${fc}33` : "none", transition: "all .15s ease" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    {hero ? <FactionIcon faction={hero.faction} size={32} shape="rounded" borderWidth={2} /> : <div style={{ width: 32, height: 32, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", background: "#15101a", border: "2px solid #444", color: "#888", fontSize: 14 }}>?</div>}
+                    {hero ? <FactionIcon faction={hero.faction} size={32} /> : <span style={{ width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", color: "#888", fontSize: 14 }}>?</span>}
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
                         <span style={{ font: `800 14px var(--font-cinzel,'Cinzel',serif)`, color: "#f1f4f9" }}>{d.name}</span>
@@ -263,7 +263,7 @@ function FindingOpponent({ mode, tier, hero, sfc, onCancel, statusMsg }: { mode:
         {/* You */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
           <div style={{ ["--g" as string]: `${sfc}66`, animation: "pulseGlow 2s ease-in-out infinite" }}>
-            {hero ? <FactionIcon faction={hero.faction} size={130} borderWidth={3} glow /> : <div style={{ width: 130, height: 130, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "#0c0a12", border: "3px solid #444", color: "#888", fontSize: 48 }}>?</div>}
+            {hero ? <FactionIcon faction={hero.faction} size={130} glow /> : <span style={{ width: 130, height: 130, display: "flex", alignItems: "center", justifyContent: "center", color: "#888", fontSize: 48 }}>?</span>}
           </div>
           <div style={{ font: `900 18px var(--font-cinzel,'Cinzel',serif)`, color: "#fff" }}>{hero?.name ?? "You"}</div>
           <div style={{ font: `600 10px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6", letterSpacing: "1px" }}>YOU</div>

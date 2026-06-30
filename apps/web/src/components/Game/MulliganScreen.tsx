@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import CardComponent from "../Card/CardComponent";
 import { sendAction } from "@/hooks/useSocket";
 import { useGameStore } from "@/store/gameStore";
+import BoardBackground from "./BoardBackground";
 import type { Card } from "@memetgc/types";
 
 const MULLIGAN_SECONDS = 30;
@@ -11,9 +12,10 @@ const MULLIGAN_SECONDS = 30;
 interface Props {
   hand: (Card & { instanceId: string })[];
   isFirstPlayer: boolean;
+  boardBg?: string | null;
 }
 
-export default function MulliganScreen({ hand, isFirstPlayer }: Props) {
+export default function MulliganScreen({ hand, isFirstPlayer, boardBg = null }: Props) {
   const { playerId } = useGameStore();
   const [replacing, setReplacing] = useState<Set<string>>(new Set());
   const [confirmed, setConfirmed] = useState(false);
@@ -56,16 +58,9 @@ export default function MulliganScreen({ hand, isFirstPlayer }: Props) {
   const isUrgent = secondsLeft <= 5 && !confirmed;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center"
-      style={{ background: "linear-gradient(160deg, #04060f 0%, #08091a 100%)" }}
-    >
-      <div
-        className="absolute inset-0 pointer-events-none opacity-[0.06]"
-        style={{
-          backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 60px, #2040a0 60px, #2040a0 61px)",
-        }}
-      />
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center">
+      <BoardBackground url={boardBg} />
+      <div style={{ position: "absolute", inset: 0, background: "rgba(4,6,12,0.55)", pointerEvents: "none" }} />
 
       <div className="relative z-10 flex flex-col items-center gap-8 px-8 max-w-4xl w-full">
         {/* Header */}

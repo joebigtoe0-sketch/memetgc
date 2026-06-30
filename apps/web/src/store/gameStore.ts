@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import { resetMatchBoardBackground } from "@/lib/boards";
 import type { SanitizedGameState, GameAction, AnimationHint } from "@memetgc/types";
 
 interface GameStore {
@@ -69,7 +70,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   setZoomedCard: (zoomedCard) => set({ zoomedCard }),
 
-  reset: () =>
+  reset: () => {
+    resetMatchBoardBackground();
     set({
       gameId: null,
       gameState: null,
@@ -79,5 +81,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       selectedAttackerId: null,
       zoomedCard: null,
       isMyTurn: false,
-    }),
+    });
+  },
 }));

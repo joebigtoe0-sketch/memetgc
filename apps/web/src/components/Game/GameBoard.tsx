@@ -10,6 +10,8 @@ import MulliganScreen from "./MulliganScreen";
 import CardComponent from "../Card/CardComponent";
 import { getPlayCardTargets } from "@memetgc/game-engine";
 import { preloadCardArt, preloadAllCardArt, preloadFactionArt } from "@/lib/preloadArt";
+import { getMatchBoardBackground } from "@/lib/boards";
+import BoardBackground from "./BoardBackground";
 import type { MinionSlot, Card } from "@memetgc/types";
 import type { CardData } from "../Card/CardComponent";
 
@@ -38,6 +40,7 @@ export default function GameBoard() {
   const [lungeId, setLungeId] = useState<string | null>(null);
   const [damageFlashIds, setDamageFlashIds] = useState<Set<string>>(new Set());
   const [damageFloats, setDamageFloats] = useState<DamageFloat[]>([]);
+  const [boardBg, setBoardBg] = useState<string | null>(null);
   // Draw animation
   const [newCardIds, setNewCardIds] = useState<string[]>([]);
   const prevHandIds = useRef<string[]>([]);
@@ -75,6 +78,7 @@ export default function GameBoard() {
   useEffect(() => {
     preloadFactionArt();
     void preloadAllCardArt();
+    void getMatchBoardBackground().then(setBoardBg);
   }, []);
 
   // Preload art for every card currently visible (hand + both boards + graveyards)
@@ -221,7 +225,7 @@ export default function GameBoard() {
   }
 
   if (gameState.status === "mulligan") {
-    return <MulliganScreen hand={gameState.myState.hand as (Card & { instanceId: string })[]} isFirstPlayer={gameState.myState.playerId !== gameState.activePlayerId} />;
+    return <MulliganScreen hand={gameState.myState.hand as (Card & { instanceId: string })[]} isFirstPlayer={gameState.myState.playerId !== gameState.activePlayerId} boardBg={boardBg} />;
   }
 
   if (gameState.status === "finished") {
@@ -342,8 +346,8 @@ export default function GameBoard() {
   const oppFloats = damageFloats.filter((f) => f.entityKey.startsWith("opp_"));
 
   return (
-    <div style={{ position: "relative", width: "100%", height: "100%", display: "flex", flexDirection: "column", overflow: "hidden", background: "radial-gradient(120% 80% at 50% 50%,#16202f 0%,#0a0e16 70%,#070a10 100%)", fontFamily: "var(--font-archivo,'Archivo',sans-serif)" }}>
-      <div style={{ position: "absolute", inset: 0, opacity: .35, backgroundImage: "repeating-linear-gradient(90deg,transparent 0 39px,rgba(255,255,255,.015) 39px 40px)", pointerEvents: "none" }} />
+    <div style={{ position: "relative", width: "100%", height: "100%", display: "flex", flexDirection: "column", overflow: "hidden", fontFamily: "var(--font-archivo,'Archivo',sans-serif)" }}>
+      <BoardBackground url={boardBg} />
 
       {/* ══════════════ OPPONENT ZONE ══════════════ */}
       <div style={{ flex: "0 0 44%", display: "flex", flexDirection: "row", minHeight: 0 }}>

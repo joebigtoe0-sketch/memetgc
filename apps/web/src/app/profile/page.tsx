@@ -118,7 +118,7 @@ export default function ProfilePage() {
                 const pct = Math.round((f.level / 20) * 100);
                 return (
                   <div key={f.faction} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <FactionIcon faction={f.faction} size={30} shape="rounded" borderWidth={1} />
+                    <FactionIcon faction={f.faction} size={30} />
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", font: `700 11px var(--font-archivo,'Archivo',sans-serif)`, color: "#e7ecf3", marginBottom: 5 }}>
                         <span>{name}</span><span style={{ color: "#8a93a6" }}>Lvl {f.level}</span>

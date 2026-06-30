@@ -12,7 +12,8 @@
     "db:studio": "turbo run db:studio --filter=@memetgc/db",
     "art:generate": "pnpm --filter @memetgc/card-art generate",
     "art:dry": "pnpm --filter @memetgc/card-art generate:dry",
-    "art:regenerate-humans": "pnpm --filter @memetgc/card-art regenerate:humans"
+    "art:regenerate-humans": "pnpm --filter @memetgc/card-art regenerate:humans",
+    "boards:sync": "node scripts/sync-board-manifest.mjs"
   },
   "devDependencies": {
     "turbo": "^2.5.4",
