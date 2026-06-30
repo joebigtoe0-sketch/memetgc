@@ -57,7 +57,7 @@ export default function MinionCard({ slot, isEnemy, isSelected, isValidTarget, i
         transform: (isSelected || isAttacking || isValidTarget) ? "scale(1.06) translateY(-4px)" : "scale(1)",
         transition: isLunging || isDamageFlash ? "none" : "transform 0.15s ease, box-shadow 0.15s ease",
         animation: isLunging
-          ? `minionLunge 0.52s ease-in-out`
+          ? isEnemy ? "minionLungeDown 0.52s ease-in-out" : "minionLungeUp 0.52s ease-in-out"
           : isDamageFlash
           ? `damageFlash 0.45s ease-in-out`
           : taunt ? "bmTaunt 1.8s ease-in-out infinite" : "none",
@@ -168,10 +168,16 @@ export default function MinionCard({ slot, isEnemy, isSelected, isValidTarget, i
           0%, 100% { opacity: .55; }
           50% { opacity: 1; }
         }
-        @keyframes minionLunge {
+        @keyframes minionLungeUp {
           0%   { transform: translateY(0) scale(1); }
           30%  { transform: translateY(-44px) scale(1.08); }
           60%  { transform: translateY(-44px) scale(1.06); }
+          100% { transform: translateY(0) scale(1); }
+        }
+        @keyframes minionLungeDown {
+          0%   { transform: translateY(0) scale(1); }
+          30%  { transform: translateY(44px) scale(1.08); }
+          60%  { transform: translateY(44px) scale(1.06); }
           100% { transform: translateY(0) scale(1); }
         }
         @keyframes damageFlash {

@@ -42,11 +42,6 @@ export default function HeroZone({
   const isDangerous = hp <= 10;
 
   const portraitSize = isEnemy ? 88 : 96;
-  const portraitShadow = isValidTarget
-    ? "0 0 22px rgba(224,224,64,.55)"
-    : isDangerous
-    ? "0 0 22px rgba(255,50,50,.5)"
-    : `0 0 22px color-mix(in srgb,${fac} 45%,transparent)`;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
@@ -71,8 +66,7 @@ export default function HeroZone({
           position: "relative",
           cursor: onHeroClick ? "pointer" : "default",
           transform: isValidTarget ? "scale(1.06)" : "scale(1)",
-          transition: "transform 0.15s, box-shadow 0.15s",
-          boxShadow: portraitShadow,
+          transition: "transform 0.15s",
         }}
       >
         <FactionIcon faction={faction} size={portraitSize} />

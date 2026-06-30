@@ -35,6 +35,7 @@ export default function GameBoard() {
   const [showSurrenderConfirm, setShowSurrenderConfirm] = useState(false);
   const [showGraveyard, setShowGraveyard] = useState<"mine" | "opponent" | null>(null);
   const [showLog, setShowLog] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   // Combat animations
   const [lungeId, setLungeId] = useState<string | null>(null);
@@ -195,6 +196,15 @@ export default function GameBoard() {
         if (d.memeBonus === "free_hero_power") {
           if (d.playerId === playerId) { addToast("🎲 Meme Bonus: free Hero Power!", "#ff5fae"); addLog("Meme bonus: free hero power this turn", gameState?.turnNumber ?? 0); }
           else addLog("Opponent's Meme bonus: free hero power", gameState?.turnNumber ?? 0);
+        }
+      } else if (anim.type === "attack") {
+        const d = anim.data as { attackerId?: string };
+        if (d.attackerId && !d.attackerId.startsWith("hero_")) {
+          const isMyMinion = gameState?.myState.board.some((s) => s?.instanceId === d.attackerId);
+          if (!isMyMinion) {
+            setLungeId(d.attackerId);
+            setTimeout(() => setLungeId(null), 520);
+          }
         }
       } else if (anim.type === "death") {
         const d = anim.data as { cardId?: string };
@@ -394,6 +404,7 @@ export default function GameBoard() {
                   <div style={{ position: "relative" }}>
                     {slot && (
                       <MinionCard slot={slot} isEnemy isValidTarget={isValidTarget}
+                        isLunging={lungeId === slot.instanceId}
                         isDamageFlash={damageFlashIds.has(slot.instanceId)}
                         onClick={() => handleMinionClick(slot.instanceId, true)}
                         onHover={(h) => setZoomedCard(h ? slotToCardData(slot) : null)}
@@ -445,15 +456,8 @@ export default function GameBoard() {
           </div>
         )}
 
-        {/* Right controls */}
+        {/* Right controls — end turn only */}
         <div style={{ position: "absolute", right: 16, zIndex: 10, display: "flex", gap: 8, alignItems: "center" }}>
-          <button onClick={() => setShowSurrenderConfirm(true)} title="Surrender" style={{ cursor: "pointer", width: 32, height: 32, borderRadius: 7, background: "rgba(100,20,20,.7)", border: "1px solid rgba(255,80,80,.3)", color: "#ff8888", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" }}>🏳</button>
-          <button
-            onClick={() => setShowLog((v) => !v)}
-            title="Toggle combat log"
-            style={{ cursor: "pointer", width: 32, height: 32, borderRadius: 7, background: showLog ? "rgba(100,160,255,.2)" : "rgba(8,11,18,.7)", border: `1px solid ${showLog ? "rgba(100,160,255,.5)" : "rgba(255,255,255,.12)"}`, color: showLog ? "#88ccff" : "#c4ccd8", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" }}
-          >📋</button>
-          <button onClick={() => { window.location.href = "/"; }} style={{ cursor: "pointer", width: 32, height: 32, borderRadius: 7, background: "rgba(8,11,18,.7)", border: "1px solid rgba(255,255,255,.12)", color: "#c4ccd8", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" }}>⚙</button>
           {phase !== "idle" ? (
             <button onClick={cancelTargeting} style={{ cursor: "pointer", padding: "7px 16px", borderRadius: 9, border: "2px solid rgba(255,140,60,.6)", background: "rgba(255,90,30,.08)", color: "#ffaa66", font: `800 13px var(--font-cinzel,'Cinzel',serif)` }}>CANCEL</button>
           ) : (
@@ -550,15 +554,33 @@ export default function GameBoard() {
               onCardHover={(card) => setZoomedCard(card)}
             />
           </div>
+
+          {/* Mana crystals — full row under hand */}
+          <div style={{ flex: "0 0 48px", display: "flex", justifyContent: "center", alignItems: "center", paddingBottom: 8 }}>
+            <ManaCrystals available={manaAvailable} total={myState.maxMana} />
+          </div>
         </div>
 
-        {/* Player right: mana + deck + grave */}
+        {/* Player right: deck + grave */}
         <div style={{ width: 110, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "4px 4px 8px", gap: 10, flexShrink: 0 }}>
-          <ManaCrystals available={manaAvailable} total={myState.maxMana} />
           <DeckPile count={myState.deckCount} />
           <GravePile count={myState.burnPile?.length ?? 0} onClick={() => setShowGraveyard("mine")} />
         </div>
       </div>
+
+      {/* Settings gear — top right */}
+      <button
+        onClick={() => setShowSettings(true)}
+        title="Settings"
+        style={{
+          position: "absolute", top: 12, right: 14, zIndex: 82,
+          cursor: "pointer", width: 46, height: 46, borderRadius: 12,
+          background: "rgba(8,11,18,.85)", border: "1px solid rgba(255,255,255,.14)",
+          color: "#c4ccd8", fontSize: 22,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          boxShadow: "0 4px 16px rgba(0,0,0,.45)",
+        }}
+      >⚙</button>
 
       {/* ══════════════ OVERLAYS ══════════════ */}
 
@@ -595,7 +617,7 @@ export default function GameBoard() {
       )}
 
       {/* Toasts */}
-      <div style={{ position: "absolute", top: 66, right: showLog ? 224 : 14, zIndex: 72, display: "flex", flexDirection: "column", gap: 5, pointerEvents: "none", transition: "right 0.25s ease" }}>
+      <div style={{ position: "absolute", top: 66, right: showLog ? 224 : 68, zIndex: 72, display: "flex", flexDirection: "column", gap: 5, pointerEvents: "none", transition: "right 0.25s ease" }}>
         {toasts.map((t) => (
           <div key={t.id} style={{ padding: "5px 12px", borderRadius: 7, background: "rgba(8,11,20,.93)", border: `1px solid ${t.color}44`, color: t.color, font: `700 11px var(--font-mono,'JetBrains Mono',monospace)`, animation: "toastIn 0.2s ease-out", boxShadow: "0 2px 10px rgba(0,0,0,.5)" }}>
             {t.text}
@@ -642,6 +664,47 @@ export default function GameBoard() {
                   </div>
                 ));
               })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Settings popup */}
+      {showSettings && (
+        <div onClick={() => setShowSettings(false)} style={{ position: "absolute", inset: 0, zIndex: 96, background: "rgba(4,6,12,.7)", display: "flex", alignItems: "flex-start", justifyContent: "flex-end", padding: "68px 16px 16px" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 300, borderRadius: 14, background: "#0d1118", border: "1px solid rgba(255,255,255,.1)", boxShadow: "0 16px 48px rgba(0,0,0,.65)", overflow: "hidden" }}>
+            <div style={{ padding: "16px 18px", borderBottom: "1px solid rgba(255,255,255,.07)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ font: `800 16px var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc" }}>Settings</span>
+              <button onClick={() => setShowSettings(false)} style={{ background: "none", border: "none", color: "#5a6478", cursor: "pointer", fontSize: 18, lineHeight: 1 }}>✕</button>
+            </div>
+            <div style={{ padding: "8px 0" }}>
+              <SettingsRow
+                label="Combat Log"
+                description="Show event log panel on the right"
+                action={
+                  <ToggleSwitch checked={showLog} onChange={setShowLog} />
+                }
+              />
+              <SettingsRow
+                label="Surrender"
+                description="Forfeit the current match"
+                action={
+                  <button
+                    onClick={() => { setShowSettings(false); setShowSurrenderConfirm(true); }}
+                    style={{ cursor: "pointer", padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(255,80,80,.4)", background: "rgba(180,30,30,.25)", color: "#ff8888", font: `700 11px var(--font-cinzel,'Cinzel',serif)` }}
+                  >Surrender</button>
+                }
+              />
+              <SettingsRow
+                label="Exit to Menu"
+                description="Leave the match screen"
+                action={
+                  <button
+                    onClick={() => { window.location.href = "/"; }}
+                    style={{ cursor: "pointer", padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,.12)", background: "rgba(255,255,255,.05)", color: "#c4ccd8", font: `700 11px var(--font-cinzel,'Cinzel',serif)` }}
+                  >Exit</button>
+                }
+              />
             </div>
           </div>
         </div>
@@ -767,19 +830,54 @@ function ManaDisplay({ mana, maxMana }: { mana: number; maxMana: number }) {
 }
 
 function ManaCrystals({ available, total }: { available: number; total: number }) {
+  const size = 22;
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 14px)", gap: 4 }}>
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+      <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 7 }}>
         {Array.from({ length: 10 }).map((_, i) => {
           const on = i < available;
           const exists = i < total;
           return (
-            <div key={i} style={{ width: 14, height: 14, transform: "rotate(45deg)", borderRadius: 2, background: on ? "linear-gradient(135deg,#bfe4ff,#2f8fe0)" : exists ? "rgba(255,255,255,.07)" : "rgba(255,255,255,.02)", border: exists ? (on ? "1px solid #7cc4ff" : "1px solid rgba(255,255,255,.1)") : "1px solid rgba(255,255,255,.03)", boxShadow: on ? "0 0 5px rgba(74,160,230,.55)" : "none", transition: "all 0.2s" }} />
+            <div key={i} style={{ width: size, height: size, transform: "rotate(45deg)", borderRadius: 3, background: on ? "linear-gradient(135deg,#bfe4ff,#2f8fe0)" : exists ? "rgba(255,255,255,.07)" : "rgba(255,255,255,.02)", border: exists ? (on ? "1px solid #7cc4ff" : "1px solid rgba(255,255,255,.1)") : "1px solid rgba(255,255,255,.03)", boxShadow: on ? "0 0 8px rgba(74,160,230,.55)" : "none", transition: "all 0.2s" }} />
           );
         })}
       </div>
-      <span style={{ font: `800 13px var(--font-mono,'JetBrains Mono',monospace)`, color: "#7cc4ff" }}>{available}<span style={{ color: "#4a5478" }}>/{total}</span></span>
+      <span style={{ font: `800 14px var(--font-mono,'JetBrains Mono',monospace)`, color: "#7cc4ff" }}>{available}<span style={{ color: "#4a5478" }}>/{total}</span> <span style={{ font: `600 9px var(--font-archivo,'Archivo',sans-serif)`, color: "#5a6478", letterSpacing: "1px" }}>GAS</span></span>
     </div>
+  );
+}
+
+function SettingsRow({ label, description, action }: { label: string; description: string; action: React.ReactNode }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px 18px", borderBottom: "1px solid rgba(255,255,255,.04)" }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ font: `700 13px var(--font-archivo,'Archivo',sans-serif)`, color: "#e7ecf3" }}>{label}</div>
+        <div style={{ font: `500 11px var(--font-archivo,'Archivo',sans-serif)`, color: "#6a7488", marginTop: 2 }}>{description}</div>
+      </div>
+      {action}
+    </div>
+  );
+}
+
+function ToggleSwitch({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      onClick={() => onChange(!checked)}
+      style={{
+        cursor: "pointer", width: 44, height: 24, borderRadius: 12, flexShrink: 0,
+        border: `1px solid ${checked ? "rgba(100,160,255,.5)" : "rgba(255,255,255,.12)"}`,
+        background: checked ? "rgba(74,144,230,.45)" : "rgba(255,255,255,.06)",
+        position: "relative", transition: "background 0.15s, border-color 0.15s",
+      }}
+    >
+      <div style={{
+        position: "absolute", top: 2, left: checked ? 22 : 2,
+        width: 18, height: 18, borderRadius: "50%",
+        background: checked ? "#bfe4ff" : "#8a93a6",
+        transition: "left 0.15s, background 0.15s",
+        boxShadow: "0 1px 4px rgba(0,0,0,.4)",
+      }} />
+    </button>
   );
 }
 
