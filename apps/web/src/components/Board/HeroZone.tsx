@@ -3,6 +3,7 @@
 import React from "react";
 import { factionDisplayName, factionColor } from "@/lib/factions";
 import FactionIcon from "@/components/Faction/FactionIcon";
+import GameIcon from "@/components/UI/GameIcon";
 
 interface Props {
   heroName: string;
@@ -120,7 +121,7 @@ export default function HeroZone({
           boxShadow: "0 6px 14px rgba(0,0,0,.5)",
           font: `700 8px var(--font-cinzel,'Cinzel',serif)`, color: "#dff7ec", textAlign: "center",
         }}>
-          <span style={{ fontSize: 9 }}>⚔️</span>
+          <GameIcon name="battle" size={14} />
           <div style={{ position: "absolute", bottom: -6, left: -6, width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "radial-gradient(circle at 38% 30%,#ffe7a8,#d97a16)", boxShadow: "0 0 0 2px #caa24a", font: `800 10px var(--font-mono,'JetBrains Mono',monospace)`, color: "#3a1d00" }}>{weaponAttack}</div>
           <div style={{ position: "absolute", bottom: -6, right: -6, width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "radial-gradient(circle at 38% 30%,#dfe5ec,#7e8a99)", boxShadow: "0 0 0 2px #caa24a", font: `800 10px var(--font-mono,'JetBrains Mono',monospace)`, color: "#1c222c" }}>{weaponDurability}</div>
         </div>

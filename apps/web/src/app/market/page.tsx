@@ -12,6 +12,7 @@ import FactionIcon from "@/components/Faction/FactionIcon";
 import BuyInspectModal from "@/components/Market/BuyInspectModal";
 import { market, type MarketSummary } from "@/lib/market";
 import { BRAND } from "@/lib/brand";
+import GameIcon from "@/components/UI/GameIcon";
 
 const TYPES = ["", "minion", "spell", "weapon", "location", "hero"];
 const TYPE_LABEL: Record<string, string> = { "": "All", minion: "Minion", spell: "Spell", weapon: "Weapon", location: "Location", hero: "Hero" };
@@ -89,7 +90,7 @@ export default function MarketPage() {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "#6a7488" }}>Loading marketplace…</div>
         ) : filtered.length === 0 ? (
           <div style={{ textAlign: "center", padding: "60px 0", color: "#5a6478" }}>
-            <div style={{ fontSize: 44, marginBottom: 12 }}>🛒</div>
+            <GameIcon name="shop" size={48} style={{ margin: "0 auto 12px" }} />
             <p style={{ font: `700 15px var(--font-cinzel,'Cinzel',serif)`, color: "#aeb6c4" }}>No cards match your filters</p>
           </div>
         ) : (

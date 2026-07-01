@@ -10,6 +10,7 @@ import { CARD_BACK_DEFAULT, CARD_BACK_RADIUS } from "@/lib/cardBacks";
 import { packArtUrl } from "@/lib/packArt";
 import CardComponent, { type CardData } from "@/components/Card/CardComponent";
 import SellModal from "@/components/Market/SellModal";
+import GameIcon from "@/components/UI/GameIcon";
 
 interface PackEntry { packType: string; quantity: number; }
 interface OpenResult { cards: CardData[]; remaining: number; }
@@ -140,7 +141,7 @@ export default function PacksPage() {
         {error && <div style={{ font: `600 12px var(--font-archivo,'Archivo',sans-serif)`, color: "#ff8a8a", marginBottom: 14 }}>{error}</div>}
         {totalPacks === 0 ? (
           <div style={{ textAlign: "center", padding: "80px 0", color: "#6a7488" }}>
-            <div style={{ fontSize: 54, marginBottom: 14 }}>🎁</div>
+            <GameIcon name="pack" size={56} style={{ margin: "0 auto 14px" }} />
             <div style={{ font: `700 16px var(--font-cinzel,'Cinzel',serif)`, color: "#aeb6c4" }}>No packs yet</div>
             <div style={{ font: `500 12px var(--font-archivo,'Archivo',sans-serif)`, marginTop: 8 }}>Head to the Shop to buy booster packs.</div>
             <button onClick={() => router.push("/shop")} style={{ ...goldBtn, marginTop: 20 }}>Open Shop ›</button>

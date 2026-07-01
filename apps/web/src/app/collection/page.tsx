@@ -12,6 +12,7 @@ import BottomNav from "@/components/Dashboard/BottomNav";
 import { factionColor, FACTIONS } from "@/lib/factions";
 import FactionIcon from "@/components/Faction/FactionIcon";
 import SellModal from "@/components/Market/SellModal";
+import GameIcon from "@/components/UI/GameIcon";
 
 interface CollectionEntry { cardId: string; quantity: number; card: CardData; }
 interface Deck { id: string; name: string; heroId: string; isStarter?: boolean; faction?: string; factionBonusActive?: boolean; cardCount: number; cards: { cardId: string; quantity: number }[]; }
@@ -190,7 +191,7 @@ export default function CollectionPage() {
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "#6a7488" }}>Loading collection…</div>
             ) : filtered.length === 0 ? (
               <div style={{ textAlign: "center", padding: "60px 0", color: "#5a6478" }}>
-                <div style={{ fontSize: 44, marginBottom: 12 }}>🃏</div>
+                <GameIcon name="collection" size={48} style={{ margin: "0 auto 12px" }} />
                 <p style={{ font: `700 15px var(--font-cinzel,'Cinzel',serif)`, color: "#aeb6c4" }}>{collection.length === 0 ? "You don't own any cards yet" : "No cards match your filters"}</p>
                 {collection.length === 0 && <>
                   <p style={{ font: `500 12px var(--font-archivo,'Archivo',sans-serif)`, marginTop: 8 }}>Open packs to start your collection. You can still play Practice & Casual with the ready-made decks.</p>

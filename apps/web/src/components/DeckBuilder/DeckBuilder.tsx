@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import { FACTION_COLORS, RARITY_STYLE } from "@/lib/constants";
 import CardComponent from "../Card/CardComponent";
 import CardZoom from "../Card/CardZoom";
+import GameIcon from "../UI/GameIcon";
 import type { CardData } from "../Card/CardComponent";
 
 const COPY_LIMITS: Record<string, number> = { common: 4, rare: 3, epic: 2, legendary: 1 };
@@ -247,7 +248,7 @@ export default function DeckBuilder() {
                 color: FACTION_COLORS[primaryFaction]?.base ?? "#888",
               }}
             >
-              ✦ {primaryFaction.charAt(0).toUpperCase() + primaryFaction.slice(1)} Faction Bonus Active
+              {primaryFaction.charAt(0).toUpperCase() + primaryFaction.slice(1)} Faction Bonus Active
             </div>
           )}
 
@@ -307,7 +308,7 @@ export default function DeckBuilder() {
 
           {deckList.length === 0 && (
             <div className="text-center py-8" style={{ color: "#2a3560" }}>
-              <div className="text-2xl mb-2">🃏</div>
+              <GameIcon name="collection" size={32} style={{ margin: "0 auto 8px" }} />
               <p className="text-sm">Click cards to add them to your deck</p>
             </div>
           )}

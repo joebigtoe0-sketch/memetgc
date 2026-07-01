@@ -7,6 +7,9 @@ import { useAuthStore } from "@/store/authStore";
 import { useBalances } from "@/hooks/useBalances";
 import AuthModal from "@/components/Auth/AuthModal";
 import BottomNav from "@/components/Dashboard/BottomNav";
+import StatChip from "@/components/UI/StatChip";
+import GameIcon from "@/components/UI/GameIcon";
+import FragmentAmount from "@/components/UI/FragmentAmount";
 import { BRAND } from "@/lib/brand";
 import { packArtUrl } from "@/lib/packArt";
 import { market, type MarketSummary } from "@/lib/market";
@@ -85,9 +88,12 @@ export default function ShopPage() {
         <button onClick={() => router.push("/")} style={backBtn}>‹ Back</button>
         <div style={{ font: `900 20px var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc", letterSpacing: "1px" }}>Pack Store</div>
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
-          <Chip icon="◆" label={`${(degen ?? 0).toLocaleString()} ${BRAND.ticker}`} color="#e7c768" />
-          <Chip icon="✦" label={`${fragments.toLocaleString()} frags`} color="#7b8cf4" />
-          <Chip icon="🎁" label={`${packs}`} color="#19e08a" onClick={() => router.push("/packs")} />
+          <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 12px", borderRadius: 9, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)" }}>
+            <span style={{ font: `700 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#e7c768" }}>{BRAND.ticker}</span>
+            <span style={{ font: `700 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#e7ecf3" }}>{(degen ?? 0).toLocaleString()}</span>
+          </div>
+          <StatChip icon="fragment" label={`${fragments.toLocaleString()} frags`} />
+          <StatChip icon="pack" label={`${packs}`} onClick={() => router.push("/packs")} />
         </div>
       </div>
 
@@ -98,8 +104,8 @@ export default function ShopPage() {
             <div style={{ font: `700 10px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "3px", color: "#ffd187" }}>FEATURED · LIMITED TIME</div>
             <div style={{ font: `900 30px var(--font-cinzel,'Cinzel',serif)`, color: "#fff", margin: "8px 0 8px" }}>{FEATURED.name}</div>
             <div style={{ font: `500 12px var(--font-archivo,'Archivo',sans-serif)`, color: "#d8c79a", maxWidth: 440, lineHeight: 1.5 }}>{FEATURED.desc}</div>
-            <button onClick={() => buy(FEATURED.type, FEATURED.cost, 1, FEATURED.name)} disabled={busy !== "" || fragments < FEATURED.cost} style={{ ...goldBtn, marginTop: 16, opacity: fragments < FEATURED.cost ? 0.5 : 1 }}>
-              ◆ {FEATURED.cost} · BUY NOW
+            <button onClick={() => buy(FEATURED.type, FEATURED.cost, 1, FEATURED.name)} disabled={busy !== "" || fragments < FEATURED.cost} style={{ ...goldBtn, marginTop: 16, opacity: fragments < FEATURED.cost ? 0.5 : 1, display: "inline-flex", alignItems: "center", gap: 8 }}>
+              <FragmentAmount amount={FEATURED.cost} iconSize={16} /> · BUY NOW
             </button>
           </div>
           <PackArt packType={FEATURED.type} big />
@@ -122,8 +128,7 @@ export default function ShopPage() {
 
                 {/* Fragments */}
                 <div style={{ display: "flex", alignItems: "center", gap: 6, margin: "12px 0 6px" }}>
-                  <span style={{ color: "#e7c768", fontSize: 13 }}>◆</span>
-                  <span style={{ font: `900 18px var(--font-mono,'JetBrains Mono',monospace)`, color: "#f3e8cc" }}>{p.cost}</span>
+                  <FragmentAmount amount={p.cost} iconSize={18} style={{ font: `900 18px var(--font-mono,'JetBrains Mono',monospace)`, color: "#f3e8cc" }} />
                   <span style={{ font: `600 9px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6", letterSpacing: "1px", marginLeft: "auto" }}>FRAGMENTS</span>
                 </div>
                 <button onClick={() => buy(p.type, p.cost, 1, p.name)} disabled={busy !== "" || !afford} style={{ width: "100%", cursor: afford ? "pointer" : "not-allowed", padding: "10px", borderRadius: 10, border: "none", color: "#1a1206", background: `linear-gradient(180deg,${p.color},color-mix(in srgb,${p.color} 70%,#000))`, font: `800 12px var(--font-cinzel,'Cinzel',serif)`, opacity: afford ? 1 : 0.5 }}>
@@ -132,7 +137,6 @@ export default function ShopPage() {
 
                 {/* Marketplace token price */}
                 <div style={{ display: "flex", alignItems: "center", gap: 6, margin: "12px 0 6px" }}>
-                  <span style={{ color: "#4ff0a8", fontSize: 12 }}>◈</span>
                   <span style={{ font: `900 16px var(--font-mono,'JetBrains Mono',monospace)`, color: tokenPrice != null ? "#c9ffe8" : "#5a6478" }}>{tokenPrice != null ? tokenPrice.toLocaleString() : "—"}</span>
                   <span style={{ font: `600 9px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6", letterSpacing: "1px", marginLeft: "auto" }}>{BRAND.ticker} MARKET</span>
                 </div>
@@ -151,12 +155,15 @@ export default function ShopPage() {
             const afford = fragments >= b.cost;
             return (
               <div key={b.name} style={{ display: "flex", alignItems: "center", gap: 14, borderRadius: 14, padding: 16, background: "linear-gradient(150deg,rgba(255,255,255,.045),rgba(18,23,35,.6))", border: `1px solid ${b.color}33` }}>
-                <div style={{ width: 56, height: 56, borderRadius: 12, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: `color-mix(in srgb,${b.color} 18%,#12161f)`, border: `1px solid ${b.color}55`, color: b.color, font: `900 16px var(--font-mono,'JetBrains Mono',monospace)` }}>×{b.count}</div>
+                <div style={{ position: "relative", width: 56, height: 56, borderRadius: 12, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: `color-mix(in srgb,${b.color} 18%,#12161f)`, border: `1px solid ${b.color}55` }}>
+                  <GameIcon name="pack" size={34} />
+                  <span style={{ position: "absolute", top: -6, right: -6, minWidth: 20, height: 20, padding: "0 5px", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", background: b.color, color: "#1a1206", font: `900 10px var(--font-mono,'JetBrains Mono',monospace)` }}>×{b.count}</span>
+                </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ font: `800 14px var(--font-cinzel,'Cinzel',serif)`, color: "#f1f4f9" }}>{b.name}</div>
                   <div style={{ font: `500 11px var(--font-archivo,'Archivo',sans-serif)`, color: "#aeb6c4", marginTop: 3 }}>{b.desc}</div>
-                  <button onClick={() => buy(b.type, b.cost, b.count, b.name)} disabled={busy !== "" || !afford} style={{ marginTop: 8, cursor: afford ? "pointer" : "not-allowed", padding: "7px 16px", borderRadius: 8, border: "none", color: "#1a1206", background: `linear-gradient(180deg,${b.color},color-mix(in srgb,${b.color} 70%,#000))`, font: `800 11px var(--font-cinzel,'Cinzel',serif)`, opacity: afford ? 1 : 0.5 }}>
-                    {busy === b.name ? "BUYING…" : `◆ ${b.cost}`}
+                  <button onClick={() => buy(b.type, b.cost, b.count, b.name)} disabled={busy !== "" || !afford} style={{ marginTop: 8, cursor: afford ? "pointer" : "not-allowed", padding: "7px 16px", borderRadius: 8, border: "none", color: "#1a1206", background: `linear-gradient(180deg,${b.color},color-mix(in srgb,${b.color} 70%,#000))`, font: `800 11px var(--font-cinzel,'Cinzel',serif)`, opacity: afford ? 1 : 0.5, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    {busy === b.name ? "BUYING…" : <FragmentAmount amount={b.cost} iconSize={13} />}
                   </button>
                 </div>
               </div>
@@ -195,15 +202,6 @@ function PackArt({ packType, big }: { packType: string; color?: string; big?: bo
         filter: isLegendary ? "drop-shadow(0 0 18px rgba(255,200,80,.55)) drop-shadow(0 0 36px rgba(255,180,40,.25))" : "drop-shadow(0 8px 20px rgba(0,0,0,.45))",
       }}
     />
-  );
-}
-
-function Chip({ icon, label, color, onClick }: { icon: string; label: string; color: string; onClick?: () => void }) {
-  return (
-    <div onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 9, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)", cursor: onClick ? "pointer" : "default" }}>
-      <span style={{ color, fontSize: 11 }}>{icon}</span>
-      <span style={{ font: `700 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#e7ecf3" }}>{label}</span>
-    </div>
   );
 }
 

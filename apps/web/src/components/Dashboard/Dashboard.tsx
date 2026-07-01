@@ -7,6 +7,8 @@ import { useAuthStore } from "@/store/authStore";
 import { useGameStore } from "@/store/gameStore";
 import { useBalances } from "@/hooks/useBalances";
 import BottomNav from "./BottomNav";
+import StatChip from "@/components/UI/StatChip";
+import GameIcon from "@/components/UI/GameIcon";
 import { factionImageUrl } from "@/lib/factions";
 import Logo from "@/components/Brand/Logo";
 import { BRAND, formatRankTier } from "@/lib/brand";
@@ -99,10 +101,16 @@ export default function Dashboard() {
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <Chip icon="◆" label={`${(degen ?? 0).toLocaleString()} ${BRAND.ticker}`} color="#e7c768" />
-          <Chip icon="✦" label={`${fragments.toLocaleString()} frags`} color="#7b8cf4" />
-          <Chip icon="🎁" label={`${packs} packs`} color="#19e08a" onClick={() => router.push("/packs")} />
-          <Chip icon="●" label={walletAddress ? `${walletAddress.slice(0, 4)}..${walletAddress.slice(-2)}` : (connected ? "online" : "offline")} color={connected ? "#19e08a" : "#ff5555"} />
+          <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 12px", borderRadius: 9, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)" }}>
+            <span style={{ font: `700 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#e7c768" }}>{BRAND.ticker}</span>
+            <span style={{ font: `700 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#e7ecf3" }}>{(degen ?? 0).toLocaleString()}</span>
+          </div>
+          <StatChip icon="fragment" label={`${fragments.toLocaleString()} frags`} />
+          <StatChip icon="pack" label={`${packs} packs`} onClick={() => router.push("/packs")} />
+          <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 12px", borderRadius: 9, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)" }}>
+            <span style={{ width: 7, height: 7, borderRadius: "50%", background: connected ? "#19e08a" : "#ff5555", flexShrink: 0 }} />
+            <span style={{ font: `700 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#e7ecf3" }}>{walletAddress ? `${walletAddress.slice(0, 4)}..${walletAddress.slice(-2)}` : (connected ? "online" : "offline")}</span>
+          </div>
           <div style={{ width: 36, height: 36, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(150deg,#2a3344,#161b25)", border: "1px solid rgba(255,255,255,.1)", color: "#f3e8cc", font: `800 14px var(--font-cinzel,'Cinzel',serif)` }}>
             {(username ?? "?")[0]?.toUpperCase()}
           </div>
@@ -205,8 +213,17 @@ export default function Dashboard() {
                       <div style={{ width: `${pct}%`, height: "100%", borderRadius: 4, background: claimable ? "linear-gradient(90deg,#e7c768,#f7931a)" : "linear-gradient(90deg,#7b8cf4,#4a6cf4)" }} />
                     </div>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <span style={{ font: `700 10px var(--font-mono,'JetBrains Mono',monospace)`, color: "#caa24a" }}>
-                        ✦ {q.rewardJson?.fragments ?? 0} frags{q.rewardJson?.packs ? ` + ${q.rewardJson.packs.count} pack` : ""}
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 8, font: `700 10px var(--font-mono,'JetBrains Mono',monospace)`, color: "#caa24a" }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                          <GameIcon name="fragment" size={14} />
+                          {q.rewardJson?.fragments ?? 0} frags
+                        </span>
+                        {q.rewardJson?.packs ? (
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                            <GameIcon name="pack" size={14} />
+                            {q.rewardJson.packs.count} pack
+                          </span>
+                        ) : null}
                       </span>
                       {claimable ? (
                         <button onClick={() => claimQuest(q.id)} style={{ cursor: "pointer", border: "none", padding: "5px 14px", borderRadius: 7, font: `800 10px var(--font-cinzel,'Cinzel',serif)`, color: "#2a1a00", background: "linear-gradient(180deg,#ffe07a,#e0890f)" }}>CLAIM</button>
@@ -236,15 +253,6 @@ export default function Dashboard() {
       </div>
 
       <BottomNav active="play" />
-    </div>
-  );
-}
-
-function Chip({ icon, label, color, onClick }: { icon: string; label: string; color: string; onClick?: () => void }) {
-  return (
-    <div onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 12px", borderRadius: 9, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)", cursor: onClick ? "pointer" : "default" }}>
-      <span style={{ color, fontSize: 11 }}>{icon}</span>
-      <span style={{ font: `700 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#e7ecf3" }}>{label}</span>
     </div>
   );
 }

@@ -13,6 +13,7 @@ import { preloadCardArt, preloadAllCardArt, preloadFactionArt } from "@/lib/prel
 import { getMatchBoardBackground, getDefaultBoardBackground } from "@/lib/boards";
 import BoardBackground from "./BoardBackground";
 import { CARD_BACK_DEFAULT, CARD_BACK_RADIUS } from "@/lib/cardBacks";
+import GameIcon from "@/components/UI/GameIcon";
 import type { MinionSlot, Card } from "@memetgc/types";
 import type { CardData } from "../Card/CardComponent";
 
@@ -226,7 +227,7 @@ export default function GameBoard() {
     return (
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "#6a7488" }}>
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>⚔️</div>
+          <GameIcon name="battle" size={40} style={{ margin: "0 auto 12px" }} />
           <p style={{ font: `800 14px var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc" }}>Connecting to game…</p>
         </div>
       </div>
@@ -490,8 +491,9 @@ export default function GameBoard() {
             ))}
           </div>
           {myState.hasWeapon && (
-            <div style={{ font: `700 11px var(--font-cinzel,'Cinzel',serif)`, color: "#e8d090", padding: "3px 8px", borderRadius: 6, background: "rgba(231,199,104,.1)", border: "1px solid rgba(231,199,104,.2)" }}>
-              ⚔️ {myState.weaponAttack}/{myState.weaponDurability}
+            <div style={{ font: `700 11px var(--font-cinzel,'Cinzel',serif)`, color: "#e8d090", padding: "3px 8px", borderRadius: 6, background: "rgba(231,199,104,.1)", border: "1px solid rgba(231,199,104,.2)", display: "inline-flex", alignItems: "center", gap: 5 }}>
+              <GameIcon name="battle" size={14} />
+              {myState.weaponAttack}/{myState.weaponDurability}
             </div>
           )}
         </div>
