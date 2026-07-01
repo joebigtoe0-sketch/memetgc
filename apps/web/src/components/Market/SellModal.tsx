@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useWallet } from "@solana/wallet-adapter-react";
 import bs58 from "bs58";
 import { market, buildListingMessage, type ListingKind } from "@/lib/market";
 import { BRAND } from "@/lib/brand";
+import { useMarketWallet } from "@/hooks/useMarketWallet";
 
 interface Props {
   kind: ListingKind;
@@ -17,7 +17,7 @@ interface Props {
 const FEE_RATE = 0.05;
 
 export default function SellModal({ kind, itemId, title, onClose, onListed }: Props) {
-  const { publicKey, signMessage } = useWallet();
+  const { accountWallet, activeWallet, canSign, walletMismatch, openConnect, signWalletError, signMessage } = useMarketWallet();
   const [price, setPrice] = useState("");
   const [lowest, setLowest] = useState<number | null>(null);
   const [count, setCount] = useState(0);
@@ -35,19 +35,28 @@ export default function SellModal({ kind, itemId, title, onClose, onListed }: Pr
       .catch(() => {});
   }, [kind, itemId]);
 
+  useEffect(() => {
+    if (canSign && !walletMismatch) setError("");
+  }, [canSign, walletMismatch, activeWallet]);
+
   const priceNum = Number(price);
   const valid = priceNum > 0 && Number.isFinite(priceNum);
   const buyerPays = valid ? Math.round(priceNum * (1 + FEE_RATE) * 1e6) / 1e6 : 0;
+  const needsConnect = !canSign || walletMismatch;
 
   async function confirm() {
     if (!valid) { setError("Enter a valid price"); return; }
-    if (!publicKey || !signMessage) { setError("Connect your wallet first"); return; }
+    const err = signWalletError();
+    if (err) { setError(err); return; }
+    if (!canSign || !accountWallet || !signMessage) {
+      openConnect();
+      return;
+    }
     setError("");
     setLoading(true);
     try {
-      const wallet = publicKey.toBase58();
       const rounded = Math.round(priceNum * 1e6) / 1e6;
-      const message = buildListingMessage({ wallet, kind, itemId, price: rounded });
+      const message = buildListingMessage({ wallet: accountWallet, kind, itemId, price: rounded });
       const sigBytes = await signMessage(new TextEncoder().encode(message));
       const signature = bs58.encode(sigBytes);
       await market.list({
@@ -104,11 +113,25 @@ export default function SellModal({ kind, itemId, title, onClose, onListed }: Pr
               <InfoRow label="Lowest price" value={lowest != null ? `${lowest.toLocaleString()}` : "—"} accent="#ffe07a" />
             </div>
 
+            {needsConnect && accountWallet && (
+              <div style={{ marginTop: 14, padding: "10px 12px", borderRadius: 10, background: "rgba(255,224,122,.06)", border: "1px solid rgba(255,224,122,.2)" }}>
+                <p style={{ font: `500 11px var(--font-archivo,'Archivo',sans-serif)`, color: "#aeb6c4", lineHeight: 1.5, margin: 0 }}>
+                  {walletMismatch
+                    ? `Connected wallet doesn't match your account. Connect ${accountWallet.slice(0, 4)}…${accountWallet.slice(-4)} to list items.`
+                    : `You're signed in, but your wallet needs to reconnect to sign this listing (${accountWallet.slice(0, 4)}…${accountWallet.slice(-4)}).`}
+                </p>
+              </div>
+            )}
+
             {error && <p style={{ font: `600 11px var(--font-archivo,'Archivo',sans-serif)`, color: "#ff6b6b", marginTop: 12 }}>{error}</p>}
 
-            <button onClick={confirm} disabled={loading || !valid} style={primaryBtn(loading || !valid)}>
-              {loading ? "Waiting for signature…" : "List for sale"}
-            </button>
+            {needsConnect ? (
+              <button onClick={openConnect} style={primaryBtn(false)}>Connect Wallet</button>
+            ) : (
+              <button onClick={confirm} disabled={loading || !valid} style={primaryBtn(loading || !valid)}>
+                {loading ? "Waiting for signature…" : "List for sale"}
+              </button>
+            )}
             <button onClick={onClose} style={ghostBtn}>Cancel</button>
           </>
         )}

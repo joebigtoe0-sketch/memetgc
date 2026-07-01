@@ -14,6 +14,7 @@ import { BRAND } from "@/lib/brand";
 import { packArtUrl } from "@/lib/packArt";
 import { market, type MarketSummary } from "@/lib/market";
 import { useBuyFlow } from "@/hooks/useBuyFlow";
+import { useMarketWallet } from "@/hooks/useMarketWallet";
 
 interface Pack { type: string; name: string; cost: number; color: string; desc: string; badge?: string; }
 interface Bundle { type: string; name: string; count: number; cost: number; desc: string; color: string; }
@@ -40,6 +41,7 @@ export default function ShopPage() {
   const [busy, setBusy] = useState("");
   const [packMarket, setPackMarket] = useState<MarketSummary["packs"]>({});
   const { buy: buyTokens, state: buyState } = useBuyFlow();
+  const { openConnect } = useMarketWallet();
 
   const loadPackMarket = React.useCallback(() => {
     market.summary().then((s) => setPackMarket(s.packs)).catch(() => {});
@@ -71,13 +73,15 @@ export default function ShopPage() {
   async function buyPackWithTokens(type: string, label: string) {
     if (tokenBusy) return;
     showToast(`Buying ${label} with ${BRAND.ticker}…`);
-    const ok = await buyTokens("pack", type);
-    if (ok) {
+    const result = await buyTokens("pack", type);
+    if (result.success) {
       showToast(`Bought ${label}! Open it in Packs.`);
       refresh();
       loadPackMarket();
+    } else if (result.error === "WALLET_DISCONNECTED") {
+      openConnect();
     } else {
-      showToast(buyState.error ?? "Purchase failed");
+      showToast(result.error);
     }
   }
 

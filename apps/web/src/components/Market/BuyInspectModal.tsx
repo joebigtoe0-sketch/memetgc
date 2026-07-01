@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { market, type ListingKind } from "@/lib/market";
 import { useBuyFlow } from "@/hooks/useBuyFlow";
+import { useMarketWallet } from "@/hooks/useMarketWallet";
 import { BRAND } from "@/lib/brand";
 
 interface Props {
@@ -21,6 +22,7 @@ export default function BuyInspectModal({ kind, itemId, title, preview, onClose,
   const [count, setCount] = useState(0);
   const [loadingList, setLoadingList] = useState(true);
   const { state, buy, reset } = useBuyFlow();
+  const { accountWallet, canPay, walletMismatch, openConnect } = useMarketWallet();
 
   const refresh = () => {
     setLoadingList(true);
@@ -39,11 +41,13 @@ export default function BuyInspectModal({ kind, itemId, title, preview, onClose,
   const lowest = listings[0]?.price ?? null;
   const buyerPays = lowest != null ? Math.round(lowest * (1 + FEE_RATE) * 1e6) / 1e6 : null;
   const busy = state.phase !== "idle" && state.phase !== "error" && state.phase !== "done";
+  const needsConnect = !canPay || walletMismatch;
+  const walletDisconnected = state.error === "WALLET_DISCONNECTED";
 
   async function handleBuy() {
     reset();
-    const ok = await buy(kind, itemId);
-    if (ok) onBought?.();
+    const result = await buy(kind, itemId);
+    if (result.success) onBought?.();
   }
 
   return (
@@ -86,7 +90,17 @@ export default function BuyInspectModal({ kind, itemId, title, preview, onClose,
               </div>
             )}
 
-            {state.phase === "error" && state.error && (
+            {needsConnect && accountWallet && (
+              <div style={{ marginTop: 14, padding: "10px 12px", borderRadius: 10, background: "rgba(255,224,122,.06)", border: "1px solid rgba(255,224,122,.2)" }}>
+                <p style={{ font: `500 11px var(--font-archivo,'Archivo',sans-serif)`, color: "#aeb6c4", lineHeight: 1.5, margin: 0 }}>
+                  {walletMismatch
+                    ? `Connected wallet doesn't match your account. Connect ${accountWallet.slice(0, 4)}…${accountWallet.slice(-4)} to buy.`
+                    : `Reconnect your wallet (${accountWallet.slice(0, 4)}…${accountWallet.slice(-4)}) to pay with ${BRAND.ticker}.`}
+                </p>
+              </div>
+            )}
+
+            {state.phase === "error" && state.error && state.error !== "WALLET_DISCONNECTED" && (
               <p style={{ font: `600 11px var(--font-archivo,'Archivo',sans-serif)`, color: "#ff6b6b", marginTop: 12 }}>{state.error}</p>
             )}
             {busy && (
@@ -96,9 +110,15 @@ export default function BuyInspectModal({ kind, itemId, title, preview, onClose,
               <p style={{ font: `700 12px var(--font-archivo,'Archivo',sans-serif)`, color: "#19e08a", marginTop: 12 }}>Purchase complete! Added to your collection.</p>
             )}
 
-            <button onClick={handleBuy} disabled={busy || listings.length === 0 || state.phase === "done"} style={primaryBtn(busy || listings.length === 0 || state.phase === "done")}>
-              {state.phase === "done" ? "Bought" : busy ? "Processing…" : lowest != null ? `Buy for ${lowest.toLocaleString()} ${BRAND.ticker}` : "Unavailable"}
-            </button>
+            {needsConnect || walletDisconnected ? (
+              <button onClick={openConnect} disabled={busy} style={primaryBtn(busy)}>
+                Connect Wallet
+              </button>
+            ) : (
+              <button onClick={handleBuy} disabled={busy || listings.length === 0 || state.phase === "done"} style={primaryBtn(busy || listings.length === 0 || state.phase === "done")}>
+                {state.phase === "done" ? "Bought" : busy ? "Processing…" : lowest != null ? `Buy for ${lowest.toLocaleString()} ${BRAND.ticker}` : "Unavailable"}
+              </button>
+            )}
             <button onClick={onClose} disabled={busy} style={ghostBtn}>{state.phase === "done" ? "Close" : "Cancel"}</button>
           </div>
         </div>

@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { useConnection } from "@solana/wallet-adapter-react";
 import { market, type ListingKind } from "@/lib/market";
 import { buildPurchaseTx, toBaseUnits } from "@/lib/solanaPay";
+import { useMarketWallet } from "@/hooks/useMarketWallet";
 
 export type BuyPhase = "idle" | "reserving" | "signing" | "confirming" | "done" | "error";
 
@@ -20,18 +21,25 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+export type BuyResult = { success: true } | { success: false; error: string };
+
 export function useBuyFlow() {
   const { connection } = useConnection();
-  const { publicKey, sendTransaction } = useWallet();
+  const { canPay, payWalletError, sendTransaction, publicKey } = useMarketWallet();
   const [state, setState] = useState<BuyState>({ phase: "idle", message: "", error: null });
 
   const reset = useCallback(() => setState({ phase: "idle", message: "", error: null }), []);
 
   const buy = useCallback(
-    async (kind: ListingKind, itemId: string): Promise<boolean> => {
-      if (!publicKey || !sendTransaction) {
-        setState({ phase: "error", message: "", error: "Connect your wallet first" });
-        return false;
+    async (kind: ListingKind, itemId: string): Promise<BuyResult> => {
+      const walletErr = payWalletError();
+      if (walletErr) {
+        setState({ phase: "error", message: "", error: walletErr });
+        return { success: false, error: walletErr };
+      }
+      if (!canPay || !publicKey || !sendTransaction) {
+        setState({ phase: "error", message: "", error: "WALLET_DISCONNECTED" });
+        return { success: false, error: "WALLET_DISCONNECTED" };
       }
 
       try {
@@ -66,27 +74,30 @@ export function useBuyFlow() {
             const res = await market.confirm({ listingId: reservation.listingId, signature });
             if (res.status === "sold") {
               setState({ phase: "done", message: "Purchase complete!", error: null });
-              return true;
+              return { success: true };
             }
           } catch (e) {
             const msg = (e as Error).message ?? "";
             // "pending" style errors: keep retrying. Anything else: abort.
             if (!/not confirmed|pending/i.test(msg)) {
-              setState({ phase: "error", message: "", error: msg || "Purchase failed" });
-              return false;
+              const err = msg || "Purchase failed";
+              setState({ phase: "error", message: "", error: err });
+              return { success: false, error: err };
             }
           }
           await sleep(CONFIRM_INTERVAL_MS);
         }
 
-        setState({ phase: "error", message: "", error: "Could not confirm the transaction in time" });
-        return false;
+        const err = "Could not confirm the transaction in time";
+        setState({ phase: "error", message: "", error: err });
+        return { success: false, error: err };
       } catch (e) {
-        setState({ phase: "error", message: "", error: (e as Error).message ?? "Purchase failed" });
-        return false;
+        const err = (e as Error).message ?? "Purchase failed";
+        setState({ phase: "error", message: "", error: err });
+        return { success: false, error: err };
       }
     },
-    [connection, publicKey, sendTransaction]
+    [connection, canPay, payWalletError, publicKey, sendTransaction]
   );
 
   return { state, buy, reset };
