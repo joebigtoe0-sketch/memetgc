@@ -19,11 +19,11 @@ import { useMarketWallet } from "@/hooks/useMarketWallet";
 interface Pack { type: string; name: string; cost: number; color: string; desc: string; badge?: string; }
 interface Bundle { type: string; name: string; count: number; cost: number; desc: string; color: string; }
 
-const FEATURED: Pack = { type: "season", name: "Genesis Drop Pack", cost: 150, color: "#19e08a", desc: "Season 1 cards only — Genesis set + exclusive Genesis Drop cards. Limited time." };
+const FEATURED: Pack = { type: "season", name: "Genesis Drop Pack", cost: 150, color: "#19e08a", desc: "Genesis Drop exclusives only — cards you can't get from Standard packs. Limited time." };
 
 const PACKS: Pack[] = [
   { type: "standard", name: "Standard Pack", cost: 100, color: "#7b8cf4", desc: "Any faction, any rarity. The staple booster.", badge: "POPULAR" },
-  { type: "season", name: "Genesis Drop Pack", cost: 150, color: "#19e08a", desc: "Season 1 cards only - Limited time", badge: "LIMITED" },
+  { type: "season", name: "Genesis Drop Pack", cost: 150, color: "#19e08a", desc: "Genesis Drop exclusives only — not in Standard packs", badge: "LIMITED" },
 ];
 
 const BUNDLES: Bundle[] = [

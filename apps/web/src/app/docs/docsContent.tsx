@@ -517,8 +517,8 @@ export const DOC_GROUPS: DocGroup[] = [
             <Table
               head={["Pack", "Cost", "Contains"]}
               rows={[
-                [<Strong key="s">Standard Pack</Strong>, <><Frag>100</Frag> frags</>, "Any faction, any rarity (all sets except Genesis Drop exclusives)."],
-                [<Strong key="g">Genesis Drop Pack</Strong>, <><Frag>150</Frag> frags</>, "Season 1 cards only — the Genesis set plus exclusive Genesis Drop cards."],
+                [<Strong key="s">Standard Pack</Strong>, <><Frag>100</Frag> frags</>, "Default set cards — any faction, any rarity. Cannot drop Genesis Drop exclusives."],
+                [<Strong key="g">Genesis Drop Pack</Strong>, <><Frag>150</Frag> frags</>, "Genesis Drop exclusives only — cards not available in Standard packs."],
               ]}
             />
             <H3>Legendary odds</H3>

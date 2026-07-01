@@ -261,7 +261,7 @@ async function generatePackCards(
 ): Promise<Array<{ cardId: string; rarity: string }>> {
   const where: Record<string, unknown> = { collectible: true };
   if (packType === "faction" && faction) where.faction = faction;
-  if (packType === "season") where.set = { in: ["genesis", "genesis_drop"] };
+  if (packType === "season") where.set = "genesis_drop";
   if (packType === "standard") where.set = { not: "genesis_drop" };
   if (packType === "legendary") {
     where.rarity = { in: ["legendary", "epic", "rare"] };
