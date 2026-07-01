@@ -168,6 +168,31 @@ model Match {
   @@map("matches")
 }
 
+model MarketListing {
+  id            String    @id @default(cuid())
+  sellerId      String    @map("seller_id")
+  kind          String // "card" | "pack"
+  cardId        String?   @map("card_id")
+  packType      String?   @map("pack_type")
+  price         Decimal   @db.Decimal(20, 6)
+  status        String    @default("active") // active | reserved | cancelling | sold | cancelled
+  reservedById  String?   @map("reserved_by_id")
+  reservedUntil DateTime? @map("reserved_until")
+  cooldownUntil DateTime? @map("cooldown_until")
+  buyerId       String?   @map("buyer_id")
+  txSignature   String?   @unique @map("tx_signature")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  soldAt        DateTime? @map("sold_at")
+  cancelledAt   DateTime? @map("cancelled_at")
+
+  @@index([kind, cardId, status])
+  @@index([kind, packType, status])
+  @@index([sellerId])
+  @@index([reservedById])
+  @@map("market_listings")
+}
+
 model DailyQuest {
   id          String    @id @default(cuid())
   userId      String    @map("user_id")

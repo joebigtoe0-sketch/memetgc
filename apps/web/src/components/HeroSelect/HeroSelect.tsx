@@ -238,14 +238,14 @@ export default function HeroSelect() {
         </div>
       </div>
 
-      {queueing && <FindingOpponent mode={mode} tier={tier} hero={SH} sfc={sfc} onCancel={handleCancelQueue} statusMsg={statusMsg} />}
+      {queueing && <FindingOpponent mode={mode} tier={tier} hero={SH} onCancel={handleCancelQueue} statusMsg={statusMsg} />}
 
-      <style>{`@keyframes spinRing { to { transform: rotate(360deg); } } @keyframes pulseGlow { 0%,100% { box-shadow: 0 0 22px var(--g); } 50% { box-shadow: 0 0 42px var(--g); } }`}</style>
+      <style>{`@keyframes spinRing { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
 
-function FindingOpponent({ mode, tier, hero, sfc, onCancel, statusMsg }: { mode: GameMode; tier: { rankTier: string; rankStars: number }; hero?: Hero; sfc: string; onCancel: () => void; statusMsg: string }) {
+function FindingOpponent({ mode, tier, hero, onCancel, statusMsg }: { mode: GameMode; tier: { rankTier: string; rankStars: number }; hero?: Hero; onCancel: () => void; statusMsg: string }) {
   const [secs, setSecs] = useState(0);
   const [tip] = useState(() => TIPS[Math.floor(Math.random() * TIPS.length)]);
   useEffect(() => { const id = setInterval(() => setSecs((s) => s + 1), 1000); return () => clearInterval(id); }, []);
@@ -263,9 +263,7 @@ function FindingOpponent({ mode, tier, hero, sfc, onCancel, statusMsg }: { mode:
       <div style={{ display: "flex", alignItems: "center", gap: 44, zIndex: 1 }}>
         {/* You */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-          <div style={{ ["--g" as string]: `${sfc}66`, animation: "pulseGlow 2s ease-in-out infinite" }}>
-            {hero ? <FactionIcon faction={hero.faction} size={130} glow /> : <span style={{ width: 130, height: 130, display: "flex", alignItems: "center", justifyContent: "center", color: "#888", fontSize: 48 }}>?</span>}
-          </div>
+          {hero ? <FactionIcon faction={hero.faction} size={130} /> : <span style={{ width: 130, height: 130, display: "flex", alignItems: "center", justifyContent: "center", color: "#888", fontSize: 48 }}>?</span>}
           <div style={{ font: `900 18px var(--font-cinzel,'Cinzel',serif)`, color: "#fff" }}>{hero?.name ?? "You"}</div>
           <div style={{ font: `600 10px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6", letterSpacing: "1px" }}>YOU</div>
         </div>

@@ -11,6 +11,7 @@ import decksRouter from "./routes/decks.js";
 import collectionRouter from "./routes/collection.js";
 import heroesRouter from "./routes/heroes.js";
 import economyRouter from "./routes/economy.js";
+import marketRouter, { startMarketSweeper } from "./routes/market.js";
 import { registerSocketHandlers, loadCardRegistry } from "./game/socket.js";
 
 const PORT = parseInt(process.env.PORT ?? "3001", 10);
@@ -44,6 +45,7 @@ app.use("/api/decks", decksRouter);
 app.use("/api/collection", collectionRouter);
 app.use("/api/heroes", heroesRouter);
 app.use("/api/economy", economyRouter);
+app.use("/api/market", marketRouter);
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
@@ -53,6 +55,7 @@ registerSocketHandlers(io);
 
 async function start(): Promise<void> {
   await loadCardRegistry();
+  startMarketSweeper();
 
   httpServer.listen(PORT, () => {
     console.log(`🎮 Legends of the Mempool server running on port ${PORT}`);

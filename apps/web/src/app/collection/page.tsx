@@ -11,6 +11,7 @@ import AuthModal from "@/components/Auth/AuthModal";
 import BottomNav from "@/components/Dashboard/BottomNav";
 import { factionColor, FACTIONS } from "@/lib/factions";
 import FactionIcon from "@/components/Faction/FactionIcon";
+import SellModal from "@/components/Market/SellModal";
 
 interface CollectionEntry { cardId: string; quantity: number; card: CardData; }
 interface Deck { id: string; name: string; heroId: string; isStarter?: boolean; faction?: string; factionBonusActive?: boolean; cardCount: number; cards: { cardId: string; quantity: number }[]; }
@@ -28,6 +29,7 @@ export default function CollectionPage() {
   const [selectedDeck, setSelectedDeck] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [zoom, setZoom] = useState<{ card: CardData; source: "grid" | "deck" } | null>(null);
+  const [sellCard, setSellCard] = useState<CardData | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState("");
   const [toast, setToast] = useState("");
@@ -155,8 +157,9 @@ export default function CollectionPage() {
         <span style={{ font: `600 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#6a7488" }}>{collection.length} unique</span>
 
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
-          <FacBtn active={filterFaction === ""} color="#cdd4df" onClick={() => setFilterFaction("")}>ALL</FacBtn>
+          <button onClick={() => router.push("/market")} style={{ cursor: "pointer", height: 34, padding: "0 14px", borderRadius: 9, display: "flex", alignItems: "center", gap: 6, font: `800 12px var(--font-cinzel,'Cinzel',serif)`, color: "#04140d", background: "linear-gradient(180deg,#4ff0a8,#129c66)", border: "none", boxShadow: "0 4px 12px rgba(25,224,138,.3)" }}>Buy Cards</button>
           <button onClick={newDeck} style={{ cursor: "pointer", height: 34, padding: "0 14px", borderRadius: 9, display: "flex", alignItems: "center", gap: 6, font: `800 12px var(--font-cinzel,'Cinzel',serif)`, color: "#2a1a00", background: "linear-gradient(180deg,#ffe07a,#e0890f)", border: "none", boxShadow: "0 4px 12px rgba(224,137,15,.3)" }}>+ New Deck</button>
+          <FacBtn active={filterFaction === ""} color="#cdd4df" onClick={() => setFilterFaction("")}>ALL</FacBtn>
           <div style={{ width: 1, height: 24, background: "rgba(255,255,255,.1)", margin: "0 2px" }} />
           {FACTIONS.map((f) => (
             <FacBtn key={f} active={filterFaction === f} color={factionColor(f)} onClick={() => setFilterFaction(filterFaction === f ? "" : f)}>
@@ -277,12 +280,24 @@ export default function CollectionPage() {
         onClose={() => setZoom(null)}
         actions={
           zoom?.source === "grid"
-            ? [{ label: deck && !isStarter ? (canAdd(zoom.card).ok ? "Add to Deck" : (canAdd(zoom.card).reason ?? "Can't add")) : "Add to Deck", onClick: () => { addCard(zoom.card); setZoom(null); }, disabled: !canAdd(zoom.card).ok }]
+            ? [
+                { label: deck && !isStarter ? (canAdd(zoom.card).ok ? "Add to Deck" : (canAdd(zoom.card).reason ?? "Can't add")) : "Add to Deck", onClick: () => { addCard(zoom.card); setZoom(null); }, disabled: !canAdd(zoom.card).ok },
+                { label: "Sell", variant: "ghost" as const, onClick: () => { setSellCard(zoom.card); setZoom(null); }, disabled: (ownedMap.get(zoom.card.id) ?? 0) < 1 },
+              ]
             : zoom?.source === "deck"
             ? [{ label: "Remove from Deck", variant: "danger" as const, onClick: () => { removeCard(zoom.card.id); setZoom(null); }, disabled: isStarter }]
             : undefined
         }
       />
+      {sellCard && (
+        <SellModal
+          kind="card"
+          itemId={sellCard.id}
+          title={sellCard.name}
+          onClose={() => setSellCard(null)}
+          onListed={() => { api.get<CollectionEntry[]>("/api/collection").then(setCollection).catch(() => {}); }}
+        />
+      )}
     </div>
   );
 }

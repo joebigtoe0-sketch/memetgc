@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import "@solana/wallet-adapter-react-ui/styles.css";
 import Providers from "./providers";
+import AccessGate from "@/components/Access/AccessGate";
 import { BRAND } from "@/lib/brand";
 import { Cinzel, Archivo, JetBrains_Mono } from "next/font/google";
 
@@ -21,7 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body style={{ background: "#06080d", color: "#c8d0e0", fontFamily: "var(--font-archivo, system-ui, sans-serif)", height: "100vh", overflow: "hidden" }}>
         <Providers>
           <div style={{ width: "100vw", height: "100vh", overflow: "hidden", position: "relative" }}>
-            {children}
+            <AccessGate>{children}</AccessGate>
           </div>
         </Providers>
       </body>

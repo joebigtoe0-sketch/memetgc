@@ -1,4 +1,4 @@
-const FALLBACK_BOARDS = ["/boards/genesisdrop_board.png"];
+const FALLBACK_BOARDS = ["/boards/default_board.jpg", "/boards/genesisdrop_board.jpg"];
 
 let matchBoardUrl: string | null = null;
 

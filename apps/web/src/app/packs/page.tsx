@@ -6,19 +6,25 @@ import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import AuthModal from "@/components/Auth/AuthModal";
 import BottomNav from "@/components/Dashboard/BottomNav";
-import Logo from "@/components/Brand/Logo";
-import { BRAND } from "@/lib/brand";
+import { CARD_BACK_DEFAULT } from "@/lib/cardBacks";
+import { packArtUrl } from "@/lib/packArt";
 import CardComponent, { type CardData } from "@/components/Card/CardComponent";
+import SellModal from "@/components/Market/SellModal";
 
 interface PackEntry { packType: string; quantity: number; }
 interface OpenResult { cards: CardData[]; remaining: number; }
 
 const PACK_META: Record<string, { name: string; color: string; tag: string }> = {
   standard: { name: "Standard Pack", color: "#7b8cf4", tag: "STANDARD" },
-  faction: { name: "Faction Pack", color: "#f7931a", tag: "FACTION" },
-  season: { name: "Season Pack", color: "#19e08a", tag: "SEASON" },
+  season: { name: "Genesis Drop Pack", color: "#19e08a", tag: "GENESIS DROP" },
   legendary: { name: "Legendary Pack", color: "#e7c768", tag: "LEGENDARY" },
+  // legacy — no longer sold, but may exist in inventory
+  faction: { name: "Faction Pack", color: "#9a7bff", tag: "FACTION" },
 };
+
+function packMeta(packType: string) {
+  return PACK_META[packType] ?? PACK_META.standard;
+}
 
 const RARITY_RANK: Record<string, number> = { common: 0, rare: 1, epic: 2, legendary: 3 };
 
@@ -36,6 +42,7 @@ export default function PacksPage() {
   const [remaining, setRemaining] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [sellPack, setSellPack] = useState<string | null>(null);
 
   const loadInventory = useCallback(() => {
     api.get<PackEntry[]>("/api/economy/packs/inventory").then(setInventory).catch(() => {});
@@ -67,7 +74,7 @@ export default function PacksPage() {
   const allRevealed = revealed.length > 0 && revealed.every(Boolean);
   const bestRarity = cards.reduce((best, c) => (RARITY_RANK[c.rarity] > RARITY_RANK[best] ? c.rarity : best), "common");
 
-  const meta = PACK_META[openType] ?? PACK_META.standard;
+  const meta = packMeta(openType);
   const totalPacks = inventory.reduce((s, p) => s + p.quantity, 0);
 
   // ── Reveal view ──────────────────────────────────────────────
@@ -96,7 +103,7 @@ export default function PacksPage() {
                 {revealed[i] ? (
                   <CardComponent card={card} size="md" glowing={RARITY_RANK[card.rarity] >= 2} />
                 ) : (
-                  <PackBack />
+                  <CardBackFace small />
                 )}
               </div>
             ))}
@@ -141,16 +148,19 @@ export default function PacksPage() {
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: 18, maxWidth: 940 }}>
             {inventory.map((p) => {
-              const m = PACK_META[p.packType] ?? PACK_META.standard;
+              const m = packMeta(p.packType);
               return (
                 <div key={p.packType} style={{ borderRadius: 16, padding: 20, background: `linear-gradient(155deg,color-mix(in srgb,${m.color} 14%,transparent),rgba(18,23,35,.6))`, border: `1px solid ${m.color}55`, display: "flex", flexDirection: "column", alignItems: "center" }}>
                   <div style={{ position: "relative" }}>
-                    <PackBack small />
+                    <PackBack small packType={p.packType} />
                     <div style={{ position: "absolute", top: -8, right: -8, minWidth: 26, height: 26, padding: "0 6px", borderRadius: 13, background: m.color, color: "#1a1206", font: `900 13px var(--font-mono,'JetBrains Mono',monospace)`, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(0,0,0,.4)" }}>×{p.quantity}</div>
                   </div>
                   <div style={{ font: `800 15px var(--font-cinzel,'Cinzel',serif)`, color: "#f1f4f9", marginTop: 14 }}>{m.name}</div>
                   <button onClick={() => openPack(p.packType)} disabled={busy} style={{ ...goldBtn, width: "100%", marginTop: 12, background: `linear-gradient(180deg,${m.color},color-mix(in srgb,${m.color} 70%,#000))` }}>
                     {busy ? "Opening…" : "Open Pack"}
+                  </button>
+                  <button onClick={() => setSellPack(p.packType)} style={{ cursor: "pointer", width: "100%", marginTop: 8, padding: "9px 0", borderRadius: 10, background: "transparent", border: "1px solid rgba(255,255,255,.16)", color: "#cdd4df", font: `700 12px var(--font-archivo,'Archivo',sans-serif)` }}>
+                    Sell Pack
                   </button>
                 </div>
               );
@@ -160,6 +170,16 @@ export default function PacksPage() {
       </div>
 
       <BottomNav active="packs" />
+
+      {sellPack && (
+        <SellModal
+          kind="pack"
+          itemId={sellPack}
+          title={PACK_META[sellPack]?.name ?? "Pack"}
+          onClose={() => setSellPack(null)}
+          onListed={loadInventory}
+        />
+      )}
     </div>
   );
 }
@@ -168,16 +188,36 @@ function rarityLabel(r: string): string {
   return ({ common: "Solid", rare: "Rare", epic: "Epic", legendary: "Legendary" } as Record<string, string>)[r] ?? "Nice";
 }
 
-function PackBack({ small }: { small?: boolean }) {
+function CardBackFace({ small }: { small?: boolean }) {
   const w = small ? 110 : 195, h = small ? 160 : 285;
   return (
+    <img
+      src={CARD_BACK_DEFAULT}
+      alt=""
+      draggable={false}
+      style={{ width: w, height: h, borderRadius: 14, objectFit: "cover", boxShadow: "0 10px 26px rgba(0,0,0,.5)" }}
+    />
+  );
+}
+
+function PackBack({ small, packType = "standard" }: { small?: boolean; packType?: string }) {
+  const w = small ? 110 : 195, h = small ? 160 : 285;
+  const isLegendary = packType === "legendary";
+  return (
     <div style={{
-      width: w, height: h, borderRadius: 14,
-      background: "repeating-linear-gradient(125deg,#3a2c0c 0px,#3a2c0c 14px,#2b2008 14px,#2b2008 28px)",
-      border: "2px solid #e7c768", boxShadow: "0 10px 26px rgba(0,0,0,.5), 0 0 24px rgba(231,199,104,.25)",
-      display: "flex", alignItems: "center", justifyContent: "center",
+      width: w, height: h, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center",
+      background: isLegendary ? "radial-gradient(circle at 50% 40%,rgba(255,224,122,.2),transparent 70%)" : "rgba(0,0,0,.2)",
+      border: isLegendary ? "2px solid rgba(255,224,122,.55)" : "2px solid rgba(255,255,255,.12)",
+      boxShadow: isLegendary
+        ? "0 10px 26px rgba(0,0,0,.5), 0 0 28px rgba(255,200,80,.4)"
+        : "0 10px 26px rgba(0,0,0,.5)",
     }}>
-      <Logo size={small ? 38 : 56} />
+      <img
+        src={packArtUrl(packType)}
+        alt=""
+        draggable={false}
+        style={{ width: "92%", height: "92%", objectFit: "contain", filter: isLegendary ? "drop-shadow(0 0 12px rgba(255,220,120,.55))" : undefined }}
+      />
     </div>
   );
 }

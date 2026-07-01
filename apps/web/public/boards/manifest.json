@@ -1,5 +1,6 @@
 {
   "boards": [
-    "/boards/genesisdrop_board.png"
+    "/boards/default_board.jpg",
+    "/boards/genesisdrop_board.jpg"
   ]
 }

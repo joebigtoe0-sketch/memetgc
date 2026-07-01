@@ -5,13 +5,9 @@ import { prisma } from "@memetgc/db";
 import { joinQueue, leaveQueue, tryMatchmake, removeBySocketId, getQueueSize } from "../matchmaking/queue.js";
 import { createRoom, getRoom, getRoomByUserId, handlePlayerAction, initMulligan, type PlayerInfo } from "./room.js";
 import type { Card, Keyword, CardEffect, HeroPower, Faction } from "@memetgc/types";
-import { createPublicClient, http } from "viem";
-import { mainnet } from "viem/chains";
 import { randomUUID } from "crypto";
 import { sanitizeState } from "@memetgc/game-engine";
-
-const DEGEN_CONTRACT_ADDRESS = process.env.DEGEN_CONTRACT_ADDRESS as `0x${string}` | undefined;
-const RPC_URL = process.env.RPC_URL;
+import { getTokenBalance, MIN_PLAY_TOKENS } from "../lib/solana.js";
 
 // In-memory card registry (loaded from DB on startup)
 let cardRegistry: Map<string, Card> = new Map();
@@ -87,19 +83,8 @@ async function getDeckCards(deckId: string, userId: string): Promise<Card[]> {
 }
 
 async function checkDegenBalance(walletAddress: string): Promise<boolean> {
-  if (!DEGEN_CONTRACT_ADDRESS || !RPC_URL) return false;
-  try {
-    const client = createPublicClient({ chain: mainnet, transport: http(RPC_URL) });
-    const balance = await client.readContract({
-      address: DEGEN_CONTRACT_ADDRESS,
-      abi: [{ name: "balanceOf", type: "function", inputs: [{ name: "account", type: "address" }], outputs: [{ name: "", type: "uint256" }], stateMutability: "view" }],
-      functionName: "balanceOf",
-      args: [walletAddress as `0x${string}`],
-    });
-    return (balance as bigint) >= 1000n * 10n ** 18n;
-  } catch {
-    return false;
-  }
+  const balance = await getTokenBalance(walletAddress);
+  return balance >= MIN_PLAY_TOKENS;
 }
 
 export function registerSocketHandlers(
@@ -137,16 +122,16 @@ export function registerSocketHandlers(
         return;
       }
 
-      // Ranked gate: check $DEGEN balance
-      if (mode === "ranked") {
+      // Token gate: every queue join requires holding the minimum $MEMPOOL (defense in depth)
+      {
         const user = await prisma.user.findUnique({ where: { id: authenticatedUserId } });
         if (!user?.walletAddress) {
-          socket.emit("game:error", "Wallet required for ranked mode");
+          socket.emit("game:error", "Wallet required to play");
           return;
         }
         const hasTokens = await checkDegenBalance(user.walletAddress);
         if (!hasTokens) {
-          socket.emit("game:error", "Need 1,000 $MEMPOOL to play ranked");
+          socket.emit("game:error", `Need ${MIN_PLAY_TOKENS.toLocaleString()} $MEMPOOL to play`);
           return;
         }
       }

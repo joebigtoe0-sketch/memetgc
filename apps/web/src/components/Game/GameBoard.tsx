@@ -12,6 +12,7 @@ import { getPlayCardTargets } from "@memetgc/game-engine";
 import { preloadCardArt, preloadAllCardArt, preloadFactionArt } from "@/lib/preloadArt";
 import { getMatchBoardBackground } from "@/lib/boards";
 import BoardBackground from "./BoardBackground";
+import { CARD_BACK_DEFAULT } from "@/lib/cardBacks";
 import type { MinionSlot, Card } from "@memetgc/types";
 import type { CardData } from "../Card/CardComponent";
 
@@ -21,8 +22,6 @@ type PhaseAction = "idle" | "select_play_target" | "select_attack_target";
 interface Toast { id: string; text: string; color: string; }
 interface DamageFloat { id: string; entityKey: string; amount: number; isHeal: boolean; }
 interface LogEntry { id: string; text: string; turn: number; }
-
-import { factionColor } from "@/lib/factions";
 
 export default function GameBoard() {
   const { gameState, isMyTurn, selectedCardInstanceId, selectedAttackerId, lastActionError, playerId, pendingAnimations } = useGameStore();
@@ -359,6 +358,8 @@ export default function GameBoard() {
     <div style={{ position: "relative", width: "100%", height: "100%", display: "flex", flexDirection: "column", overflow: "hidden", fontFamily: "var(--font-archivo,'Archivo',sans-serif)" }}>
       <BoardBackground url={boardBg} />
 
+      <div style={{ position: "relative", zIndex: 1, flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+
       {/* ══════════════ OPPONENT ZONE ══════════════ */}
       <div style={{ flex: "0 0 44%", display: "flex", flexDirection: "row", minHeight: 0 }}>
 
@@ -568,6 +569,8 @@ export default function GameBoard() {
         </div>
       </div>
 
+      </div>{/* end game-content layer */}
+
       {/* Settings gear — top right */}
       <button
         onClick={() => setShowSettings(true)}
@@ -758,8 +761,7 @@ function FloatNumber({ amount, isHeal }: { amount: number; isHeal: boolean }) {
   );
 }
 
-function FaceDownHand({ count, faction }: { count: number; faction: string }) {
-  const fc = factionColor(faction);
+function FaceDownHand({ count }: { count: number; faction?: string }) {
   const n = Math.min(count, 10);
   const mid = (n - 1) / 2;
   if (n === 0) return null;
@@ -771,19 +773,20 @@ function FaceDownHand({ count, faction }: { count: number; faction: string }) {
         const x = off * 38;
         const y = Math.abs(off) * Math.abs(off) * 3;
         return (
-          <div key={i} style={{
-            position: "absolute", left: "50%",
-            transform: `translateX(calc(-50% + ${x}px)) translateY(${y}px) rotate(${ang}deg)`,
-            transformOrigin: "top center",
-            width: 38, height: 52, borderRadius: 6,
-            background: `linear-gradient(160deg,color-mix(in srgb,${fc} 35%,#1a2030) 0%,#0e1420 100%)`,
-            border: `1px solid color-mix(in srgb,${fc} 25%,rgba(255,255,255,.1))`,
-            boxShadow: "0 3px 8px rgba(0,0,0,.5)",
-            zIndex: 10 + i,
-          }}>
-            {/* Card back pattern */}
-            <div style={{ position: "absolute", inset: 3, borderRadius: 4, border: `1px solid color-mix(in srgb,${fc} 20%,rgba(255,255,255,.06))`, background: "repeating-linear-gradient(45deg,transparent,transparent 4px,rgba(255,255,255,.02) 4px,rgba(255,255,255,.02) 5px)" }} />
-          </div>
+          <img
+            key={i}
+            src={CARD_BACK_DEFAULT}
+            alt=""
+            draggable={false}
+            style={{
+              position: "absolute", left: "50%",
+              transform: `translateX(calc(-50% + ${x}px)) translateY(${y}px) rotate(${ang}deg)`,
+              transformOrigin: "top center",
+              width: 38, height: 52, borderRadius: 6, objectFit: "cover",
+              boxShadow: "0 3px 8px rgba(0,0,0,.55)",
+              zIndex: 10 + i,
+            }}
+          />
         );
       })}
     </div>
@@ -796,7 +799,7 @@ function BoardSlot({ children, highlighted, glowing, dimmed, clickable, onClick 
   onClick?: () => void;
 }) {
   return (
-    <div onClick={onClick} style={{ width: 96, height: 116, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", border: highlighted ? (glowing ? "2px solid rgba(255,200,60,.7)" : "1.5px dashed rgba(64,224,128,.5)") : "1.5px dashed rgba(255,255,255,.07)", background: highlighted ? (glowing ? "rgba(255,200,60,.06)" : "rgba(64,224,128,.04)") : "rgba(255,255,255,.01)", opacity: dimmed ? 0.45 : 1, cursor: clickable ? "pointer" : "default", transition: "all 0.15s", flexShrink: 0 }}>
+    <div onClick={onClick} style={{ width: 96, height: 116, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", border: highlighted ? (glowing ? "2px solid rgba(255,200,60,.85)" : "1.5px dashed rgba(64,224,128,.65)") : "1.5px dashed rgba(255,255,255,.22)", background: highlighted ? (glowing ? "rgba(255,200,60,.12)" : "rgba(64,224,128,.08)") : "rgba(0,0,0,.28)", boxShadow: highlighted ? undefined : "inset 0 0 12px rgba(0,0,0,.35)", opacity: dimmed ? 0.45 : 1, cursor: clickable ? "pointer" : "default", transition: "all 0.15s", flexShrink: 0 }}>
       {children}
     </div>
   );
@@ -804,9 +807,17 @@ function BoardSlot({ children, highlighted, glowing, dimmed, clickable, onClick 
 
 function DeckPile({ count }: { count: number }) {
   return (
-    <div style={{ width: 44, height: 58, borderRadius: 7, background: "linear-gradient(150deg,#2a3142,#12161f)", border: "1.5px solid rgba(231,199,104,.25)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2, boxShadow: "2px 2px 0 rgba(0,0,0,.4)", flexShrink: 0 }}>
-      <span style={{ font: `800 14px var(--font-mono,'JetBrains Mono',monospace)`, color: "#c9b48a" }}>{count}</span>
-      <span style={{ font: `600 7px var(--font-archivo,'Archivo',sans-serif)`, color: "#6a7488", letterSpacing: 1 }}>DECK</span>
+    <div style={{ position: "relative", width: 44, height: 58, flexShrink: 0 }}>
+      <img
+        src={CARD_BACK_DEFAULT}
+        alt=""
+        draggable={false}
+        style={{ width: "100%", height: "100%", borderRadius: 7, objectFit: "cover", boxShadow: "2px 2px 0 rgba(0,0,0,.45), 0 4px 12px rgba(0,0,0,.35)" }}
+      />
+      <div style={{ position: "absolute", inset: 0, borderRadius: 7, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2, background: "rgba(0,0,0,.45)", border: "1.5px solid rgba(231,199,104,.35)" }}>
+        <span style={{ font: `800 14px var(--font-mono,'JetBrains Mono',monospace)`, color: "#f3e8cc", textShadow: "0 1px 4px rgba(0,0,0,.8)" }}>{count}</span>
+        <span style={{ font: `600 7px var(--font-archivo,'Archivo',sans-serif)`, color: "#d8c79a", letterSpacing: 1 }}>DECK</span>
+      </div>
     </div>
   );
 }

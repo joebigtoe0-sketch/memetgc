@@ -3,14 +3,14 @@ import { prisma } from "@memetgc/db";
 import { requireAuth, type AuthRequest } from "../middleware/auth.js";
 import { computeWinStreak } from "../game/results.js";
 import { getDegenBalance, isDegenConfigured } from "../lib/helius.js";
+import { getTokenBalance, MIN_PLAY_TOKENS } from "../lib/solana.js";
 
 const router: ReturnType<typeof Router> = Router();
 
 interface PackDef { type: string; name: string; cost: number; currency: "frags" | "degen"; }
 const PACKS: Record<string, PackDef> = {
   standard: { type: "standard", name: "Standard Pack", cost: 100, currency: "frags" },
-  faction: { type: "faction", name: "Faction Pack", cost: 120, currency: "frags" },
-  season: { type: "season", name: "Season Pack", cost: 150, currency: "frags" },
+  season: { type: "season", name: "Genesis Drop Pack", cost: 150, currency: "frags" },
   legendary: { type: "legendary", name: "Legendary Pack", cost: 800, currency: "frags" },
 };
 
@@ -140,6 +140,20 @@ router.get("/degen-balance", requireAuth, async (req: AuthRequest, res) => {
   res.json({ balance, configured: isDegenConfigured() });
 });
 
+// ─────────────────────────── Access gate ───────────────────────────
+
+// GET /api/economy/access — does the wallet hold enough $MEMPOOL to play?
+router.get("/access", requireAuth, async (req: AuthRequest, res) => {
+  const user = await prisma.user.findUnique({ where: { id: req.user!.userId } });
+  const required = MIN_PLAY_TOKENS;
+  if (!user?.walletAddress) {
+    res.json({ balance: 0, required, hasAccess: false });
+    return;
+  }
+  const balance = await getTokenBalance(user.walletAddress);
+  res.json({ balance, required, hasAccess: balance >= required });
+});
+
 // ─────────────────────────── Profile ───────────────────────────
 
 router.get("/profile", requireAuth, async (req: AuthRequest, res) => {
@@ -215,6 +229,7 @@ async function generatePackCards(
 ): Promise<Array<{ cardId: string; rarity: string }>> {
   const where: Record<string, unknown> = { collectible: true };
   if (packType === "faction" && faction) where.faction = faction;
+  if (packType === "season") where.set = "genesis";
   if (packType === "legendary") where.rarity = { in: ["legendary", "epic", "rare"] };
 
   const allCards = await prisma.card.findMany({ where });
