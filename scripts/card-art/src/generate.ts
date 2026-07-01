@@ -6,6 +6,7 @@ import OpenAI from "openai";
 import { prisma } from "@memetgc/db";
 import { CARDS as SEED_CARDS } from "../../../packages/db/prisma/seed.js";
 import { ART_LABELS } from "../../../packages/db/prisma/art-labels.js";
+import { EXPANSION_CARD_IDS } from "../../../packages/db/prisma/expansion-card-ids.js";
 import { buildCardPrompt, type CardForArt } from "./promptBuilder.js";
 import {
   BRIEF_FEW_SHOT,
@@ -29,7 +30,9 @@ const SAMPLE_ART_BRIEFS = getSampleArtBriefs();
 
 interface CliArgs {
   cardId?: string;
+  ids?: string[];
   set?: string;
+  expansion: boolean;
   force: boolean;
   forceHumans: boolean;
   limit?: number;
@@ -39,17 +42,22 @@ interface CliArgs {
 }
 
 function parseArgs(): CliArgs {
-  const args: CliArgs = { force: false, forceHumans: false, dryRun: false, all: false, source: "db" };
+  const args: CliArgs = { force: false, forceHumans: false, dryRun: false, all: false, expansion: false, source: "db" };
   for (const arg of process.argv.slice(2)) {
     if (arg === "--force") args.force = true;
     else if (arg === "--force-humans") args.forceHumans = true;
     else if (arg === "--dry-run") args.dryRun = true;
     else if (arg === "--all") args.all = true;
+    else if (arg === "--expansion") args.expansion = true;
     else if (arg === "--source=seed") args.source = "seed";
     else if (arg === "--source=db") args.source = "db";
     else if (arg.startsWith("--card-id=")) args.cardId = arg.slice("--card-id=".length);
+    else if (arg.startsWith("--ids=")) args.ids = arg.slice("--ids=".length).split(",").map((s) => s.trim()).filter(Boolean);
     else if (arg.startsWith("--set=")) args.set = arg.slice("--set=".length);
     else if (arg.startsWith("--limit=")) args.limit = Number(arg.slice("--limit=".length));
+  }
+  if (args.expansion && !args.ids?.length) {
+    args.ids = [...EXPANSION_CARD_IDS];
   }
   return args;
 }
@@ -176,6 +184,7 @@ async function loadCards(args: CliArgs): Promise<CardRow[]> {
     }));
     if (args.set) cards = cards.filter((c) => c.set === args.set);
     if (args.cardId) cards = cards.filter((c) => c.id === args.cardId);
+    if (args.ids?.length) cards = cards.filter((c) => args.ids!.includes(c.id));
     if (!args.all) cards = cards.filter((c) => !c.artUrl);
     return cards;
   }
@@ -191,10 +200,12 @@ async function loadCards(args: CliArgs): Promise<CardRow[]> {
 
   const where: Record<string, unknown> = args.all ? {} : { artUrl: null };
   if (args.set) where.set = args.set;
-  const rows = await prisma.card.findMany({
+  let rows = await prisma.card.findMany({
     where,
     orderBy: [{ faction: "asc" }, { cost: "asc" }, { name: "asc" }],
   });
+  if (args.ids?.length) rows = rows.filter((c) => args.ids!.includes(c.id));
+  if (args.cardId) rows = rows.filter((c) => c.id === args.cardId);
   return rows.map((card) => ({ ...card, artLabel: resolveArtBrief(card) }));
 }
 

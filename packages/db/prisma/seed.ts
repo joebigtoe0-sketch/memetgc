@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { ART_LABELS } from "./art-labels";
+import { DEFAULT_SET_EXPANSION_CARDS } from "./default-set-expansion-cards";
 import { GENESIS_DROP_CARDS } from "./genesis-drop-cards";
 
 const prisma = new PrismaClient();
@@ -953,6 +954,7 @@ export const CARDS = [
     dustValue: 400,
     craftCost: 1600,
   },
+  ...DEFAULT_SET_EXPANSION_CARDS,
   ...GENESIS_DROP_CARDS,
 ];
 

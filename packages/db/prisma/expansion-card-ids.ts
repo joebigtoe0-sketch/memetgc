@@ -1,0 +1,48 @@
+/**
+ * Card IDs added in the burn-pile + default set expansion (40 cards).
+ * Used by the art generator to target only new cards.
+ */
+export const EXPANSION_CARD_IDS = [
+  // Genesis Drop burn-pile expansion (10)
+  "degen_graveyard_crawler",
+  "bitcoin_ansems_wallet",
+  "degen_second_chance",
+  "meme_dead_cat_bounce",
+  "degen_burn_pile_raider",
+  "ethereum_recycled_alpha",
+  "stable_ghost_liquidity",
+  "degen_mempool_drifter",
+  "bitcoin_ash_collector",
+  "ethereum_lost_transaction",
+  // Default set expansion (30)
+  "bitcoin_satoshis_disciple",
+  "bitcoin_hash_rate",
+  "bitcoin_block_reward",
+  "bitcoin_immutable_ledger",
+  "bitcoin_the_genesis_block",
+  "ethereum_smart_contract",
+  "ethereum_layer_2",
+  "ethereum_gas_refund",
+  "ethereum_mev_bot",
+  "ethereum_the_merge",
+  "solana_validator_node",
+  "solana_speed_run",
+  "solana_tps_surge",
+  "solana_jito_restaker",
+  "solana_network_outage",
+  "meme_pepe_maxi",
+  "meme_shiba_squad",
+  "meme_rug_radar",
+  "meme_chaos_protocol",
+  "meme_wojak_eternal_degen",
+  "stable_audit_report",
+  "stable_treasury_reserve",
+  "stable_circuit_breaker",
+  "stable_algo_stable",
+  "stable_black_swan",
+  "degen_floor_trader",
+  "degen_leverage_king",
+  "degen_fomo_buy",
+  "degen_liquidated",
+  "degen_degen_god",
+] as const;

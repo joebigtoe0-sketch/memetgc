@@ -136,4 +136,98 @@ export const ART_LABELS: Record<string, string> = {
     "a narrow liquidity pool bridge cracking under damage, slippage arrows bouncing hero and minion",
   bitcoin_diamond_conviction:
     "a stubborn small token golem with diamond fists and feet cemented to the ground, refusing to budge",
+
+  // ── Genesis Drop burn-pile expansion (10) ─────────────────────────────────
+  degen_graveyard_crawler:
+    "a shadowy degen creature crawling out of a pit of burning cards and ash, clawed hands gripping the edge, eyes glowing red, half emerged from the darkness below",
+  bitcoin_ansems_wallet:
+    "an enormous ancient stone vault door slightly ajar, warm gold light spilling out from within, ancient bitcoin runes carved into the stone, half buried in ocean floor sand",
+  degen_second_chance:
+    "a glowing resurrection portal opening above a burn pile, a minion silhouette leaping through with a moon-shot shield aura, hopeful degen energy",
+  meme_dead_cat_bounce:
+    "a cartoon cat minion springing back upright from a grave-shaped chart dip, eyes half closed pretending to nap, pink bounce arrows underneath",
+  degen_burn_pile_raider:
+    "a scavenger rat trader rummaging through a smoldering burn pile of cards, pulling out a high-cost minion card with a greedy grin",
+  ethereum_recycled_alpha:
+    "a ghostly indigo spell scroll being copied from a burn pile furnace, duplicate alpha call unfurling with extra gas runes",
+  stable_ghost_liquidity:
+    "a translucent teal liquidity spirit phasing in and out of existence, DeFi glow around it, a faint duplicate fading into a burn pile below",
+  degen_mempool_drifter:
+    "a laid-back hooded drifter lounging on an unconfirmed transaction bubble, peeking at a single card floating in mempool fog",
+  bitcoin_ash_collector:
+    "a small ash-covered token golem sweeping up embers from fallen minion silhouettes, growing slightly larger with each pile of ash",
+  ethereum_lost_transaction:
+    "a flickering pending transaction envelope spiraling from a burn pile back into a shuffled deck stack, block confirmation numbers counting up",
+
+  // ── Default set expansion — Bitcoin (5) ───────────────────────────────────
+  bitcoin_satoshis_disciple:
+    "a young orange-hooded apprentice miner holding a glowing bitcoin pickaxe, eager and clueless but confident",
+  bitcoin_hash_rate:
+    "a chunky mining rig golem with spinning fan ears and a hash-rate dial for a belly, numbers climbing on its chest display",
+  bitcoin_block_reward:
+    "two freshly minted golden 1/1 token coins tumbling from a cracked block reward chute into an open hand silhouette",
+  bitcoin_immutable_ledger:
+    "a massive stone ledger golem with HODL shield stance, etched runes locking friendly minion stats in place behind it",
+  bitcoin_the_genesis_block:
+    "the original glowing genesis block altar with token minion spirits rising from a burn pile into waiting hands above",
+
+  // ── Default set expansion — Ethereum (5) ──────────────────────────────────
+  ethereum_smart_contract:
+    "a self-contained indigo circuit cube automaton executing its own commands, smug glowing eyes, no master required",
+  ethereum_layer_2:
+    "a sleek roller-skating protocol sprite racing on a layer-2 bridge above a slower ethereum chain below, Ape In energy trails",
+  ethereum_gas_refund:
+    "a rare golden gas meter rolling backward, coins spilling back to a hand silhouette, cherubic refund aura",
+  ethereum_mev_bot:
+    "a predatory indigo front-running bot creature with multiple scope eyes, sniping spell casts and zapping an enemy hero",
+  ethereum_the_merge:
+    "all minions on a battlefield flattening into identical 2/2 silhouettes under a massive merge beam, keywords dissolving like smoke",
+
+  // ── Default set expansion — Solana (5) ────────────────────────────────────
+  solana_validator_node:
+    "a compact green validator robot with a blinking online light, wobbling on one leg like uptime is optional",
+  solana_speed_run:
+    "a blur-speed degen creature sprinting past slower minions, green motion lines, reckless Ape In pose",
+  solana_tps_surge:
+    "a tidal wave of green transaction arrows boosting friendly minion silhouettes with +1 attack sparks",
+  solana_jito_restaker:
+    "a restaking robot priest stamping +1 attack blessings onto a random friendly minion each dawn",
+  solana_network_outage:
+    "enemy minions frozen in ice-cube error screens while a solana technician shrugs beside a maintenance sign",
+
+  // ── Default set expansion — Meme (5) ──────────────────────────────────────
+  meme_pepe_maxi:
+    "a smug rare pepe frog wearing a fake limited-edition sash, winking like the rarity is definitely real",
+  meme_shiba_squad:
+    "a squad of three shiba inu soldiers in matching helmets marching in sync, 1 SHIB pride banners",
+  meme_rug_radar:
+    "a radar-dish frog scanning an opponent's hidden hand, copying one suspicious card into its own grip",
+  meme_chaos_protocol:
+    "minions from both sides tossed into a chaotic tornado and spat out randomly onto scrambled board slots",
+  meme_wojak_eternal_degen:
+    "a sweating wojak creature taking hits but grinning through pain, drawing cards from each survived blow, eternal cope energy",
+
+  // ── Default set expansion — Stable (5) ────────────────────────────────────
+  stable_audit_report:
+    "a clipboard automaton stamping APPROVED on a suspicious contract, one nervous eye twitching",
+  stable_treasury_reserve:
+    "a plump teal vault piggy bank creature sitting on stacked reserves, pinky promise ribbon tied around it",
+  stable_circuit_breaker:
+    "a giant red market halt button slamming down, protective shield dome over a hero silhouette for one turn",
+  stable_algo_stable:
+    "an algorithmic balance scale golem adding armor plates when its hero side tips higher, smug until it wobbles",
+  stable_black_swan:
+    "a dark swan shadow crashing through the board, shattering high-attack minions, drawing a card from each wreck",
+
+  // ── Default set expansion — Degen (5) ─────────────────────────────────────
+  degen_floor_trader:
+    "a desperate floor-buying goblin catching falling knives and coins in a deepening pit chart",
+  degen_leverage_king:
+    "a reckless leverage gladiator with 100x tattooed on armor, huge attack tiny health, no stop loss banner",
+  degen_fomo_buy:
+    "a minion injected with a temporary +3 attack syringe, health draining at turn end, panic excitement face",
+  degen_liquidated:
+    "a liquidation hammer smashing a low-health minion while shock damage ricochets into the friendly hero",
+  degen_degen_god:
+    "an epic KOL deity figure taking self-damage lightning and drawing three cards from the pain, legendary degen aura",
 };
