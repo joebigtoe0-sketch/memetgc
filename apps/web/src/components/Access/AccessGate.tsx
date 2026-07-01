@@ -1,9 +1,18 @@
 "use client";
 
 import React, { useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
 import GateScreen from "./GateScreen";
 import AssetPreloadGate from "@/components/Loading/AssetPreloadGate";
+
+/** Routes that are always public — no wallet, no token gate, no asset preload. */
+const PUBLIC_PATHS = ["/docs"];
+
+function isPublicPath(pathname: string | null): boolean {
+  if (!pathname) return false;
+  return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
 
 /**
  * Wraps the whole app. Once a user is authenticated we verify they hold the
@@ -12,12 +21,16 @@ import AssetPreloadGate from "@/components/Loading/AssetPreloadGate";
  */
 export default function AccessGate({ children }: { children: React.ReactNode }) {
   const { token, hasUsername, hasAccess, checkAccess } = useAuthStore();
+  const pathname = usePathname();
   const authed = Boolean(token && hasUsername);
 
   // Re-check on login and on every app load (mount) while authenticated.
   useEffect(() => {
     if (authed) void checkAccess();
   }, [authed, token, checkAccess]);
+
+  // Public pages (e.g. docs) render for everyone, wallet or not.
+  if (isPublicPath(pathname)) return <>{children}</>;
 
   // Not signed in yet: let the normal auth flow render.
   if (!authed) return <>{children}</>;

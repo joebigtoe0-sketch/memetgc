@@ -109,6 +109,7 @@ export default function Dashboard() {
           </div>
           <StatChip icon="fragment" label={`${fragments.toLocaleString()} frags`} />
           <StatChip icon="pack" label={`${packs} packs`} onClick={() => router.push("/packs")} />
+          <button onClick={() => router.push("/docs")} style={{ cursor: "pointer", padding: "7px 12px", borderRadius: 9, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)", color: "#c2cbdb", font: `700 11px var(--font-archivo,'Archivo',sans-serif)` }}>Guide</button>
           <SettingsButton />
           <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 12px", borderRadius: 9, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)" }}>
             <span style={{ width: 7, height: 7, borderRadius: "50%", background: connected ? "#19e08a" : "#ff5555", flexShrink: 0 }} />

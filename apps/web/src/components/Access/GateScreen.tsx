@@ -53,6 +53,10 @@ export default function GateScreen() {
         <button onClick={logout} style={{ ...ghostBtn, marginTop: 8, borderColor: "transparent", color: "#6a7488" }}>
           Disconnect wallet
         </button>
+
+        <a href="/docs" style={{ display: "block", textAlign: "center", marginTop: 14, font: `700 12px var(--font-archivo,'Archivo',sans-serif)`, color: "#9aa3b4", textDecoration: "none" }}>
+          Read the game guide →
+        </a>
       </div>
     </div>
   );

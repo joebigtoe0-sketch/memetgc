@@ -165,6 +165,9 @@ export default function AuthModal() {
             <p style={{ font: `500 10px var(--font-archivo,'Archivo',sans-serif)`, color: "#5a6478", textAlign: "center", marginTop: 16 }}>
               New players get 3 starter decks + 5 booster packs.
             </p>
+            <a href="/docs" style={{ display: "block", textAlign: "center", marginTop: 14, font: `700 12px var(--font-archivo,'Archivo',sans-serif)`, color: "#9aa3b4", textDecoration: "none" }}>
+              New to the game? Read the guide →
+            </a>
           </>
         )}
       </div>
