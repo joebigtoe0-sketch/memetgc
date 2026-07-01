@@ -4,6 +4,7 @@ import React from "react";
 import type { MinionSlot } from "@memetgc/types";
 
 import { factionColor } from "@/lib/factions";
+import { cardArtUrl } from "@/lib/cardArt";
 import { playSound } from "@/lib/sounds";
 
 interface Props {
@@ -90,7 +91,7 @@ export default function MinionCard({ slot, isEnemy, isSelected, isValidTarget, i
               {(slot.card.name ?? "").toUpperCase()}
             </div>
             <img
-              src={slot.card.art_url ?? `/card-art/${slot.card.id}.png`}
+              src={cardArtUrl(slot.card.id, slot.card.art_url)}
               alt={slot.card.name}
               loading="eager"
               style={{

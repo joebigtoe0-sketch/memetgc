@@ -16,6 +16,7 @@
     "art:genesis-drop:dry": "pnpm --filter @memetgc/card-art generate:genesis-drop:dry",
     "art:expansion": "pnpm --filter @memetgc/card-art generate:expansion",
     "art:expansion:dry": "pnpm --filter @memetgc/card-art generate:expansion:dry",
+    "art:sync": "pnpm --filter @memetgc/card-art sync:manifest",
     "art:regenerate-humans": "pnpm --filter @memetgc/card-art regenerate:humans",
     "boards:sync": "node scripts/sync-board-manifest.mjs"
   },

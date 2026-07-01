@@ -11,8 +11,14 @@ interface PackDef { type: string; name: string; cost: number; currency: "frags" 
 const PACKS: Record<string, PackDef> = {
   standard: { type: "standard", name: "Standard Pack", cost: 100, currency: "frags" },
   season: { type: "season", name: "Genesis Drop Pack", cost: 150, currency: "frags" },
-  legendary: { type: "legendary", name: "Legendary Pack", cost: 800, currency: "frags" },
 };
+
+/** Pack types players may still open from inventory (no longer sold). */
+const LEGACY_PACK_TYPES = new Set(["legendary", "faction"]);
+
+function isOpenablePackType(packType: string): boolean {
+  return packType in PACKS || LEGACY_PACK_TYPES.has(packType);
+}
 
 // ─────────────────────────── Quests ───────────────────────────
 
@@ -36,20 +42,16 @@ router.post("/quests/:id/claim", requireAuth, async (req: AuthRequest, res) => {
   if (!quest.completed) { res.status(400).json({ error: "Quest not completed" }); return; }
   if (quest.claimedAt) { res.status(400).json({ error: "Quest already claimed" }); return; }
 
-  const reward = quest.rewardJson as { fragments?: number; packs?: { type: string; count: number } };
+  const reward = quest.rewardJson as { fragments?: number };
   const userId = req.user!.userId;
+  const fragments = reward.fragments ?? 0;
   await prisma.$transaction(async (tx) => {
     await tx.dailyQuest.update({ where: { id: quest.id }, data: { claimedAt: new Date() } });
-    await tx.user.update({ where: { id: userId }, data: { fragments: { increment: reward.fragments ?? 0 } } });
-    if (reward.packs) {
-      await tx.packInventory.upsert({
-        where: { userId_packType: { userId, packType: reward.packs.type } },
-        update: { quantity: { increment: reward.packs.count } },
-        create: { userId, packType: reward.packs.type, quantity: reward.packs.count },
-      });
+    if (fragments > 0) {
+      await tx.user.update({ where: { id: userId }, data: { fragments: { increment: fragments } } });
     }
   });
-  res.json({ success: true, reward });
+  res.json({ success: true, reward: { fragments } });
 });
 
 // ─────────────────────────── Packs ───────────────────────────
@@ -92,7 +94,7 @@ router.post("/packs/buy", requireAuth, async (req: AuthRequest, res) => {
 // POST /api/economy/packs/open — open one owned pack from inventory
 router.post("/packs/open", requireAuth, async (req: AuthRequest, res) => {
   const { packType = "standard", faction } = req.body as { packType?: string; faction?: string };
-  if (!PACKS[packType]) { res.status(400).json({ error: "Unknown pack type" }); return; }
+  if (!isOpenablePackType(packType)) { res.status(400).json({ error: "Unknown pack type" }); return; }
   const userId = req.user!.userId;
 
   const inv = await prisma.packInventory.findUnique({ where: { userId_packType: { userId, packType } } });
@@ -101,7 +103,7 @@ router.post("/packs/open", requireAuth, async (req: AuthRequest, res) => {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
 
-  const cards = await generatePackCards(packType, faction, user, userId);
+  const cards = await generatePackCards(packType, faction);
 
   await prisma.$transaction([
     prisma.packInventory.update({ where: { userId_packType: { userId, packType } }, data: { quantity: { decrement: 1 } } }),
@@ -125,6 +127,7 @@ router.post("/packs/open", requireAuth, async (req: AuthRequest, res) => {
       rarity: card.rarity, tribe: card.tribe ?? undefined, attack: card.attack ?? undefined,
       health: card.health ?? undefined, durability: card.durability ?? undefined,
       text: card.text ?? undefined, keywords: (card.keywordsJson as unknown[]) ?? [],
+      art_url: card.artUrl ?? `/card-art/${card.id}.png`,
     };
   });
 
@@ -221,11 +224,40 @@ router.get("/profile", requireAuth, async (req: AuthRequest, res) => {
 
 // ─────────────────────────── Generators ───────────────────────────
 
+/** Per-card rate so P(≥1 legendary in 5 cards) ≈ 1 / packsPerLegendary */
+function perCardLegendaryRate(packsPerLegendary: number): number {
+  return 1 - (1 - 1 / packsPerLegendary) ** (1 / 5);
+}
+
+const PACK_RARITY_ODDS: Record<string, { legendary: number; epic: number; rare: number }> = {
+  standard: {
+    legendary: perCardLegendaryRate(50), // ~1 legendary per 50 packs
+    epic: 0.12,
+    rare: 0.23,
+  },
+  season: {
+    legendary: perCardLegendaryRate(100), // ~1 legendary per 100 packs
+    epic: 0.10,
+    rare: 0.21,
+  },
+  faction: {
+    legendary: perCardLegendaryRate(50),
+    epic: 0.12,
+    rare: 0.23,
+  },
+};
+
+function rollRarity(odds: { legendary: number; epic: number; rare: number }): string {
+  const roll = Math.random();
+  if (roll < odds.legendary) return "legendary";
+  if (roll < odds.legendary + odds.epic) return "epic";
+  if (roll < odds.legendary + odds.epic + odds.rare) return "rare";
+  return "common";
+}
+
 async function generatePackCards(
   packType: string,
   faction: string | undefined,
-  user: { standardPacksEpic: number; standardPacksLegendary: number },
-  userId: string
 ): Promise<Array<{ cardId: string; rarity: string }>> {
   const where: Record<string, unknown> = { collectible: true };
   if (packType === "faction" && faction) where.faction = faction;
@@ -239,46 +271,33 @@ async function generatePackCards(
   const allCards = await prisma.card.findMany({ where });
   if (allCards.length === 0) return [];
 
-  const legendaryRate = packType === "season" ? 0.01 : 0.05;
-  const epicRate = 0.15;
-
+  const odds = PACK_RARITY_ODDS[packType] ?? PACK_RARITY_ODDS.standard;
   const getByRarity = (rarity: string) => allCards.filter((c) => c.rarity === rarity);
   const pick = (pool: typeof allCards) => pool[Math.floor(Math.random() * pool.length)]!;
   const cards: Array<{ cardId: string; rarity: string }> = [];
 
-  let guaranteedLegendary = packType === "legendary";
-  let guaranteedEpic = user.standardPacksEpic >= 19;
-  if (user.standardPacksLegendary >= 39) guaranteedLegendary = true;
-
-  const rareOrHigher = allCards.filter((c) => ["rare", "epic", "legendary"].includes(c.rarity));
-  const slot1 = pick(rareOrHigher.length > 0 ? rareOrHigher : allCards);
-  cards.push({ cardId: slot1.id, rarity: slot1.rarity });
-
-  for (let i = 0; i < 4; i++) {
-    let rarity: string;
-    const roll = Math.random();
-    if (guaranteedLegendary && i === 1) { rarity = "legendary"; guaranteedLegendary = false; }
-    else if (guaranteedEpic && i === 1) { rarity = "epic"; guaranteedEpic = false; }
-    else if (roll < legendaryRate) rarity = "legendary";
-    else if (roll < legendaryRate + epicRate) rarity = "epic";
-    else rarity = "common";
+  const addCard = (rarity: string) => {
     const pool = getByRarity(rarity);
     const card = pick(pool.length > 0 ? pool : allCards);
     cards.push({ cardId: card.id, rarity: card.rarity });
+  };
+
+  // Legacy legendary packs (inventory only): 1 guaranteed legendary + 4 rolled cards
+  if (packType === "legendary") {
+    addCard("legendary");
+    for (let i = 0; i < 4; i++) addCard(rollRarity(odds));
+    return cards;
   }
 
-  const hasEpicOrLeg = cards.some((c) => ["epic", "legendary"].includes(c.rarity));
-  const hasLeg = cards.some((c) => c.rarity === "legendary");
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      standardPacksEpic: hasEpicOrLeg ? 0 : { increment: 1 },
-      standardPacksLegendary: hasLeg ? 0 : { increment: 1 },
-    },
-  });
+  // All 5 slots use the same rarity roll — no pity, no guaranteed rare+ slot
+  for (let i = 0; i < 5; i++) {
+    addCard(rollRarity(odds));
+  }
 
   return cards;
 }
+
+import { QUEST_FRAGMENTS } from "../game/matchRewards.js";
 
 async function generateDailyQuests(userId: string): Promise<void> {
   const tomorrow = new Date();
@@ -286,9 +305,19 @@ async function generateDailyQuests(userId: string): Promise<void> {
   tomorrow.setUTCHours(0, 0, 0, 0);
 
   const questTemplates = [
-    { type: "daily_login", description: "Log in today", target: 1, reward: { fragments: 10 } },
-    { type: "win_games", description: "Win 3 games", target: 3, reward: { fragments: 50, packs: { type: "standard", count: 1 } } },
-    { type: "destroy_minions", description: "Destroy 15 minions", target: 15, reward: { fragments: 50 } },
+    { type: "daily_login", description: "Log in today", target: 1, reward: { fragments: QUEST_FRAGMENTS.low } },
+    {
+      type: "win_games",
+      description: "Win 3 games (Casual or Ranked)",
+      target: 3,
+      reward: { fragments: QUEST_FRAGMENTS.medium },
+    },
+    {
+      type: "destroy_minions",
+      description: "Destroy 15 minions (Casual or Ranked)",
+      target: 15,
+      reward: { fragments: QUEST_FRAGMENTS.high },
+    },
   ];
 
   for (const q of questTemplates) {

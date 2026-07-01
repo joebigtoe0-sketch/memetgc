@@ -69,7 +69,7 @@ async function collectImageUrls(): Promise<string[]> {
   urls.push(...boards);
 
   try {
-    const res = await fetch("/card-art/manifest.json", { cache: "force-cache" });
+    const res = await fetch("/card-art/manifest.json", { cache: "no-store" });
     if (res.ok) {
       const manifest = (await res.json()) as Record<string, string>;
       const ids = Object.keys(manifest);

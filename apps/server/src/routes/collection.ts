@@ -29,7 +29,7 @@ router.get("/", requireAuth, async (req: AuthRequest, res) => {
         durability: e.card.durability ?? undefined,
         text: e.card.text ?? undefined,
         flavor_text: e.card.flavorText ?? undefined,
-        art_url: e.card.artUrl ?? undefined,
+        art_url: e.card.artUrl ?? `/card-art/${e.card.id}.png`,
         keywords: (e.card.keywordsJson as unknown as Keyword[]) ?? [],
         effects: (e.card.effectsJson as unknown as CardEffect[]) ?? [],
         dust_value: e.card.dustValue,

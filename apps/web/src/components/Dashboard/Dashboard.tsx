@@ -216,17 +216,9 @@ export default function Dashboard() {
                       <div style={{ width: `${pct}%`, height: "100%", borderRadius: 4, background: claimable ? "linear-gradient(90deg,#e7c768,#f7931a)" : "linear-gradient(90deg,#7b8cf4,#4a6cf4)" }} />
                     </div>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 8, font: `700 10px var(--font-mono,'JetBrains Mono',monospace)`, color: "#caa24a" }}>
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                          <GameIcon name="fragment" size={14} />
-                          {q.rewardJson?.fragments ?? 0} frags
-                        </span>
-                        {q.rewardJson?.packs ? (
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                            <GameIcon name="pack" size={14} />
-                            {q.rewardJson.packs.count} pack
-                          </span>
-                        ) : null}
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4, font: `700 10px var(--font-mono,'JetBrains Mono',monospace)`, color: "#caa24a" }}>
+                        <GameIcon name="fragment" size={14} />
+                        {q.rewardJson?.fragments ?? 0} frags
                       </span>
                       {claimable ? (
                         <button onClick={() => claimQuest(q.id)} style={{ cursor: "pointer", border: "none", padding: "5px 14px", borderRadius: 7, font: `800 10px var(--font-cinzel,'Cinzel',serif)`, color: "#2a1a00", background: "linear-gradient(180deg,#ffe07a,#e0890f)" }}>CLAIM</button>
@@ -240,16 +232,6 @@ export default function Dashboard() {
               {quests.filter((q) => q.type !== "daily_login").length === 0 && (
                 <div style={{ font: `500 11px var(--font-archivo,'Archivo',sans-serif)`, color: "#6a7488", textAlign: "center", padding: "16px 0" }}>No active quests.</div>
               )}
-            </div>
-
-            <div style={{ marginTop: "auto", paddingTop: 12 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: 13, borderRadius: 11, background: "linear-gradient(120deg,rgba(25,224,138,.12),rgba(20,26,42,.4))", border: "1px solid rgba(25,224,138,.3)" }}>
-                <div style={{ font: `900 22px var(--font-cinzel,'Cinzel',serif)`, color: "#19e08a" }}>2×</div>
-                <div>
-                  <div style={{ font: `800 12px var(--font-cinzel,'Cinzel',serif)`, color: "#d6ffe9" }}>First win of the day</div>
-                  <div style={{ font: `600 10px var(--font-mono,'JetBrains Mono',monospace)`, color: "#7fe8bd", marginTop: 2 }}>Double fragment reward — available now</div>
-                </div>
-              </div>
             </div>
           </Panel>
         </div>

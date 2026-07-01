@@ -14,7 +14,8 @@
     "generate:db:genesis-drop": "tsx src/generate.ts --source=db --set=genesis_drop --limit=30",
     "generate:db:expansion": "tsx src/generate.ts --source=db --expansion --limit=40",
     "regenerate:humans": "tsx src/generate.ts --source=seed --force-humans",
-    "sync:db": "tsx src/syncToDb.ts"
+    "sync:db": "tsx src/syncToDb.ts",
+    "sync:manifest": "tsx src/syncManifest.ts"
   },
   "dependencies": {
     "@memetgc/db": "workspace:*",

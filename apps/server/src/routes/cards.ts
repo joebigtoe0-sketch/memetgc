@@ -52,7 +52,7 @@ function mapPrismaCard(row: {
     keywords: (row.keywordsJson as unknown as Keyword[]) ?? [],
     effects: (row.effectsJson as unknown as CardEffect[]) ?? [],
     hero_power: (row.heroPowerJson as unknown as HeroPower) ?? undefined,
-    art_url: row.artUrl ?? undefined,
+    art_url: row.artUrl ?? `/card-art/${row.id}.png`,
     card_back: row.cardBack ?? undefined,
     is_animated: row.isAnimated,
     nft_token_id: row.nftTokenId ?? undefined,

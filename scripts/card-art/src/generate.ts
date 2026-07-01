@@ -280,6 +280,7 @@ async function run(): Promise<void> {
 
     if (!shouldForceRegenerate(card.id, args, outputPath) && fs.existsSync(outputPath)) {
       console.log(`[SKIP] ${card.id} — art file exists`);
+      writeManifest({ [card.id]: url });
       continue;
     }
 

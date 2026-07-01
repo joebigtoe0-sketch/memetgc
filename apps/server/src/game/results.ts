@@ -1,14 +1,16 @@
 import { prisma } from "@memetgc/db";
 import type { GameRoom } from "./room.js";
 import type { Card } from "@memetgc/types";
-
-const WIN_POINTS = 15;
-const LOSS_POINTS = 10;
-const FIRST_WIN_BONUS = 50;
+import {
+  computeMatchFragments,
+  computeRankPointDelta,
+  isQuestEligibleMode,
+  shouldTrackSeasonStats,
+} from "./matchRewards.js";
 
 /**
- * Persist season stats, rank points, first-win bonus and daily-quest progress
- * for the human players in a finished room. Fire-and-forget; never throws.
+ * Persist season stats, rank points, match fragments and daily-quest progress
+ * for human players in a finished room. Fire-and-forget; never throws.
  */
 export async function recordMatchResults(room: GameRoom): Promise<void> {
   try {
@@ -17,6 +19,10 @@ export async function recordMatchResults(room: GameRoom): Promise<void> {
     if (humans.length === 0) return;
 
     const now = new Date();
+    const endReason = room.state.endReason ?? "hero_death";
+    const turnNumber = room.state.turnNumber ?? 0;
+    const trackStats = shouldTrackSeasonStats(room.mode, endReason, turnNumber);
+    const trackQuests = isQuestEligibleMode(room.mode) && trackStats;
 
     for (const player of humans) {
       const userId = player.userId;
@@ -25,33 +31,47 @@ export async function recordMatchResults(room: GameRoom): Promise<void> {
       const user = await prisma.user.findUnique({ where: { id: userId } });
       if (!user) continue;
 
-      // Enemy minions that died this game ≈ minions this player destroyed
       const oppState = Object.values(room.state.players).find((s) => s.playerId !== userId);
       const minionsDestroyed = (oppState?.burnPile ?? []).filter((c: Card) => c.type === "minion").length;
 
-      // First win of the day → bonus fragments (doubled reward)
-      let bonusFragments = 0;
-      let firstWinToday = user.firstWinToday;
-      if (isWinner && !user.firstWinToday) {
-        bonusFragments = FIRST_WIN_BONUS;
-        firstWinToday = true;
-      }
-
-      await prisma.user.update({
-        where: { id: userId },
-        data: {
-          seasonWins: { increment: isWinner ? 1 : 0 },
-          seasonLosses: { increment: isWinner ? 0 : 1 },
-          rankPoints: Math.max(0, user.rankPoints + (isWinner ? WIN_POINTS : -LOSS_POINTS)),
-          firstWinToday,
-          fragments: { increment: bonusFragments },
-        },
+      const matchFragments = computeMatchFragments({
+        mode: room.mode,
+        isWinner,
+        endReason,
+        turnNumber,
+        playerId: userId,
+        winnerId,
       });
 
-      await updateQuests(userId, isWinner, minionsDestroyed, now);
+      const rankDelta = trackStats ? computeRankPointDelta(room.mode, isWinner, user.rankPoints) : null;
+
+      const updateData: {
+        seasonWins?: { increment: number };
+        seasonLosses?: { increment: number };
+        rankPoints?: number;
+        fragments?: { increment: number };
+      } = {};
+
+      if (trackStats) {
+        updateData.seasonWins = { increment: isWinner ? 1 : 0 };
+        updateData.seasonLosses = { increment: isWinner ? 0 : 1 };
+      }
+      if (rankDelta != null) {
+        updateData.rankPoints = user.rankPoints + rankDelta;
+      }
+      if (matchFragments > 0) {
+        updateData.fragments = { increment: matchFragments };
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        await prisma.user.update({ where: { id: userId }, data: updateData });
+      }
+
+      if (trackQuests) {
+        await updateQuests(userId, isWinner, minionsDestroyed, now);
+      }
     }
 
-    // Record the match for win-streak history
     const [p1, p2] = Object.values(room.players);
     if (p1 && !p1.isAI) {
       await prisma.match.create({
@@ -60,8 +80,8 @@ export async function recordMatchResults(room: GameRoom): Promise<void> {
           player2Id: p2 && !p2.isAI ? p2.userId : null,
           mode: room.mode,
           winnerId: winnerId,
-          endReason: room.state.endReason ?? "hero_death",
-          turnCount: room.state.turnNumber ?? null,
+          endReason,
+          turnCount: turnNumber || null,
           endedAt: now,
         },
       }).catch(() => {});

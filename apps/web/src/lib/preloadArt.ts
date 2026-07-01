@@ -8,12 +8,13 @@
  */
 
 import { FACTIONS, factionImageUrl } from "@/lib/factions";
+import { cardArtUrl } from "@/lib/cardArt";
 
 const cache = new Map<string, HTMLImageElement>();
 let manifestLoaded = false;
 
 function artUrl(id: string): string {
-  return `/card-art/${id}.png`;
+  return cardArtUrl(id);
 }
 
 /** Preload art for a specific set of card ids (idempotent). */
@@ -23,7 +24,7 @@ export function preloadCardArt(ids: Array<string | undefined | null>): void {
     if (!id || cache.has(id)) continue;
     const img = new Image();
     img.decoding = "async";
-    img.src = artUrl(id);
+    img.src = cardArtUrl(id);
     cache.set(id, img);
   }
 }
@@ -51,7 +52,7 @@ export async function preloadAllCardArt(): Promise<void> {
   if (manifestLoaded) return;
   manifestLoaded = true;
   try {
-    const res = await fetch("/card-art/manifest.json", { cache: "force-cache" });
+    const res = await fetch("/card-art/manifest.json", { cache: "no-store" });
     if (!res.ok) return;
     const manifest = (await res.json()) as Record<string, string>;
     preloadCardArt(Object.keys(manifest));

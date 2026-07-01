@@ -1,6 +1,6 @@
 export type AccessTier = "practice" | "casual" | "ranked" | "tournament";
 export type RankTier = "bronze" | "silver" | "gold" | "platinum" | "diamond" | "degen";
-export type PackType = "standard" | "faction" | "legendary" | "season";
+export type PackType = "standard" | "faction" | "season";
 
 export interface PlayerProfile {
   id: string;

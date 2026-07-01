@@ -35,7 +35,7 @@ export async function loadCardRegistry(): Promise<void> {
         keywords: (c.keywordsJson as unknown as Keyword[]) ?? [],
         effects: (c.effectsJson as unknown as CardEffect[]) ?? [],
         hero_power: (c.heroPowerJson as unknown as HeroPower) ?? undefined,
-        art_url: c.artUrl ?? undefined,
+        art_url: c.artUrl ?? `/card-art/${c.id}.png`,
         collectible: c.collectible,
         craftable: c.craftable,
         dust_value: c.dustValue,

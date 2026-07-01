@@ -19,18 +19,17 @@ import { useMarketWallet } from "@/hooks/useMarketWallet";
 interface Pack { type: string; name: string; cost: number; color: string; desc: string; badge?: string; }
 interface Bundle { type: string; name: string; count: number; cost: number; desc: string; color: string; }
 
-const FEATURED: Pack = { type: "legendary", name: "Legendary Pack", cost: 800, color: "#e7c768", desc: "Guaranteed Legendary card + 4 others. The fastest way to chase the chase cards." };
+const FEATURED: Pack = { type: "season", name: "Genesis Drop Pack", cost: 150, color: "#19e08a", desc: "Season 1 cards only — Genesis set + exclusive Genesis Drop cards. Limited time." };
 
 const PACKS: Pack[] = [
   { type: "standard", name: "Standard Pack", cost: 100, color: "#7b8cf4", desc: "Any faction, any rarity. The staple booster.", badge: "POPULAR" },
   { type: "season", name: "Genesis Drop Pack", cost: 150, color: "#19e08a", desc: "Season 1 cards only - Limited time", badge: "LIMITED" },
-  { type: "legendary", name: "Legendary Pack", cost: 800, color: "#e7c768", desc: "Guaranteed Legendary + 4 cards.", badge: "BEST PULL" },
 ];
 
 const BUNDLES: Bundle[] = [
   { type: "standard", name: "Starter Bundle", count: 5, cost: 450, desc: "5 Standard Packs", color: "#7b8cf4" },
   { type: "standard", name: "Mempool Bundle", count: 15, cost: 1250, desc: "15 Standard Packs", color: "#f7931a" },
-  { type: "legendary", name: "Legendary Trio", count: 3, cost: 2200, desc: "3 Legendary Packs", color: "#e7c768" },
+  { type: "season", name: "Genesis Trio", count: 3, cost: 400, desc: "3 Genesis Drop Packs", color: "#19e08a" },
 ];
 
 export default function ShopPage() {
@@ -103,11 +102,11 @@ export default function ShopPage() {
 
       <div style={{ flex: 1, overflowY: "auto", padding: "6px 26px 20px" }}>
         {/* Featured */}
-        <div style={{ position: "relative", overflow: "hidden", borderRadius: 18, padding: "26px 30px", marginBottom: 26, background: "linear-gradient(110deg,rgba(231,199,104,.2),rgba(20,26,42,.4) 60%)", border: "1px solid rgba(231,199,104,.35)", display: "flex", alignItems: "center", gap: 20 }}>
+        <div style={{ position: "relative", overflow: "hidden", borderRadius: 18, padding: "26px 30px", marginBottom: 26, background: "linear-gradient(110deg,rgba(25,224,138,.18),rgba(20,26,42,.4) 60%)", border: "1px solid rgba(25,224,138,.35)", display: "flex", alignItems: "center", gap: 20 }}>
           <div style={{ flex: 1 }}>
-            <div style={{ font: `700 10px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "3px", color: "#ffd187" }}>FEATURED · LIMITED TIME</div>
+            <div style={{ font: `700 10px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "3px", color: "#7fe8bd" }}>FEATURED · LIMITED TIME</div>
             <div style={{ font: `900 30px var(--font-cinzel,'Cinzel',serif)`, color: "#fff", margin: "8px 0 8px" }}>{FEATURED.name}</div>
-            <div style={{ font: `500 12px var(--font-archivo,'Archivo',sans-serif)`, color: "#d8c79a", maxWidth: 440, lineHeight: 1.5 }}>{FEATURED.desc}</div>
+            <div style={{ font: `500 12px var(--font-archivo,'Archivo',sans-serif)`, color: "#a8dfc4", maxWidth: 440, lineHeight: 1.5 }}>{FEATURED.desc}</div>
             <button onClick={() => buy(FEATURED.type, FEATURED.cost, 1, FEATURED.name)} disabled={busy !== "" || fragments < FEATURED.cost} style={{ ...goldBtn, marginTop: 16, opacity: fragments < FEATURED.cost ? 0.5 : 1, display: "inline-flex", alignItems: "center", gap: 8 }}>
               <FragmentAmount amount={FEATURED.cost} iconSize={16} /> · BUY NOW
             </button>

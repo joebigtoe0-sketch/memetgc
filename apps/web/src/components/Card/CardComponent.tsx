@@ -2,6 +2,7 @@
 
 import React, { useRef } from "react";
 import { factionColor, factionImageUrl } from "@/lib/factions";
+import { cardArtUrl } from "@/lib/cardArt";
 import { playSound } from "@/lib/sounds";
 
 export interface CardData {
@@ -106,7 +107,7 @@ export default function CardComponent({
   const rightVal = (card.type === "weapon" || card.type === "location") ? (card.durability ?? 0) : (currentHp ?? 0);
   const rightColors: [string, string] = (card.type === "weapon" || card.type === "location") ? ["#dfe5ec", "#7e8a99"] : ["#ff8f7e", "#c2271c"];
   const typeLabel = { minion: "Minion", spell: "Spell", weapon: "Weapon", hero: "Hero", location: "Location" }[card.type] ?? "Card";
-  const artSrc = card.art_url ?? `/card-art/${card.id}.png`;
+  const artSrc = cardArtUrl(card.id, card.art_url);
 
   // Effective cost reflecting in-game cost modifiers (e.g. "reduce cost of cards in hand")
   const costMod = card.costModifier ?? 0;
