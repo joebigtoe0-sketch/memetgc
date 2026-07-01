@@ -10,6 +10,7 @@ import { formatRankTier } from "@/lib/brand";
 import FactionIcon from "@/components/Faction/FactionIcon";
 import BottomNav from "@/components/Dashboard/BottomNav";
 import MusicSettings from "@/components/Music/MusicSettings";
+import { useIsMobile } from "@/hooks/useViewport";
 
 interface FactionMastery { faction: string; level: number; }
 interface RecentMatch { opponent: string; won: boolean; mode: string; delta: number; endedAt: string | null; }
@@ -27,6 +28,7 @@ const ROMAN = ["", "I", "II", "III", "IV", "V"];
 export default function ProfilePage() {
   const { token, hasUsername, username, walletAddress, logout } = useAuthStore();
   const router = useRouter();
+  const isMobile = useIsMobile();
   const [p, setP] = useState<Profile | null>(null);
 
   useEffect(() => { if (token) api.get<Profile>("/api/economy/profile").then(setP).catch(() => {}); }, [token]);
@@ -49,7 +51,7 @@ export default function ProfilePage() {
         <button onClick={() => router.push("/")} style={backBtn}>‹ Back</button>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "0 26px 16px" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: isMobile ? "0 12px 16px" : "0 26px 16px" }}>
         {/* Banner */}
         <div style={{ position: "relative", overflow: "hidden", display: "flex", alignItems: "center", gap: 18, padding: 22, borderRadius: 18, background: `linear-gradient(110deg,color-mix(in srgb,${tc} 16%,transparent),rgba(18,23,35,.55) 60%)`, border: `1px solid ${tc}44` }}>
           <img
@@ -79,9 +81,9 @@ export default function ProfilePage() {
         </div>
 
         {/* Rank + stat tiles */}
-        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr 1fr", gap: 14, marginTop: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1.4fr 1fr 1fr 1fr", gap: 14, marginTop: 16 }}>
           {/* Rank panel */}
-          <div style={{ gridRow: "span 2", borderRadius: 16, padding: 18, background: `linear-gradient(155deg,color-mix(in srgb,${tc} 12%,transparent),rgba(18,23,35,.6))`, border: `1px solid ${tc}44`, display: "flex", flexDirection: "column" }}>
+          <div style={{ gridRow: isMobile ? undefined : "span 2", gridColumn: isMobile ? "1 / -1" : undefined, borderRadius: 16, padding: 18, background: `linear-gradient(155deg,color-mix(in srgb,${tc} 12%,transparent),rgba(18,23,35,.6))`, border: `1px solid ${tc}44`, display: "flex", flexDirection: "column" }}>
             <div style={{ font: `700 9px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "2px", color: "#8a93a6" }}>CURRENT RANK</div>
             <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginTop: 10 }}>
               <div style={{ font: `900 30px/1 var(--font-cinzel,'Cinzel',serif)`, color: tc, textTransform: "uppercase" }}>{formatRankTier(tier)} {ROMAN[Math.max(1, 5 - stars)] ?? ""}</div>
@@ -110,7 +112,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Faction mastery + recent matches */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14, marginTop: 16 }}>
           <Panel>
             <PanelTitle>Faction Mastery</PanelTitle>
             <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 14 }}>

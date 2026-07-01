@@ -10,6 +10,7 @@ import { FACTION_NAME, factionColor, factionDisplayName } from "@/lib/factions";
 import { formatRankTier } from "@/lib/brand";
 import FactionIcon from "@/components/Faction/FactionIcon";
 import { preloadFactionArt } from "@/lib/preloadArt";
+import { useIsMobile } from "@/hooks/useViewport";
 
 // Faction bonuses are granted by the HERO's faction (not the deck).
 const HERO_FACTION_BONUS: Record<string, string> = {
@@ -36,6 +37,7 @@ const TIPS = [
 
 export default function HeroSelect() {
   const router = useRouter();
+  const isMobile = useIsMobile();
   const search = useSearchParams();
   const mode = (search.get("mode") as GameMode) ?? "practice";
 
@@ -101,21 +103,21 @@ export default function HeroSelect() {
       <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(120% 80% at 80% -10%,rgba(247,147,26,.07),transparent 55%),radial-gradient(100% 80% at 0% 110%,rgba(123,140,244,.07),transparent 55%)", pointerEvents: "none" }} />
 
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 72px 18px 30px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: isMobile ? "12px 14px" : "18px 72px 18px 30px" }}>
         <button onClick={() => router.push("/")} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 7, padding: "8px 16px", borderRadius: 10, background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)", color: "#cdd4df", font: `700 12px var(--font-archivo,'Archivo',sans-serif)` }}>‹ Back</button>
-        <div style={{ font: `900 22px var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc", letterSpacing: "1px" }}>Battle Setup</div>
+        <div style={{ font: `900 ${isMobile ? 18 : 22}px var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc", letterSpacing: "1px" }}>Battle Setup</div>
         <div style={{ padding: "8px 14px", borderRadius: 10, background: "rgba(247,147,26,.1)", border: "1px solid rgba(247,147,26,.35)", color: "#ffce85", font: `700 11px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "1px" }}>
           {MODE_LABEL[mode]} · {formatRankTier(tier.rankTier)} {["", "I", "II", "III", "IV", "V"][Math.max(1, 5 - tier.rankStars)]}
         </div>
       </div>
 
       {/* Main */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: 26, padding: "8px 30px 30px", flex: 1 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 360px", gap: isMobile ? 18 : 26, padding: isMobile ? "8px 14px 30px" : "8px 30px 30px", flex: 1 }}>
 
         {/* LEFT — heroes */}
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
           <div style={{ font: `700 12px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "2px", color: "#8a93a6" }}>CHOOSE YOUR HERO</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: `repeat(${isMobile ? 3 : 6}, 1fr)`, gap: 12 }}>
             {heroes.map((h) => {
               const fc = factionColor(h.faction);
               const active = h.id === selectedHero;
@@ -246,24 +248,26 @@ export default function HeroSelect() {
 }
 
 function FindingOpponent({ mode, tier, hero, onCancel, statusMsg }: { mode: GameMode; tier: { rankTier: string; rankStars: number }; hero?: Hero; onCancel: () => void; statusMsg: string }) {
+  const isMobile = useIsMobile();
   const [secs, setSecs] = useState(0);
   const [tip] = useState(() => TIPS[Math.floor(Math.random() * TIPS.length)]);
   useEffect(() => { const id = setInterval(() => setSecs((s) => s + 1), 1000); return () => clearInterval(id); }, []);
   const mm = String(Math.floor(secs / 60)).padStart(1, "0");
   const ss = String(secs % 60).padStart(2, "0");
+  const portraitSize = isMobile ? 92 : 130;
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "radial-gradient(120% 90% at 50% 40%,#0d1422 0%,#070a12 70%)", fontFamily: "var(--font-archivo,'Archivo',sans-serif)" }}>
       <div style={{ position: "absolute", inset: 0, backgroundImage: "linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px)", backgroundSize: "44px 44px", maskImage: "radial-gradient(70% 60% at 50% 45%,#000,transparent)" }} />
 
-      <div style={{ font: `700 12px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "4px", color: "#f7931a", marginBottom: 40, zIndex: 1 }}>
+      <div style={{ font: `700 12px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "4px", color: "#f7931a", marginBottom: isMobile ? 24 : 40, zIndex: 1, textAlign: "center", padding: "0 14px" }}>
         {MODE_LABEL[mode]} · {formatRankTier(tier.rankTier)} {["", "I", "II", "III", "IV", "V"][Math.max(1, 5 - tier.rankStars)]}
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 44, zIndex: 1 }}>
+      <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: "center", gap: isMobile ? 20 : 44, zIndex: 1 }}>
         {/* You */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-          {hero ? <FactionIcon faction={hero.faction} size={130} /> : <span style={{ width: 130, height: 130, display: "flex", alignItems: "center", justifyContent: "center", color: "#888", fontSize: 48 }}>?</span>}
+          {hero ? <FactionIcon faction={hero.faction} size={portraitSize} /> : <span style={{ width: portraitSize, height: portraitSize, display: "flex", alignItems: "center", justifyContent: "center", color: "#888", fontSize: 48 }}>?</span>}
           <div style={{ font: `900 18px var(--font-cinzel,'Cinzel',serif)`, color: "#fff" }}>{hero?.name ?? "You"}</div>
           <div style={{ font: `600 10px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6", letterSpacing: "1px" }}>YOU</div>
         </div>
@@ -278,15 +282,15 @@ function FindingOpponent({ mode, tier, hero, onCancel, statusMsg }: { mode: Game
 
         {/* Opponent */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 130, height: 130, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(255,255,255,.02)", border: "3px dashed rgba(255,255,255,.18)", font: `900 56px var(--font-cinzel,'Cinzel',serif)`, color: "rgba(255,255,255,.25)" }}>?</div>
+          <div style={{ width: portraitSize, height: portraitSize, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(255,255,255,.02)", border: "3px dashed rgba(255,255,255,.18)", font: `900 ${isMobile ? 40 : 56}px var(--font-cinzel,'Cinzel',serif)`, color: "rgba(255,255,255,.25)" }}>?</div>
           <div style={{ font: `900 18px var(--font-cinzel,'Cinzel',serif)`, color: "#6a7488" }}>Searching…</div>
           <div style={{ font: `600 10px var(--font-mono,'JetBrains Mono',monospace)`, color: "#566072", letterSpacing: "1px" }}>OPPONENT</div>
         </div>
       </div>
 
-      <div style={{ font: `900 24px var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc", margin: "44px 0 18px", zIndex: 1 }}>{statusMsg || "Finding a worthy opponent"}</div>
+      <div style={{ font: `900 ${isMobile ? 18 : 24}px var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc", margin: isMobile ? "26px 0 16px" : "44px 0 18px", zIndex: 1, textAlign: "center", padding: "0 14px" }}>{statusMsg || "Finding a worthy opponent"}</div>
 
-      <div style={{ maxWidth: 460, padding: "14px 20px", borderRadius: 12, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)", zIndex: 1 }}>
+      <div style={{ maxWidth: 460, margin: "0 14px", padding: "14px 20px", borderRadius: 12, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)", zIndex: 1 }}>
         <span style={{ font: `800 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#f7931a", marginRight: 8 }}>TIP</span>
         <span style={{ font: `500 12px var(--font-archivo,'Archivo',sans-serif)`, color: "#aeb6c4", lineHeight: 1.5 }}>{tip}</span>
       </div>

@@ -4,6 +4,8 @@ import React, { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useGameStore } from "@/store/gameStore";
 import GameBoard from "@/components/Game/GameBoard";
+import ScaleToFit from "@/components/Game/ScaleToFit";
+import RotateDevicePrompt from "@/components/Game/RotateDevicePrompt";
 import { useGameMusic } from "@/hooks/useGameMusic";
 
 export default function GamePage() {
@@ -33,8 +35,11 @@ export default function GamePage() {
   }
 
   return (
-    <div className="h-full w-full overflow-hidden">
-      <GameBoard />
-    </div>
+    <>
+      <ScaleToFit>
+        <GameBoard />
+      </ScaleToFit>
+      <RotateDevicePrompt />
+    </>
   );
 }

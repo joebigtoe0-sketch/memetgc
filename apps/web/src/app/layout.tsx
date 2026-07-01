@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "@solana/wallet-adapter-react-ui/styles.css";
 import Providers from "./providers";
@@ -19,12 +19,21 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+  themeColor: "#06080d",
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`dark ${cinzel.variable} ${archivo.variable} ${jetbrainsMono.variable}`}>
-      <body style={{ background: "#06080d", color: "#c8d0e0", fontFamily: "var(--font-archivo, system-ui, sans-serif)", height: "100vh", overflow: "hidden" }}>
+      <body style={{ background: "#06080d", color: "#c8d0e0", fontFamily: "var(--font-archivo, system-ui, sans-serif)", height: "100dvh", overflow: "hidden" }}>
         <Providers>
-          <div style={{ width: "100vw", height: "100vh", overflow: "hidden", position: "relative" }}>
+          <div style={{ width: "100vw", height: "100dvh", overflow: "hidden", position: "relative" }}>
             <AccessGate>{children}</AccessGate>
           </div>
         </Providers>

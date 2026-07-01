@@ -14,6 +14,7 @@ import { factionImageUrl } from "@/lib/factions";
 import Logo from "@/components/Brand/Logo";
 import SettingsButton from "@/components/Settings/SettingsButton";
 import { BRAND, formatRankTier } from "@/lib/brand";
+import { useIsMobile } from "@/hooks/useViewport";
 
 const RANK_TIERS = ["bronze", "silver", "gold", "platinum", "diamond", "degen"] as const;
 const TIER_COLOR: Record<string, string> = {
@@ -55,6 +56,7 @@ function useResetCountdown() {
 
 export default function Dashboard() {
   const router = useRouter();
+  const isMobile = useIsMobile();
   const { username, fragments, walletAddress, setFragments } = useAuthStore();
   const { connected } = useGameStore();
   const { degen, packs } = useBalances();
@@ -95,15 +97,15 @@ export default function Dashboard() {
       <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(120% 80% at 85% -10%,rgba(247,147,26,.07),transparent 55%),radial-gradient(100% 80% at 0% 110%,rgba(123,140,244,.07),transparent 55%)", pointerEvents: "none" }} />
 
       {/* Top bar */}
-      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 26px", flexShrink: 0 }}>
+      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: isMobile ? "10px 12px" : "14px 26px", flexShrink: 0, flexWrap: "wrap", gap: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <Logo size={38} />
+          <Logo size={isMobile ? 32 : 38} />
           <div>
-            <div style={{ font: `900 17px/1 var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc", letterSpacing: ".5px" }}>{BRAND.shortName.toUpperCase()}</div>
-            <div style={{ font: `600 9px var(--font-mono,'JetBrains Mono',monospace)`, color: "#f7931a", letterSpacing: "1.5px", marginTop: 3 }}>{BRAND.tagline.toUpperCase()}</div>
+            <div style={{ font: `900 ${isMobile ? 15 : 17}px/1 var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc", letterSpacing: ".5px" }}>{BRAND.shortName.toUpperCase()}</div>
+            {!isMobile && <div style={{ font: `600 9px var(--font-mono,'JetBrains Mono',monospace)`, color: "#f7931a", letterSpacing: "1.5px", marginTop: 3 }}>{BRAND.tagline.toUpperCase()}</div>}
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 7 : 10, flexWrap: "wrap", justifyContent: "flex-end", rowGap: 8 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 12px", borderRadius: 9, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)" }}>
             <span style={{ font: `700 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#e7c768" }}>{BRAND.ticker}</span>
             <span style={{ font: `700 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#e7ecf3" }}>{(degen ?? 0).toLocaleString()}</span>
@@ -112,22 +114,24 @@ export default function Dashboard() {
           <StatChip icon="pack" label={`${packs} packs`} onClick={() => router.push("/packs")} />
           <button onClick={() => router.push("/leaderboard")} style={{ cursor: "pointer", padding: "7px 12px", borderRadius: 9, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)", color: "#c2cbdb", font: `700 11px var(--font-archivo,'Archivo',sans-serif)` }}>Ranks</button>
           <button onClick={() => router.push("/docs")} style={{ cursor: "pointer", padding: "7px 12px", borderRadius: 9, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)", color: "#c2cbdb", font: `700 11px var(--font-archivo,'Archivo',sans-serif)` }}>Guide</button>
-          <SettingsButton />
+          {!isMobile && <SettingsButton />}
           <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 12px", borderRadius: 9, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)" }}>
             <span style={{ width: 7, height: 7, borderRadius: "50%", background: connected ? "#19e08a" : "#ff5555", flexShrink: 0 }} />
             <span style={{ font: `700 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#e7ecf3" }}>{walletAddress ? `${walletAddress.slice(0, 4)}..${walletAddress.slice(-2)}` : (connected ? "online" : "offline")}</span>
           </div>
-          <div style={{ width: 36, height: 36, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(150deg,#2a3344,#161b25)", border: "1px solid rgba(255,255,255,.1)", color: "#f3e8cc", font: `800 14px var(--font-cinzel,'Cinzel',serif)` }}>
-            {(username ?? "?")[0]?.toUpperCase()}
-          </div>
+          {!isMobile && (
+            <div style={{ width: 36, height: 36, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(150deg,#2a3344,#161b25)", border: "1px solid rgba(255,255,255,.1)", color: "#f3e8cc", font: `800 14px var(--font-cinzel,'Cinzel',serif)` }}>
+              {(username ?? "?")[0]?.toUpperCase()}
+            </div>
+          )}
         </div>
       </header>
 
       {/* Body */}
-      <div style={{ flex: 1, display: "grid", gridTemplateColumns: "300px 1fr 320px", gap: 18, padding: "6px 26px 16px", minHeight: 0, overflow: "auto" }}>
+      <div style={{ flex: 1, display: "grid", gridTemplateColumns: isMobile ? "1fr" : "300px 1fr 320px", gap: isMobile ? 14 : 18, padding: isMobile ? "6px 12px 12px" : "6px 26px 16px", minHeight: 0, overflow: "auto" }}>
 
         {/* LEFT — Profile */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14, order: isMobile ? 2 : 0 }}>
           <Panel style={{ padding: 18 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{ width: 46, height: 46, borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(150deg,#243042,#12161f)", border: `1px solid ${tierColor}55`, font: `900 20px var(--font-cinzel,'Cinzel',serif)`, color: tierColor }}>
@@ -179,11 +183,11 @@ export default function Dashboard() {
         </div>
 
         {/* CENTER — Play + modes */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
-          <div style={{ position: "relative", borderRadius: 16, overflow: "hidden", padding: "26px 30px", minHeight: 158, display: "flex", flexDirection: "column", justifyContent: "center", background: "linear-gradient(110deg,rgba(247,147,26,.22),rgba(20,26,42,.35) 62%)", border: "1px solid rgba(247,147,26,.3)" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0, order: isMobile ? 1 : 0 }}>
+          <div style={{ position: "relative", borderRadius: 16, overflow: "hidden", padding: isMobile ? "20px 20px" : "26px 30px", minHeight: isMobile ? 130 : 158, display: "flex", flexDirection: "column", justifyContent: "center", background: "linear-gradient(110deg,rgba(247,147,26,.22),rgba(20,26,42,.35) 62%)", border: "1px solid rgba(247,147,26,.3)" }}>
             <img src={factionImageUrl("bitcoin")} alt="" draggable={false} style={{ position: "absolute", top: -20, right: 10, width: 200, height: 200, objectFit: "contain", opacity: 0.09, pointerEvents: "none" }} />
             <div style={{ font: `700 11px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "3px", color: "#ffd187" }}>RANKED LADDER · LIVE</div>
-            <div style={{ font: `900 34px/1 var(--font-cinzel,'Cinzel',serif)`, color: "#fff", margin: "10px 0 18px" }}>Climb to {formatRankTier("degen")} Rank</div>
+            <div style={{ font: `900 ${isMobile ? 24 : 34}px/1 var(--font-cinzel,'Cinzel',serif)`, color: "#fff", margin: "10px 0 18px" }}>Climb to {formatRankTier("degen")} Rank</div>
             <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
               <button onClick={() => router.push("/play?mode=ranked")} style={{ cursor: "pointer", border: "none", padding: "13px 38px", borderRadius: 11, font: `800 16px var(--font-cinzel,'Cinzel',serif)`, color: "#2a1a00", background: "linear-gradient(180deg,#ffe07a,#e0890f)", boxShadow: "0 8px 20px rgba(224,137,15,.4), inset 0 1px 0 rgba(255,255,255,.5)" }}>▶  PLAY</button>
               <span style={{ font: `600 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#c9b48a" }}>
@@ -192,7 +196,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14 }}>
             <ModeCard name="Practice" tag="FREE · VS AI" desc="Learn the ropes against bots. No rewards." badge="Open" badgeColor="#9aa3b2" onClick={() => router.push("/play?mode=practice")} />
             <ModeCard name="Casual" tag="FREE · VS PLAYERS" desc="No ladder stakes. Earn fragments per match." badge="Open" badgeColor="#7b8cf4" onClick={() => router.push("/play?mode=casual")} />
             <ModeCard name="Ranked" tag={`HOLD 1,000 ${BRAND.ticker} · OWN DECK`} desc="Climb the ladder with your own deck. Earn fragments & season rewards." badge="Unlocked" badgeColor="#f7931a" highlight onClick={() => router.push("/play?mode=ranked")} />
@@ -200,7 +204,7 @@ export default function Dashboard() {
         </div>
 
         {/* RIGHT — Daily quests */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14, order: isMobile ? 3 : 0 }}>
           <Panel style={{ padding: 16, flex: 1, display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <span style={{ font: `800 13px var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc", letterSpacing: "1px" }}>DAILY QUESTS</span>

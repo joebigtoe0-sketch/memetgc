@@ -15,6 +15,7 @@ import { packArtUrl } from "@/lib/packArt";
 import { market, type MarketSummary } from "@/lib/market";
 import { useBuyFlow } from "@/hooks/useBuyFlow";
 import { useMarketWallet } from "@/hooks/useMarketWallet";
+import { useIsMobile } from "@/hooks/useViewport";
 
 interface Pack { type: string; name: string; cost: number; color: string; desc: string; badge?: string; }
 interface Bundle { type: string; name: string; count: number; cost: number; desc: string; color: string; }
@@ -36,6 +37,7 @@ export default function ShopPage() {
   const { token, hasUsername, fragments, setFragments } = useAuthStore();
   const { degen, packs, refresh } = useBalances();
   const router = useRouter();
+  const isMobile = useIsMobile();
   const [toast, setToast] = useState("");
   const [busy, setBusy] = useState("");
   const [packMarket, setPackMarket] = useState<MarketSummary["packs"]>({});
@@ -87,10 +89,10 @@ export default function ShopPage() {
   return (
     <div style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", background: "radial-gradient(140% 90% at 50% -8%,#141b2a 0%,#090c13 60%,#06080d 100%)", fontFamily: "var(--font-archivo,'Archivo',sans-serif)" }}>
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 26px", flexShrink: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 14, padding: isMobile ? "12px 14px" : "16px 26px", flexShrink: 0, flexWrap: "wrap" }}>
         <button onClick={() => router.push("/")} style={backBtn}>‹ Back</button>
-        <div style={{ font: `900 20px var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc", letterSpacing: "1px" }}>Pack Store</div>
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ font: `900 ${isMobile ? 18 : 20}px var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc", letterSpacing: "1px" }}>Pack Store</div>
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 12px", borderRadius: 9, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)" }}>
             <span style={{ font: `700 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#e7c768" }}>{BRAND.ticker}</span>
             <span style={{ font: `700 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#e7ecf3" }}>{(degen ?? 0).toLocaleString()}</span>
@@ -100,10 +102,10 @@ export default function ShopPage() {
         </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "6px 26px 20px" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: isMobile ? "6px 12px 20px" : "6px 26px 20px" }}>
         {/* Featured */}
-        <div style={{ position: "relative", overflow: "hidden", borderRadius: 18, padding: "26px 30px", marginBottom: 26, background: "linear-gradient(110deg,rgba(25,224,138,.18),rgba(20,26,42,.4) 60%)", border: "1px solid rgba(25,224,138,.35)", display: "flex", alignItems: "center", gap: 20 }}>
-          <div style={{ flex: 1 }}>
+        <div style={{ position: "relative", overflow: "hidden", borderRadius: 18, padding: isMobile ? "20px 18px" : "26px 30px", marginBottom: 26, background: "linear-gradient(110deg,rgba(25,224,138,.18),rgba(20,26,42,.4) 60%)", border: "1px solid rgba(25,224,138,.35)", display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: "center", gap: 20 }}>
+          <div style={{ flex: 1, order: isMobile ? 2 : 0 }}>
             <div style={{ font: `700 10px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "3px", color: "#7fe8bd" }}>FEATURED · LIMITED TIME</div>
             <div style={{ font: `900 30px var(--font-cinzel,'Cinzel',serif)`, color: "#fff", margin: "8px 0 8px" }}>{FEATURED.name}</div>
             <div style={{ font: `500 12px var(--font-archivo,'Archivo',sans-serif)`, color: "#a8dfc4", maxWidth: 440, lineHeight: 1.5 }}>{FEATURED.desc}</div>

@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import Logo from "@/components/Brand/Logo";
 import { BRAND, formatRankTier } from "@/lib/brand";
+import { useIsMobile } from "@/hooks/useViewport";
 
 interface Row {
   position: number;
@@ -30,9 +31,12 @@ const ROMAN = ["", "I", "II", "III", "IV", "V"];
 
 export default function LeaderboardPage() {
   const router = useRouter();
+  const isMobile = useIsMobile();
   const { username } = useAuthStore();
   const [data, setData] = useState<LeaderboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const gridCols = isMobile ? "40px 1fr 66px 58px" : "56px 1fr 150px 90px 90px";
+  const rowPad = isMobile ? "10px 12px" : "11px 16px";
 
   useEffect(() => {
     api.get<LeaderboardResponse>("/api/leaderboard")
@@ -45,7 +49,7 @@ export default function LeaderboardPage() {
     <div style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", background: "radial-gradient(140% 90% at 50% -8%,#141b2a 0%,#090c13 60%,#06080d 100%)", fontFamily: "var(--font-archivo,'Archivo',sans-serif)" }}>
       <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(120% 80% at 85% -10%,rgba(247,147,26,.06),transparent 55%),radial-gradient(100% 80% at 0% 110%,rgba(123,140,244,.06),transparent 55%)", pointerEvents: "none" }} />
 
-      <header style={{ position: "relative", zIndex: 2, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 72px 14px 22px", flexShrink: 0, borderBottom: "1px solid rgba(255,255,255,.07)", background: "rgba(8,11,18,.55)", backdropFilter: "blur(8px)" }}>
+      <header style={{ position: "relative", zIndex: 2, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: isMobile ? "12px 14px" : "14px 72px 14px 22px", flexShrink: 0, borderBottom: "1px solid rgba(255,255,255,.07)", background: "rgba(8,11,18,.55)", backdropFilter: "blur(8px)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <Logo size={34} />
           <div>
@@ -72,22 +76,22 @@ export default function LeaderboardPage() {
             </div>
           ) : (
             <div style={{ borderRadius: 14, border: "1px solid rgba(255,255,255,.08)", overflow: "hidden" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "56px 1fr 150px 90px 90px", padding: "11px 16px", background: "rgba(255,255,255,.03)", borderBottom: "1px solid rgba(255,255,255,.08)", font: `700 10px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "1px", color: "#8a93a6", textTransform: "uppercase" }}>
-                <div>Rank</div><div>Player</div><div>Tier</div><div style={{ textAlign: "right" }}>Points</div><div style={{ textAlign: "right" }}>W / L</div>
+              <div style={{ display: "grid", gridTemplateColumns: gridCols, padding: rowPad, background: "rgba(255,255,255,.03)", borderBottom: "1px solid rgba(255,255,255,.08)", font: `700 10px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "1px", color: "#8a93a6", textTransform: "uppercase" }}>
+                <div>Rank</div><div>Player</div>{!isMobile && <div>Tier</div>}<div style={{ textAlign: "right" }}>Points</div><div style={{ textAlign: "right" }}>W / L</div>
               </div>
               {data.players.map((r) => {
                 const tc = TIER_COLOR[r.rankTier] ?? "#e7c768";
                 const isSelf = username && r.username === username;
                 const label = r.isMemepool ? formatRankTier("degen") : `${formatRankTier(r.rankTier)} ${ROMAN[Math.max(1, 5 - r.rankStars)] ?? ""}`;
                 return (
-                  <div key={r.position} style={{ display: "grid", gridTemplateColumns: "56px 1fr 150px 90px 90px", alignItems: "center", padding: "11px 16px", borderBottom: "1px solid rgba(255,255,255,.04)", background: isSelf ? "rgba(247,147,26,.1)" : r.isMemepool ? "rgba(255,95,174,.06)" : "transparent" }}>
+                  <div key={r.position} style={{ display: "grid", gridTemplateColumns: gridCols, alignItems: "center", padding: rowPad, borderBottom: "1px solid rgba(255,255,255,.04)", background: isSelf ? "rgba(247,147,26,.1)" : r.isMemepool ? "rgba(255,95,174,.06)" : "transparent" }}>
                     <div style={{ font: `800 14px var(--font-mono,'JetBrains Mono',monospace)`, color: r.position <= 3 ? "#e7c768" : "#c2cbdb" }}>#{r.position}</div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
                       <span style={{ font: `700 13px var(--font-archivo,'Archivo',sans-serif)`, color: "#f1f4f9", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.username}</span>
-                      {r.isMemepool && <span style={{ font: `800 8px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: ".5px", padding: "2px 6px", borderRadius: 5, color: "#ff5fae", background: "rgba(255,95,174,.14)", border: "1px solid rgba(255,95,174,.4)" }}>MEMEPOOL</span>}
-                      {isSelf && <span style={{ font: `800 8px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: ".5px", padding: "2px 6px", borderRadius: 5, color: "#f7931a", background: "rgba(247,147,26,.14)", border: "1px solid rgba(247,147,26,.4)" }}>YOU</span>}
+                      {r.isMemepool && <span style={{ font: `800 8px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: ".5px", padding: "2px 6px", borderRadius: 5, color: "#ff5fae", background: "rgba(255,95,174,.14)", border: "1px solid rgba(255,95,174,.4)", flexShrink: 0 }}>{isMobile ? "MP" : "MEMEPOOL"}</span>}
+                      {isSelf && <span style={{ font: `800 8px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: ".5px", padding: "2px 6px", borderRadius: 5, color: "#f7931a", background: "rgba(247,147,26,.14)", border: "1px solid rgba(247,147,26,.4)", flexShrink: 0 }}>YOU</span>}
                     </div>
-                    <div style={{ font: `700 12px var(--font-archivo,'Archivo',sans-serif)`, color: tc }}>{label}</div>
+                    {!isMobile && <div style={{ font: `700 12px var(--font-archivo,'Archivo',sans-serif)`, color: tc }}>{label}</div>}
                     <div style={{ textAlign: "right", font: `800 13px var(--font-mono,'JetBrains Mono',monospace)`, color: "#f3e8cc" }}>{r.rankPoints.toLocaleString()}</div>
                     <div style={{ textAlign: "right", font: `600 12px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6" }}>{r.seasonWins} / {r.seasonLosses}</div>
                   </div>

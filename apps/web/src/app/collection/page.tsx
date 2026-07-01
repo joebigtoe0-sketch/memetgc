@@ -14,6 +14,7 @@ import FactionIcon from "@/components/Faction/FactionIcon";
 import SellModal from "@/components/Market/SellModal";
 import MyListingsModal from "@/components/Market/MyListingsModal";
 import GameIcon from "@/components/UI/GameIcon";
+import { useIsMobile } from "@/hooks/useViewport";
 
 interface CollectionEntry { cardId: string; quantity: number; card: CardData; }
 interface Deck { id: string; name: string; heroId: string; isStarter?: boolean; faction?: string; factionBonusActive?: boolean; cardCount: number; cards: { cardId: string; quantity: number }[]; }
@@ -25,6 +26,8 @@ const COPY_LIMIT: Record<string, number> = { common: 4, rare: 3, epic: 2, legend
 export default function CollectionPage() {
   const { token, hasUsername } = useAuthStore();
   const router = useRouter();
+  const isMobile = useIsMobile();
+  const [deckOpen, setDeckOpen] = useState(false);
   const [collection, setCollection] = useState<CollectionEntry[]>([]);
   const [catalog, setCatalog] = useState<Map<string, CardData>>(new Map());
   const [decks, setDecks] = useState<Deck[]>([]);
@@ -154,12 +157,12 @@ export default function CollectionPage() {
   return (
     <div style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", background: "radial-gradient(140% 90% at 50% -8%,#141b2a 0%,#090c13 60%,#06080d 100%)", fontFamily: "var(--font-archivo,'Archivo',sans-serif)" }}>
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 30px", flexShrink: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 14, padding: isMobile ? "12px 14px" : "16px 30px", flexShrink: 0, flexWrap: "wrap" }}>
         <button onClick={() => router.push("/")} style={chip}>‹ Back</button>
-        <div style={{ font: `900 22px var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc", letterSpacing: "1px" }}>Collection</div>
+        <div style={{ font: `900 ${isMobile ? 18 : 22}px var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc", letterSpacing: "1px" }}>Collection</div>
         <span style={{ font: `600 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#6a7488" }}>{collection.length} unique</span>
 
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ marginLeft: isMobile ? 0 : "auto", width: isMobile ? "100%" : undefined, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <button onClick={() => router.push("/market")} style={{ cursor: "pointer", height: 34, padding: "0 14px", borderRadius: 9, display: "flex", alignItems: "center", gap: 6, font: `800 12px var(--font-cinzel,'Cinzel',serif)`, color: "#04140d", background: "linear-gradient(180deg,#4ff0a8,#129c66)", border: "none", boxShadow: "0 4px 12px rgba(25,224,138,.3)" }}>Buy Cards</button>
           <button onClick={() => setShowListings(true)} style={{ cursor: "pointer", height: 34, padding: "0 14px", borderRadius: 9, display: "flex", alignItems: "center", gap: 6, font: `800 12px var(--font-cinzel,'Cinzel',serif)`, color: "#e7ecf3", background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.14)" }}>My Listings</button>
           <button onClick={newDeck} style={{ cursor: "pointer", height: 34, padding: "0 14px", borderRadius: 9, display: "flex", alignItems: "center", gap: 6, font: `800 12px var(--font-cinzel,'Cinzel',serif)`, color: "#2a1a00", background: "linear-gradient(180deg,#ffe07a,#e0890f)", border: "none", boxShadow: "0 4px 12px rgba(224,137,15,.3)" }}>+ New Deck</button>
@@ -170,12 +173,12 @@ export default function CollectionPage() {
               <FactionIcon faction={f} size={22} />
             </FacBtn>
           ))}
-          <input value={filterSearch} onChange={(e) => setFilterSearch(e.target.value)} placeholder="Search cards…" style={{ marginLeft: 8, padding: "8px 12px", borderRadius: 9, background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)", color: "#e7ecf3", font: `500 12px var(--font-archivo,'Archivo',sans-serif)`, width: 150, outline: "none" }} />
+          <input value={filterSearch} onChange={(e) => setFilterSearch(e.target.value)} placeholder="Search cards…" style={{ marginLeft: isMobile ? 0 : 8, padding: "8px 12px", borderRadius: 9, background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)", color: "#e7ecf3", font: `500 12px var(--font-archivo,'Archivo',sans-serif)`, width: isMobile ? "100%" : 150, flex: isMobile ? "1 1 120px" : undefined, outline: "none" }} />
         </div>
       </div>
 
       {/* Body */}
-      <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 340px", gap: 22, padding: "0 30px 16px", minHeight: 0 }}>
+      <div style={{ flex: 1, display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 340px", gap: 22, padding: isMobile ? "0 12px 12px" : "0 30px 16px", minHeight: 0 }}>
 
         {/* Left — type pills + grid */}
         <div style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
@@ -186,7 +189,7 @@ export default function CollectionPage() {
                 <button key={t || "all"} onClick={() => setFilterType(t)} style={{ cursor: "pointer", padding: "7px 16px", borderRadius: 9, font: `700 12px var(--font-archivo,'Archivo',sans-serif)`, color: on ? "#2a1a00" : "#aeb6c4", background: on ? "linear-gradient(180deg,#ffe07a,#e0890f)" : "rgba(255,255,255,.04)", border: `1px solid ${on ? "transparent" : "rgba(255,255,255,.1)"}` }}>{TYPE_LABEL[t]}</button>
               );
             })}
-            <span style={{ marginLeft: "auto", alignSelf: "center", font: `500 11px var(--font-archivo,'Archivo',sans-serif)`, color: "#5a6478" }}>Left-click to view · right-click to add to deck</span>
+            {!isMobile && <span style={{ marginLeft: "auto", alignSelf: "center", font: `500 11px var(--font-archivo,'Archivo',sans-serif)`, color: "#5a6478" }}>Left-click to view · right-click to add to deck</span>}
           </div>
 
           <div style={{ flex: 1, overflowY: "auto", padding: "10px 14px 28px" }}>
@@ -202,7 +205,7 @@ export default function CollectionPage() {
                 </>}
               </div>
             ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(210px,1fr))", gap: "34px 26px", justifyItems: "center" }}>
+              <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fill,minmax(${isMobile ? 140 : 210}px,1fr))`, gap: isMobile ? "26px 14px" : "34px 26px", justifyItems: "center" }}>
                 {filtered.map((entry) => {
                   const inDeck = copiesInDeck(entry.cardId);
                   return (
@@ -210,7 +213,7 @@ export default function CollectionPage() {
                       onClick={() => setZoom({ card: { ...entry.card, ownedCount: entry.quantity }, source: "grid" })}
                       onContextMenu={(e) => { e.preventDefault(); addCard(entry.card); }}
                     >
-                      <CardComponent card={{ ...entry.card, ownedCount: entry.quantity }} size="md" interactive dimmed={inDeck > 0 && inDeck >= (COPY_LIMIT[entry.card.rarity] ?? 1)} />
+                      <CardComponent card={{ ...entry.card, ownedCount: entry.quantity }} size={isMobile ? "sm" : "md"} interactive dimmed={inDeck > 0 && inDeck >= (COPY_LIMIT[entry.card.rarity] ?? 1)} />
                       <div style={{ position: "absolute", bottom: -10, left: "50%", transform: "translateX(-50%)", padding: "2px 11px", borderRadius: 20, font: `800 11px var(--font-mono,'JetBrains Mono',monospace)`, background: "#0d1020", border: `1px solid ${factionColor(entry.card.faction)}`, color: factionColor(entry.card.faction), whiteSpace: "nowrap" }}>
                         ×{entry.quantity}{inDeck > 0 ? ` · ${inDeck} in deck` : ""}
                       </div>
@@ -222,8 +225,15 @@ export default function CollectionPage() {
           </div>
         </div>
 
-        {/* Right — deck panel */}
-        <div style={{ borderRadius: 16, background: "linear-gradient(150deg,rgba(255,255,255,.045),rgba(18,23,35,.6))", border: "1px solid rgba(255,255,255,.08)", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
+        {/* Right — deck panel (bottom-sheet drawer on mobile) */}
+        <div style={
+          isMobile
+            ? { display: deckOpen ? "flex" : "none", position: "fixed", left: 0, right: 0, bottom: 0, top: "18%", zIndex: 70, borderRadius: "18px 18px 0 0", background: "linear-gradient(150deg,#141a28,#0c0f18)", borderTop: "1px solid rgba(255,255,255,.12)", flexDirection: "column", minHeight: 0, overflow: "hidden", boxShadow: "0 -12px 40px rgba(0,0,0,.6)" }
+            : { borderRadius: 16, background: "linear-gradient(150deg,rgba(255,255,255,.045),rgba(18,23,35,.6))", border: "1px solid rgba(255,255,255,.08)", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }
+        }>
+          {isMobile && (
+            <button onClick={() => setDeckOpen(false)} style={{ cursor: "pointer", alignSelf: "flex-end", margin: "8px 10px 0", padding: "6px 12px", borderRadius: 8, background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.14)", color: "#cdd4df", font: `700 12px var(--font-archivo,'Archivo',sans-serif)` }}>Close ✕</button>
+          )}
           <div style={{ padding: 16, borderBottom: "1px solid rgba(255,255,255,.06)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               {deck ? <FactionIcon faction={deck.faction ?? "degen"} size={30} /> : <span style={{ width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", color: "#888" }}>?</span>}
@@ -276,6 +286,13 @@ export default function CollectionPage() {
           </div>
         </div>
       </div>
+
+      {isMobile && deckOpen && <div onClick={() => setDeckOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 69, background: "rgba(4,6,12,.6)" }} />}
+      {isMobile && !deckOpen && (
+        <button onClick={() => setDeckOpen(true)} style={{ position: "fixed", right: 14, bottom: 78, zIndex: 65, cursor: "pointer", padding: "11px 18px", borderRadius: 12, border: "none", color: "#2a1a00", background: "linear-gradient(180deg,#ffe07a,#e0890f)", boxShadow: "0 8px 22px rgba(224,137,15,.45)", font: `900 13px var(--font-cinzel,'Cinzel',serif)` }}>
+          Deck {deck?.cardCount ?? 0}/30
+        </button>
+      )}
 
       {toast && <div style={{ position: "fixed", bottom: 84, left: "50%", transform: "translateX(-50%)", padding: "11px 20px", borderRadius: 11, background: "rgba(20,26,42,.95)", border: "1px solid rgba(247,147,26,.4)", color: "#ffce85", font: `700 12px var(--font-archivo,'Archivo',sans-serif)`, zIndex: 60, boxShadow: "0 10px 30px rgba(0,0,0,.5)" }}>{toast}</div>}
 

@@ -108,7 +108,7 @@ export default function AuthModal() {
     >
       <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(120% 80% at 85% -10%,rgba(247,147,26,.08),transparent 55%),radial-gradient(100% 80% at 0% 110%,rgba(123,140,244,.08),transparent 55%)", pointerEvents: "none" }} />
 
-      <div style={{ position: "relative", width: "100%", maxWidth: 400, padding: 34, borderRadius: 20, background: "linear-gradient(150deg,rgba(255,255,255,.05),rgba(14,18,28,.85))", border: "1px solid rgba(255,255,255,.1)", boxShadow: "0 24px 60px rgba(0,0,0,.5)" }}>
+      <div style={{ position: "relative", width: "min(400px, calc(100% - 32px))", padding: "clamp(24px, 6vw, 34px)", borderRadius: 20, background: "linear-gradient(150deg,rgba(255,255,255,.05),rgba(14,18,28,.85))", border: "1px solid rgba(255,255,255,.1)", boxShadow: "0 24px 60px rgba(0,0,0,.5)" }}>
         <div style={{ textAlign: "center", marginBottom: 26 }}>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }}>
             <Logo size={56} />

@@ -13,6 +13,7 @@ import BuyInspectModal from "@/components/Market/BuyInspectModal";
 import { market, type MarketSummary } from "@/lib/market";
 import { BRAND } from "@/lib/brand";
 import GameIcon from "@/components/UI/GameIcon";
+import { useIsMobile } from "@/hooks/useViewport";
 
 const TYPES = ["", "minion", "spell", "weapon", "location", "hero"];
 const TYPE_LABEL: Record<string, string> = { "": "All", minion: "Minion", spell: "Spell", weapon: "Weapon", location: "Location", hero: "Hero" };
@@ -20,6 +21,7 @@ const TYPE_LABEL: Record<string, string> = { "": "All", minion: "Minion", spell:
 export default function MarketPage() {
   const { token, hasUsername } = useAuthStore();
   const router = useRouter();
+  const isMobile = useIsMobile();
   const [catalog, setCatalog] = useState<CardData[]>([]);
   const [summary, setSummary] = useState<MarketSummary["cards"]>({});
   const [loading, setLoading] = useState(true);
@@ -57,12 +59,12 @@ export default function MarketPage() {
   return (
     <div style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", background: "radial-gradient(140% 90% at 50% -8%,#141b2a 0%,#090c13 60%,#06080d 100%)", fontFamily: "var(--font-archivo,'Archivo',sans-serif)" }}>
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 30px", flexShrink: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 14, padding: isMobile ? "12px 14px" : "16px 30px", flexShrink: 0, flexWrap: "wrap" }}>
         <button onClick={() => router.push("/collection")} style={chip}>‹ Collection</button>
-        <div style={{ font: `900 22px var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc", letterSpacing: "1px" }}>Marketplace</div>
-        <span style={{ font: `600 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#6a7488" }}>Buy cards with {BRAND.ticker}</span>
+        <div style={{ font: `900 ${isMobile ? 18 : 22}px var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc", letterSpacing: "1px" }}>Marketplace</div>
+        {!isMobile && <span style={{ font: `600 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#6a7488" }}>Buy cards with {BRAND.ticker}</span>}
 
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ marginLeft: isMobile ? 0 : "auto", width: isMobile ? "100%" : undefined, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <button onClick={() => setOnlyListed((v) => !v)} style={{ cursor: "pointer", height: 34, padding: "0 14px", borderRadius: 9, font: `700 12px var(--font-archivo,'Archivo',sans-serif)`, color: onlyListed ? "#04140d" : "#aeb6c4", background: onlyListed ? "linear-gradient(180deg,#4ff0a8,#129c66)" : "rgba(255,255,255,.04)", border: `1px solid ${onlyListed ? "transparent" : "rgba(255,255,255,.1)"}` }}>On sale only</button>
           <FacBtn active={filterFaction === ""} color="#cdd4df" onClick={() => setFilterFaction("")}>ALL</FacBtn>
           {FACTIONS.map((f) => (
@@ -70,12 +72,12 @@ export default function MarketPage() {
               <FactionIcon faction={f} size={22} />
             </FacBtn>
           ))}
-          <input value={filterSearch} onChange={(e) => setFilterSearch(e.target.value)} placeholder="Search cards…" style={{ marginLeft: 8, padding: "8px 12px", borderRadius: 9, background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)", color: "#e7ecf3", font: `500 12px var(--font-archivo,'Archivo',sans-serif)`, width: 150, outline: "none" }} />
+          <input value={filterSearch} onChange={(e) => setFilterSearch(e.target.value)} placeholder="Search cards…" style={{ marginLeft: isMobile ? 0 : 8, padding: "8px 12px", borderRadius: 9, background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)", color: "#e7ecf3", font: `500 12px var(--font-archivo,'Archivo',sans-serif)`, width: isMobile ? "100%" : 150, flex: isMobile ? "1 1 120px" : undefined, outline: "none" }} />
         </div>
       </div>
 
       {/* Type pills */}
-      <div style={{ display: "flex", gap: 8, padding: "0 30px 12px", flexWrap: "wrap", flexShrink: 0 }}>
+      <div style={{ display: "flex", gap: 8, padding: isMobile ? "0 14px 10px" : "0 30px 12px", flexWrap: "wrap", flexShrink: 0 }}>
         {TYPES.map((t) => {
           const on = filterType === t;
           return (
@@ -85,7 +87,7 @@ export default function MarketPage() {
       </div>
 
       {/* Grid */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "10px 30px 40px", minHeight: 0 }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: isMobile ? "10px 12px 40px" : "10px 30px 40px", minHeight: 0 }}>
         {loading ? (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "#6a7488" }}>Loading marketplace…</div>
         ) : filtered.length === 0 ? (
@@ -94,13 +96,13 @@ export default function MarketPage() {
             <p style={{ font: `700 15px var(--font-cinzel,'Cinzel',serif)`, color: "#aeb6c4" }}>No cards match your filters</p>
           </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(210px,1fr))", gap: "40px 26px", justifyItems: "center" }}>
+          <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fill,minmax(${isMobile ? 140 : 210}px,1fr))`, gap: isMobile ? "30px 14px" : "40px 26px", justifyItems: "center" }}>
             {filtered.map((card) => {
               const info = summary[card.id];
               const hasListings = (info?.count ?? 0) > 0;
               return (
                 <div key={card.id} data-sound-skip-click style={{ position: "relative", cursor: "pointer", opacity: hasListings ? 1 : 0.72 }} onClick={() => setInspect(card)}>
-                  <CardComponent card={card} size="md" interactive />
+                  <CardComponent card={card} size={isMobile ? "sm" : "md"} interactive />
                   <div style={{ position: "absolute", bottom: -14, left: "50%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, whiteSpace: "nowrap" }}>
                     {hasListings ? (
                       <span style={{ padding: "3px 12px", borderRadius: 20, font: `800 12px var(--font-mono,'JetBrains Mono',monospace)`, background: "#0d1020", border: "1px solid rgba(255,224,122,.5)", color: "#ffe07a" }}>

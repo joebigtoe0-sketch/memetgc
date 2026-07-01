@@ -7,6 +7,7 @@ import CardComponent from "../Card/CardComponent";
 import CardZoom from "../Card/CardZoom";
 import GameIcon from "../UI/GameIcon";
 import type { CardData } from "../Card/CardComponent";
+import { useIsMobile } from "@/hooks/useViewport";
 
 const COPY_LIMITS: Record<string, number> = { common: 4, rare: 3, epic: 2, legendary: 1 };
 const FACTIONS = ["bitcoin", "ethereum", "solana", "meme", "stable", "degen"];
@@ -21,6 +22,8 @@ interface Hero {
 }
 
 export default function DeckBuilder() {
+  const isMobile = useIsMobile();
+  const [mobileTab, setMobileTab] = useState<"cards" | "deck">("cards");
   const [allCards, setAllCards] = useState<CardData[]>([]);
   const [heroes, setHeroes] = useState<Hero[]>([]);
   const [deckCards, setDeckCards] = useState<CardData[]>([]);
@@ -119,9 +122,23 @@ export default function DeckBuilder() {
   }
 
   return (
-    <div className="flex h-full w-full" style={{ background: "#080b16", color: "#c8d0e0" }}>
+    <div className="flex h-full w-full" style={{ background: "#080b16", color: "#c8d0e0", flexDirection: isMobile ? "column" : "row" }}>
+      {/* Mobile tab switcher */}
+      {isMobile && (
+        <div style={{ display: "flex", gap: 6, padding: "10px 12px 6px 84px", flexShrink: 0 }}>
+          {(["cards", "deck"] as const).map((tab) => {
+            const on = mobileTab === tab;
+            return (
+              <button key={tab} onClick={() => setMobileTab(tab)} style={{ flex: 1, cursor: "pointer", padding: "9px 0", borderRadius: 9, font: `800 12px var(--font-cinzel,'Cinzel',serif)`, color: on ? "#2a1a00" : "#cdd4df", background: on ? "linear-gradient(180deg,#ffe07a,#e0890f)" : "rgba(255,255,255,.05)", border: `1px solid ${on ? "transparent" : "rgba(255,255,255,.12)"}` }}>
+                {tab === "cards" ? "Cards" : `Deck ${deckCards.length}/30`}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Left — Card Collection */}
-      <div className="flex flex-col" style={{ width: 520, borderRight: "1px solid #1a2040", flexShrink: 0 }}>
+      <div className="flex flex-col" style={{ width: isMobile ? "100%" : 520, borderRight: isMobile ? "none" : "1px solid #1a2040", flexShrink: isMobile ? 1 : 0, flex: isMobile ? 1 : undefined, minHeight: 0, display: isMobile && mobileTab !== "cards" ? "none" : "flex" }}>
         {/* Filters */}
         <div className="p-3 border-b border-gray-800 space-y-2">
           <input
@@ -217,7 +234,7 @@ export default function DeckBuilder() {
       </div>
 
       {/* Right — Deck Builder */}
-      <div className="flex flex-col flex-1" style={{ minWidth: 300 }}>
+      <div className="flex flex-col flex-1" style={{ minWidth: isMobile ? 0 : 300, minHeight: 0, display: isMobile && mobileTab !== "deck" ? "none" : "flex" }}>
         {/* Deck header */}
         <div className="p-4 border-b border-gray-800">
           <div className="flex items-center gap-3 mb-3">
