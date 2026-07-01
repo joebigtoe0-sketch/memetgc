@@ -2,13 +2,13 @@
  * Solana helpers for the marketplace and access gate.
  *
  * Uses the Helius RPC (same config as lib/helius.ts) to:
- *   - read a wallet's $MEMPOOL balance
+ *   - read a wallet's $MEMEPOOL balance
  *   - fetch the mint decimals (cached)
  *   - verify a buyer-signed purchase transaction on-chain
  *
  * Env:
  *   HELIUS_API_KEY   — Helius API key (or a full RPC URL)
- *   DEGEN_MINT       — the $MEMPOOL SPL token mint address
+ *   DEGEN_MINT       — the $MEMEPOOL SPL token mint address
  *   HELIUS_RPC_URL   — optional RPC base override (defaults to Helius mainnet)
  *   TREASURY_WALLET  — wallet that collects the 5% fee
  *   MIN_PLAY_TOKENS  — minimum balance to play (default 1000)
@@ -54,7 +54,7 @@ interface TokenAccountsResponse {
   }>;
 }
 
-/** Returns the wallet's $MEMPOOL balance (ui amount). 0 on any error/not configured. */
+/** Returns the wallet's $MEMEPOOL balance (ui amount). 0 on any error/not configured. */
 export async function getTokenBalance(walletAddress: string): Promise<number> {
   if (!walletAddress) return 0;
   const result = await rpc<TokenAccountsResponse>("getTokenAccountsByOwner", [
@@ -116,8 +116,8 @@ export interface VerifyArgs {
  * Verifies a purchase transaction on-chain:
  *  - transaction succeeded (meta.err == null)
  *  - buyer is a signer / fee payer
- *  - the seller's $MEMPOOL balance increased by >= sellerBaseUnits
- *  - the treasury's $MEMPOOL balance increased by >= feeBaseUnits
+ *  - the seller's $MEMEPOOL balance increased by >= sellerBaseUnits
+ *  - the treasury's $MEMEPOOL balance increased by >= feeBaseUnits
  * Returns true only if all conditions hold.
  */
 export async function verifyPurchaseTx(signature: string, args: VerifyArgs): Promise<boolean> {

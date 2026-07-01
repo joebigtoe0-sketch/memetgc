@@ -510,7 +510,7 @@ export const GENESIS_DROP_CARDS = [
     health: 30,
     armor: 3,
     text: "Hero Power — Salvage (2): Look at the top 3 cards of your burn pile. Add one to your hand. Pump: Return a random minion from your burn pile to the board with +2/+2.",
-    flavorText: "Nothing stays dead in the mempool.",
+    flavorText: "Nothing stays dead in the memepool.",
     heroPowerJson: {
       id: "hp_salvage",
       name: "Salvage",
@@ -692,7 +692,7 @@ export const GENESIS_DROP_CARDS = [
   },
   {
     id: "degen_mempool_drifter",
-    name: "Mempool Drifter",
+    name: "Memepool Drifter",
     set: "genesis_drop",
     type: "minion",
     faction: "degen",

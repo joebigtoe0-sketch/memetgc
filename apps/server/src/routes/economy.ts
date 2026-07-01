@@ -4,6 +4,8 @@ import { requireAuth, type AuthRequest } from "../middleware/auth.js";
 import { computeWinStreak } from "../game/results.js";
 import { getDegenBalance, isDegenConfigured } from "../lib/helius.js";
 import { getTokenBalance, MIN_PLAY_TOKENS } from "../lib/solana.js";
+import { tierFromPoints } from "../game/rank.js";
+import { getLadderStanding } from "../game/leaderboard.js";
 
 const router: ReturnType<typeof Router> = Router();
 
@@ -70,7 +72,7 @@ router.post("/packs/buy", requireAuth, async (req: AuthRequest, res) => {
   const qty = Math.max(1, Math.min(40, Number(count) || 1));
 
   if (currency === "degen") {
-    res.status(501).json({ error: "On-chain $MEMPOOL purchases are coming soon" });
+    res.status(501).json({ error: "On-chain $MEMEPOOL purchases are coming soon" });
     return;
   }
 
@@ -145,7 +147,7 @@ router.get("/degen-balance", requireAuth, async (req: AuthRequest, res) => {
 
 // ─────────────────────────── Access gate ───────────────────────────
 
-// GET /api/economy/access — does the wallet hold enough $MEMPOOL to play?
+// GET /api/economy/access — does the wallet hold enough $MEMEPOOL to play?
 router.get("/access", requireAuth, async (req: AuthRequest, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.user!.userId } });
   const required = MIN_PLAY_TOKENS;
@@ -164,7 +166,7 @@ router.get("/profile", requireAuth, async (req: AuthRequest, res) => {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
 
-  const [collection, questsDone, recent, winStreak] = await Promise.all([
+  const [collection, questsDone, recent, winStreak, cosmetics] = await Promise.all([
     prisma.collectionEntry.findMany({ where: { userId }, include: { card: true } }),
     prisma.dailyQuest.count({ where: { userId, claimedAt: { not: null } } }),
     prisma.match.findMany({
@@ -172,6 +174,7 @@ router.get("/profile", requireAuth, async (req: AuthRequest, res) => {
       orderBy: { endedAt: "desc" }, take: 8,
     }),
     computeWinStreak(userId),
+    prisma.userCosmetic.findMany({ where: { userId }, select: { type: true, value: true } }),
   ]);
 
   const cardsOwned = collection.reduce((s, c) => s + c.quantity, 0);
@@ -200,13 +203,17 @@ router.get("/profile", requireAuth, async (req: AuthRequest, res) => {
   });
 
   const wins = user.seasonWins, losses = user.seasonLosses, games = wins + losses;
+  const { tier, stars } = tierFromPoints(user.rankPoints);
+  const standing = await getLadderStanding(user.id, user.rankPoints);
   res.json({
     username: user.username,
     walletAddress: user.walletAddress,
     fragments: user.fragments,
-    rankTier: user.rankTier,
-    rankStars: user.rankStars,
+    rankTier: standing.isMemepool ? "degen" : tier,
+    rankStars: stars,
     rankPoints: user.rankPoints,
+    ladderPosition: standing.position,
+    isMemepool: standing.isMemepool,
     seasonWins: wins,
     seasonLosses: losses,
     winStreak,
@@ -219,7 +226,33 @@ router.get("/profile", requireAuth, async (req: AuthRequest, res) => {
     factionMastery,
     recentMatches,
     accessTier: user.accessTier,
+    cosmetics,
+    equippedCardBack: user.equippedCardBack,
+    equippedBadge: user.equippedBadge,
   });
+});
+
+// POST /api/economy/cosmetics/equip — equip an owned card back or badge (value:null unequips)
+router.post("/cosmetics/equip", requireAuth, async (req: AuthRequest, res) => {
+  const userId = req.user!.userId;
+  const { type, value } = req.body as { type?: string; value?: string | null };
+
+  if (type !== "card_back" && type !== "badge") {
+    res.status(400).json({ error: "type must be 'card_back' or 'badge'" });
+    return;
+  }
+
+  if (value != null) {
+    const owned = await prisma.userCosmetic.findFirst({ where: { userId, type, value } });
+    if (!owned) {
+      res.status(403).json({ error: "You don't own that cosmetic" });
+      return;
+    }
+  }
+
+  const field = type === "card_back" ? "equippedCardBack" : "equippedBadge";
+  await prisma.user.update({ where: { id: userId }, data: { [field]: value ?? null } });
+  res.json({ ok: true, type, value: value ?? null });
 });
 
 // ─────────────────────────── Generators ───────────────────────────

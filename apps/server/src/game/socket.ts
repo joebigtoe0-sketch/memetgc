@@ -2,7 +2,7 @@ import type { Server, Socket } from "socket.io";
 import type { ServerToClientEvents, ClientToServerEvents, GameAction } from "@memetgc/types";
 import { verifyToken } from "../middleware/auth.js";
 import { prisma } from "@memetgc/db";
-import { joinQueue, leaveQueue, tryMatchmake, removeBySocketId, getQueueSize } from "../matchmaking/queue.js";
+import { joinQueue, leaveQueue, tryMatchmake, removeBySocketId, getQueueSize, type QueueEntry } from "../matchmaking/queue.js";
 import { createRoom, getRoom, getRoomByUserId, handlePlayerAction, initMulligan, type PlayerInfo } from "./room.js";
 import type { Card, Keyword, CardEffect, HeroPower, Faction } from "@memetgc/types";
 import { randomUUID } from "crypto";
@@ -87,6 +87,84 @@ async function checkDegenBalance(walletAddress: string): Promise<boolean> {
   return balance >= MIN_PLAY_TOKENS;
 }
 
+/**
+ * Build a room from two matched queue entries and start the mulligan.
+ * Shared by the on-join matchmaking attempt and the periodic ticker.
+ */
+async function beginMatch(
+  io: Server<ClientToServerEvents, ServerToClientEvents>,
+  entry1: QueueEntry,
+  entry2: QueueEntry,
+  mode: string
+): Promise<void> {
+  const gameId = randomUUID();
+
+  const [deck1, deck2, hero1, hero2] = await Promise.all([
+    getDeckCards(entry1.deckId, entry1.userId),
+    getDeckCards(entry2.deckId, entry2.userId),
+    prisma.hero.findUnique({ where: { id: entry1.heroId } }),
+    prisma.hero.findUnique({ where: { id: entry2.heroId } }),
+  ]);
+
+  if (!hero1 || !hero2) return;
+
+  const p1: PlayerInfo = {
+    socketId: entry1.socketId,
+    userId: entry1.userId,
+    username: entry1.username,
+    heroId: entry1.heroId,
+    heroName: hero1.name,
+    heroFaction: hero1.faction as Faction,
+    heroPower: hero1.heroPowerJson as unknown as PlayerInfo["heroPower"],
+    deck: deck1,
+    isAI: false,
+  };
+  const p2: PlayerInfo = {
+    socketId: entry2.socketId,
+    userId: entry2.userId,
+    username: entry2.username,
+    heroId: entry2.heroId,
+    heroName: hero2.name,
+    heroFaction: hero2.faction as Faction,
+    heroPower: hero2.heroPowerJson as unknown as PlayerInfo["heroPower"],
+    deck: deck2,
+    isAI: false,
+  };
+
+  const room = createRoom(gameId, p1, p2, mode, cardRegistry);
+
+  const socket1 = io.sockets.sockets.get(entry1.socketId);
+  const socket2 = io.sockets.sockets.get(entry2.socketId);
+
+  socket1?.join(gameId);
+  socket2?.join(gameId);
+
+  socket1?.emit("match:found", gameId);
+  socket2?.emit("match:found", gameId);
+
+  initMulligan(room, io);
+}
+
+/**
+ * Periodic matchmaking sweep. Ranked windows widen with wait time, so waiting
+ * players must be re-checked even when no one new joins.
+ */
+export function startMatchmakingTicker(
+  io: Server<ClientToServerEvents, ServerToClientEvents>
+): NodeJS.Timeout {
+  return setInterval(() => {
+    void (async () => {
+      for (const mode of ["ranked", "casual"] as const) {
+        let match = tryMatchmake(mode);
+        while (match) {
+          await beginMatch(io, match[0], match[1], mode);
+          match = tryMatchmake(mode);
+        }
+      }
+    })();
+  }, 3000);
+}
+
 export function registerSocketHandlers(
   io: Server<ClientToServerEvents, ServerToClientEvents>
 ): void {
@@ -122,7 +200,7 @@ export function registerSocketHandlers(
         return;
       }
 
-      // Token gate: every queue join requires holding the minimum $MEMPOOL (defense in depth)
+      // Token gate: every queue join requires holding the minimum $MEMEPOOL (defense in depth)
       {
         const user = await prisma.user.findUnique({ where: { id: authenticatedUserId } });
         if (!user?.walletAddress) {
@@ -131,7 +209,7 @@ export function registerSocketHandlers(
         }
         const hasTokens = await checkDegenBalance(user.walletAddress);
         if (!hasTokens) {
-          socket.emit("game:error", `Need ${MIN_PLAY_TOKENS.toLocaleString()} $MEMPOOL to play`);
+          socket.emit("game:error", `Need ${MIN_PLAY_TOKENS.toLocaleString()} $MEMEPOOL to play`);
           return;
         }
       }
@@ -243,7 +321,12 @@ export function registerSocketHandlers(
         return;
       }
 
-      // Human matchmaking queue
+      // Human matchmaking queue — include MMR so ranked can match by rating
+      const queueUser = await prisma.user.findUnique({
+        where: { id: authenticatedUserId },
+        select: { mmr: true },
+      });
+
       joinQueue({
         socketId: socket.id,
         userId: authenticatedUserId,
@@ -251,60 +334,13 @@ export function registerSocketHandlers(
         deckId,
         heroId,
         mode,
+        mmr: queueUser?.mmr ?? 1000,
         joinedAt: Date.now(),
       });
 
       const match = tryMatchmake(mode);
       if (match) {
-        const [entry1, entry2] = match;
-        const gameId = randomUUID();
-
-        const [deck1, deck2, hero1, hero2] = await Promise.all([
-          getDeckCards(entry1.deckId, entry1.userId),
-          getDeckCards(entry2.deckId, entry2.userId),
-          prisma.hero.findUnique({ where: { id: entry1.heroId } }),
-          prisma.hero.findUnique({ where: { id: entry2.heroId } }),
-        ]);
-
-        if (!hero1 || !hero2) return;
-
-        const p1: PlayerInfo = {
-          socketId: entry1.socketId,
-          userId: entry1.userId,
-          username: entry1.username,
-          heroId: entry1.heroId,
-          heroName: hero1.name,
-          heroFaction: hero1.faction as Faction,
-          heroPower: hero1.heroPowerJson as unknown as PlayerInfo["heroPower"],
-          deck: deck1,
-          isAI: false,
-        };
-        const p2: PlayerInfo = {
-          socketId: entry2.socketId,
-          userId: entry2.userId,
-          username: entry2.username,
-          heroId: entry2.heroId,
-          heroName: hero2.name,
-          heroFaction: hero2.faction as Faction,
-          heroPower: hero2.heroPowerJson as unknown as PlayerInfo["heroPower"],
-          deck: deck2,
-          isAI: false,
-        };
-
-        const room = createRoom(gameId, p1, p2, mode, cardRegistry);
-
-        // Get sockets and join room
-        const socket1 = io.sockets.sockets.get(entry1.socketId);
-        const socket2 = io.sockets.sockets.get(entry2.socketId);
-
-        socket1?.join(gameId);
-        socket2?.join(gameId);
-
-        socket1?.emit("match:found", gameId);
-        socket2?.emit("match:found", gameId);
-
-        // Init mulligan (starts timers, broadcasts state to both)
-        initMulligan(room, io);
+        await beginMatch(io, match[0], match[1], mode);
       } else {
         socket.emit("queue:status", {
           queueSize: getQueueSize(mode),

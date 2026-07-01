@@ -153,7 +153,7 @@ export const ART_LABELS: Record<string, string> = {
   stable_ghost_liquidity:
     "a translucent teal liquidity spirit phasing in and out of existence, DeFi glow around it, a faint duplicate fading into a burn pile below",
   degen_mempool_drifter:
-    "a laid-back hooded drifter lounging on an unconfirmed transaction bubble, peeking at a single card floating in mempool fog",
+    "a laid-back hooded drifter lounging on an unconfirmed transaction bubble, peeking at a single card floating in memepool fog",
   bitcoin_ash_collector:
     "a small ash-covered token golem sweeping up embers from fallen minion silhouettes, growing slightly larger with each pile of ash",
   ethereum_lost_transaction:

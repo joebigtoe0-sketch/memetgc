@@ -7,7 +7,7 @@ import { loadBoardManifest } from "@/lib/boards";
 import { preloadCardArt, preloadFactionArt } from "@/lib/preloadArt";
 import { SOUND_PATHS, preloadSoundsAsync } from "@/lib/sounds";
 
-const SESSION_KEY = "mempool_assets_ready";
+const SESSION_KEY = "memepool_assets_ready";
 
 export interface PreloadProgress {
   loaded: number;

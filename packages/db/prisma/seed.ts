@@ -1022,6 +1022,15 @@ async function main() {
     });
   }
 
+  console.log("Seeding season 1 (Genesis Drop)...");
+  const existingSeason = await prisma.season.findFirst({ where: { number: 1 } });
+  if (!existingSeason) {
+    await prisma.season.create({
+      data: { number: 1, name: "Genesis Drop", isActive: true },
+    });
+    console.log("  Created active season: Genesis Drop");
+  }
+
   console.log("Creating demo user with starter decks...");
   const demoUser = await prisma.user.upsert({
     where: { username: "demo" },

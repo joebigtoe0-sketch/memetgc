@@ -7,7 +7,7 @@ import bs58 from "bs58";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import Logo from "@/components/Brand/Logo";
-import { BRAND } from "@/lib/brand";
+import { BRAND, clearAuthTokens, isAutoUsername } from "@/lib/brand";
 
 type Step = "connect" | "sign" | "username";
 
@@ -58,11 +58,13 @@ export default function AuthModal() {
         // Persist token for the /username call, but don't enter the app yet.
         if (typeof window !== "undefined") {
           localStorage.setItem(BRAND.authTokenKey, res.token);
-          localStorage.removeItem(BRAND.legacyAuthTokenKey);
+          for (const key of BRAND.legacyAuthTokenKeys) {
+            localStorage.removeItem(key);
+          }
         }
         setPendingToken(res.token);
         setPendingUserId(res.userId);
-        setUsernameInput(res.username.startsWith("degen_") || res.username.startsWith("mempool_") ? "" : res.username);
+        setUsernameInput(isAutoUsername(res.username) ? "" : res.username);
         setStep("username");
       }
     } catch (e) {
@@ -91,10 +93,7 @@ export default function AuthModal() {
   function reset() {
     setError("");
     setPendingToken(null);
-    if (typeof window !== "undefined") {
-      localStorage.removeItem(BRAND.authTokenKey);
-      localStorage.removeItem(BRAND.legacyAuthTokenKey);
-    }
+    clearAuthTokens();
     disconnect().catch(() => {});
     setStep("connect");
   }

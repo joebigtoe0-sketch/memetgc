@@ -1,7 +1,7 @@
 import React from "react";
 
 /**
- * Full game documentation content for Legends of the Mempool.
+ * Full game documentation content for Legends of the Memepool.
  * Each section has a stable `id` used for sidebar navigation / deep links.
  * Sections are grouped for the left sidebar.
  */
@@ -122,14 +122,14 @@ export const DOC_GROUPS: DocGroup[] = [
         body: (
           <>
             <Lead>
-              <Strong>Legends of the Mempool</Strong> is a browser-based, crypto-native trading card game. Build a
-              30-card deck, pick a Hero, and battle other players (or the AI) in fast, Hearthstone-style turns. Every
-              card, keyword, and joke is drawn from real tokens, protocols, memes, and Crypto Twitter culture.
+              <Strong>Legends of the Memepool</Strong> is a browser-based crypto-native trading card game built for
+              degens, collectors, and anyone who&apos;s ever watched a chart go vertical at 3am. From the depths,
+              legends rise.
             </Lead>
             <P>
-              You collect cards from booster packs, craft the ones you want, trade on a player marketplace, and climb a
-              ranked ladder across six factions. This guide explains everything — how matches work, how the economy runs,
-              and how to go from a fresh account to a competitive deck.
+              Build a 30-card deck, pick a Hero, and battle other players (or the AI) in fast, Hearthstone-style turns.
+              Every card, keyword, and joke is drawn from real tokens, protocols, memes, and Crypto Twitter culture. You
+              collect cards by playing — not by spending — and trade them on a player marketplace for real value.
             </P>
             <Callout tone="info">
               New here? Jump to <Strong>Your First Session</Strong> for a step-by-step start, or{" "}
@@ -150,8 +150,8 @@ export const DOC_GROUPS: DocGroup[] = [
             </P>
             <H3>Playing the game</H3>
             <P>
-              Legends of the Mempool is token-gated. To enter matchmaking and the full app, your connected wallet must
-              hold the minimum amount of <Frag>$MEMPOOL</Frag>. You can always read these docs without a wallet — the
+              Legends of the Memepool is token-gated. To enter matchmaking and the full app, your connected wallet must
+              hold the minimum amount of <Frag>$MEMEPOOL</Frag>. You can always read these docs without a wallet — the
               gate only applies to playing.
             </P>
             <H3>What saves automatically</H3>
@@ -468,20 +468,73 @@ export const DOC_GROUPS: DocGroup[] = [
           <>
             <P>
               Ranked wins earn ladder points and climb you through the tiers. You need a <Strong>custom deck</Strong>{" "}
-              (starter decks can't queue Ranked).
+              (starter decks can&apos;t queue Ranked). Each tier has <Strong>5 divisions</Strong> (V up to I) — 100 points
+              per division, 500 points per tier.
             </P>
             <Table
-              head={["Tier", "Order"]}
+              head={["Tier", "Ladder points"]}
               rows={[
-                ["Bronze", "1"],
-                ["Silver", "2"],
-                ["Gold", "3"],
-                ["Platinum", "4"],
-                ["Diamond", "5"],
-                ["Mempool (top tier)", "6"],
+                ["Bronze", "0 – 499"],
+                ["Silver", "500 – 999"],
+                ["Gold", "1,000 – 1,499"],
+                ["Platinum", "1,500 – 1,999"],
+                ["Diamond", "2,000+"],
+                ["Memepool (top)", "Live top 100"],
               ]}
             />
-            <P>Winning gains ladder points; losing loses some (points never drop below 0). Your season record tracks wins and losses.</P>
+            <H3>How points are earned</H3>
+            <P>
+              Ranked uses a hidden skill rating (MMR). Point gains and losses scale with the{" "}
+              <Strong>rating gap</Strong> between you and your opponent: beat someone rated well above you and you gain
+              more; lose to someone well below you and you lose more. Even, expected results move you by a smaller amount.
+              New players swing faster (larger adjustments) until the system learns their rating; movement shrinks at
+              Diamond and above. Points never drop below 0, and Practice / Casual never affect your ladder points.
+            </P>
+            <H3>Memepool rank</H3>
+            <P>
+              Memepool rank is the top tier — reached by the highest ranked players on the ladder at any given time.
+              It&apos;s not a fixed threshold of points; it&apos;s a live leaderboard of the top performers each season.
+              Currently the top <Strong>100</Strong> players above the Diamond floor hold Memepool rank.
+            </P>
+            <P>
+              Memepool rank players receive a visible badge on their profile and are listed on the public leaderboard.
+              At season end, every player who held Memepool rank at the cutoff receives the full Memepool season rewards.
+            </P>
+            <P>
+              The number of Memepool rank slots scales with the active player base — in early seasons this will be a
+              small and very exclusive group.
+            </P>
+          </>
+        ),
+      },
+      {
+        id: "seasons",
+        title: "Seasons",
+        body: (
+          <>
+            <P>
+              Ranked play runs in <Strong>seasons</Strong> — each season runs about <Strong>4 weeks</Strong> and ends
+              when the next card set launches. At the end of a season your rank resets to a soft floor (roughly 40% of
+              your points carry over) based on where you finished, and you receive rewards based on your highest rank
+              reached that season.
+            </P>
+            <H3>Season end rewards</H3>
+            <Table
+              head={["Rank reached", "Rewards"]}
+              rows={[
+                ["Bronze", <><Frag>150</Frag> frags</>],
+                ["Silver", <><Frag>500</Frag> frags</>],
+                ["Gold", <><Frag>800</Frag> frags + unique card back</>],
+                ["Platinum", <><Frag>1,500</Frag> frags + unique card back</>],
+                ["Diamond", <><Frag>2,500</Frag> frags + unique card back</>],
+                ["Memepool (top)", <><Frag>6,000</Frag> frags + Memepool rank badge + unique card back</>],
+              ]}
+            />
+            <P>
+              A new card set releases each season. Season-exclusive cards (like Genesis Drop) are only obtainable during
+              that season&apos;s pack rotation — once the season ends, those packs are gone from the shop forever. Cards
+              already in collections can still be traded on the marketplace after the season ends.
+            </P>
           </>
         ),
       },
@@ -513,6 +566,14 @@ export const DOC_GROUPS: DocGroup[] = [
         title: "Packs & Drop Rates",
         body: (
           <>
+            <Callout tone="info">
+              <Strong>About Genesis Drop.</Strong> Genesis Drop is the first season set — 20 exclusive cards tied to the
+              Black Bull narrative that inspired the game&apos;s launch. Genesis Drop packs only drop Genesis Drop cards,
+              and Genesis Drop cards can only come from Genesis Drop packs. Once the Genesis Drop season ends, these packs
+              are removed from the shop permanently. Any Genesis Drop cards already in players&apos; collections remain
+              theirs and can still be traded on the marketplace — but no new copies will ever enter the game. This makes
+              Genesis Drop cards the rarest in the game by design.
+            </Callout>
             <P>Each booster contains <Strong>5 cards</Strong>. Two packs are sold for fragments:</P>
             <Table
               head={["Pack", "Cost", "Contains"]}
@@ -559,11 +620,11 @@ export const DOC_GROUPS: DocGroup[] = [
           <>
             <P>
               The <Strong>Marketplace</Strong> is a player-driven market where you can buy and sell individual cards and
-              packs for <Frag>$MEMPOOL</Frag>, paid on-chain. Prices are set by other players — there's no house price.
+              packs for <Frag>$MEMEPOOL</Frag>, paid on-chain. Prices are set by other players — there's no house price.
             </P>
             <H3>Selling</H3>
             <UL>
-              <LI>List a card or pack you own and set your asking price in $MEMPOOL.</LI>
+              <LI>List a card or pack you own and set your asking price in $MEMEPOOL.</LI>
               <LI>When someone buys it, the item transfers to them and you receive the tokens.</LI>
               <LI>You can cancel active listings you haven't sold yet.</LI>
             </UL>
@@ -574,8 +635,69 @@ export const DOC_GROUPS: DocGroup[] = [
               <LI>A short cooldown protects against double-buys and race conditions.</LI>
             </UL>
             <Callout tone="info">
-              Fragments (soft currency) buy packs from the shop; <Frag>$MEMPOOL</Frag> (on-chain token) is used for the
+              Fragments (soft currency) buy packs from the shop; <Frag>$MEMEPOOL</Frag> (on-chain token) is used for the
               player marketplace.
+            </Callout>
+          </>
+        ),
+      },
+      {
+        id: "play-to-earn",
+        title: "How to Earn (Play-to-Earn)",
+        body: (
+          <>
+            <P>
+              Legends of the Memepool has <Strong>no pay-to-win</Strong> and no direct purchase of packs or cards with
+              real money. Every card in existence entered the game through gameplay. Here&apos;s exactly how the earning
+              loop works.
+            </P>
+            <H3>The full loop</H3>
+            <P>
+              Play games → earn fragments → spend fragments on packs → open packs for cards → sell cards or sealed packs
+              on the marketplace for <Frag>$MEMEPOOL</Frag> → sell <Frag>$MEMEPOOL</Frag> for dollars.
+            </P>
+            <H3>Why this works</H3>
+            <P>
+              The game never sells packs or cards directly for real money or tokens. The only way packs enter the economy
+              is through players earning fragments and spending them in the shop. This means:
+            </P>
+            <UL>
+              <LI>
+                Card supply is entirely controlled by how much the community plays — not by the game printing money
+              </LI>
+              <LI>Every card on the marketplace was earned through gameplay, not purchased</LI>
+              <LI>
+                New players who can&apos;t afford cards can earn them the same way everyone else did — by playing
+              </LI>
+            </UL>
+            <H3>Fragments are the key</H3>
+            <P>
+              Fragments are earned from daily quests, match rewards, and dusting cards you don&apos;t need. They&apos;re
+              the bridge between playing the game and owning valuable cards. The more you play, the more packs you can
+              open, the better your collection, and the more you have to sell.
+            </P>
+            <H3>Selling cards and packs</H3>
+            <P>
+              Cards and sealed packs can both be listed on the player marketplace for <Frag>$MEMEPOOL</Frag>. Prices are
+              set by players — rare cards from Genesis Drop or future limited sets can be worth significantly more than
+              standard ones. A single Legendary pulled from a Genesis Drop pack could cover the cost of hundreds of
+              future packs.
+            </P>
+            <H3>Sealed packs have value too</H3>
+            <P>
+              You don&apos;t have to open every pack you earn. Sealed packs — especially Genesis Drop packs — can be
+              listed and sold directly on the marketplace. If you believe the cards inside are worth more closed than
+              what you&apos;d get from selling individual cards, hold them sealed.
+            </P>
+            <H3>Tournaments</H3>
+            <P>
+              Occasional tournaments award <Frag>$MEMEPOOL</Frag> prizes directly to top finishers. These represent the
+              highest direct earning potential in the game and are announced via Twitter and Discord.
+            </P>
+            <Callout tone="warn">
+              Earning real value from playing requires market demand for the cards and packs you earn. Card prices are
+              player-driven — the game does not guarantee any specific return. Play because you enjoy the game; the
+              earning potential is a bonus, not a promise.
             </Callout>
           </>
         ),
@@ -603,6 +725,27 @@ export const DOC_GROUPS: DocGroup[] = [
               ]}
             />
             <P>Claim completed quests from the dashboard to collect the fragments.</P>
+          </>
+        ),
+      },
+      {
+        id: "tournaments",
+        title: "Tournaments",
+        body: (
+          <>
+            <P>
+              Occasional tournaments are announced via the official Twitter and Discord. Entry requirements, format, and
+              prize pools vary per event.
+            </P>
+            <P>
+              Tournament prizes are paid in <Frag>$MEMEPOOL</Frag> directly to winners&apos; wallets. These are the
+              highest direct earning events in the game — standard fragment rewards don&apos;t apply during tournament
+              matches, which follow their own rules announced with each event.
+            </P>
+            <P>
+              No tournaments are currently scheduled. Follow <Strong>@LegendsofMemepool</Strong> on Twitter and join the
+              Discord to be first to know when one is announced.
+            </P>
           </>
         ),
       },
@@ -643,18 +786,23 @@ export const DOC_GROUPS: DocGroup[] = [
         body: (
           <>
             <H3>Do I need tokens to try the game?</H3>
-            <P>You can read these docs freely. To play matches, your wallet must hold the minimum $MEMPOOL.</P>
+            <P>You can read these docs freely. To play matches, your wallet must hold the minimum $MEMEPOOL.</P>
             <H3>Can I get cards without spending real money?</H3>
             <P>Yes — earn fragments from quests and matches, then buy packs or craft cards directly.</P>
-            <H3>What's the difference between fragments and $MEMPOOL?</H3>
+            <H3>What's the difference between fragments and $MEMEPOOL?</H3>
             <P>
-              Fragments are the in-game soft currency (packs, crafting). $MEMPOOL is the on-chain token used for access
+              Fragments are the in-game soft currency (packs, crafting). $MEMEPOOL is the on-chain token used for access
               and the player marketplace.
             </P>
             <H3>Will the game ever ask for my seed phrase?</H3>
             <P>
               Never. It only requests wallet signatures for login and marketplace transactions you initiate. Never enter
               a seed phrase into any popup.
+            </P>
+            <H3>Does it work on mobile?</H3>
+            <P>
+              Yes — the game is playable in your mobile browser. For the best experience on small screens, we recommend
+              landscape orientation. A dedicated mobile app is on the roadmap.
             </P>
           </>
         ),

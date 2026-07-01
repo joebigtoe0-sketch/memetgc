@@ -5,6 +5,7 @@ import { z } from "zod";
 import crypto from "crypto";
 import nacl from "tweetnacl";
 import bs58 from "bs58";
+import { tierFromPoints } from "../game/rank.js";
 
 const router: ReturnType<typeof Router> = Router();
 
@@ -21,11 +22,11 @@ function isValidSolanaAddress(addr: string): boolean {
 }
 
 function buildSignInMessage(wallet: string, nonce: string): string {
-  return `Sign in to Legends of the Mempool\n\nWallet: ${wallet}\nNonce: ${nonce}`;
+  return `Sign in to Legends of the Memepool\n\nWallet: ${wallet}\nNonce: ${nonce}`;
 }
 
 async function generateHandle(wallet: string): Promise<string> {
-  const base = `mempool_${wallet.slice(0, 4)}${wallet.slice(-4)}`.toLowerCase();
+  const base = `memepool_${wallet.slice(0, 4)}${wallet.slice(-4)}`.toLowerCase();
   let candidate = base;
   for (let i = 0; i < 5; i++) {
     const exists = await prisma.user.findUnique({ where: { username: candidate } });
@@ -134,13 +135,15 @@ router.get("/me", requireAuth, async (req: AuthRequest, res) => {
     res.status(404).json({ error: "User not found" });
     return;
   }
+  const { tier, stars } = tierFromPoints(user.rankPoints);
   res.json({
     id: user.id,
     username: user.username,
     hasUsername: user.hasUsername,
     fragments: user.fragments,
-    rankTier: user.rankTier,
-    rankStars: user.rankStars,
+    rankTier: tier,
+    rankStars: stars,
+    rankPoints: user.rankPoints,
     boardThemeId: user.boardThemeId,
     walletAddress: user.walletAddress,
     accessTier: user.accessTier,

@@ -10,9 +10,6 @@ export const MATCH_FRAGMENTS = {
 /** Minimum turns before a surrender awards the winner any fragments. */
 export const MIN_TURNS_FOR_REWARDS = 4;
 
-const WIN_POINTS = 15;
-const LOSS_POINTS = 10;
-
 export function isQuestEligibleMode(mode: string): boolean {
   return mode === "casual" || mode === "ranked";
 }
@@ -51,10 +48,30 @@ export function computeMatchFragments(opts: {
   return 0;
 }
 
-export function computeRankPointDelta(mode: string, isWinner: boolean, currentPoints: number): number | null {
-  if (mode !== "ranked") return null;
-  const next = Math.max(0, currentPoints + (isWinner ? WIN_POINTS : -LOSS_POINTS));
-  return next - currentPoints;
+/** Elo K-factor: bigger swings for newcomers, smaller for established/high players. */
+export function eloKFactor(gamesPlayed: number, myPoints: number): number {
+  if (gamesPlayed < 30) return 40;
+  if (myPoints >= 2000) return 10; // Diamond+
+  return 20;
+}
+
+/**
+ * Standard Elo delta for a ranked result. `S = win ? 1 : 0`, expected score
+ * from the MMR gap, delta = round(K * (S - E)). Beating a higher-rated player
+ * yields more; losing to a lower-rated one costs more.
+ */
+export function computeEloDelta(opts: {
+  myMmr: number;
+  oppMmr: number;
+  isWinner: boolean;
+  gamesPlayed: number;
+  myPoints: number;
+}): number {
+  const { myMmr, oppMmr, isWinner, gamesPlayed, myPoints } = opts;
+  const expected = 1 / (1 + Math.pow(10, (oppMmr - myMmr) / 400));
+  const score = isWinner ? 1 : 0;
+  const k = eloKFactor(gamesPlayed, myPoints);
+  return Math.round(k * (score - expected));
 }
 
 export function shouldTrackSeasonStats(mode: string, endReason: string | null, turnNumber: number): boolean {

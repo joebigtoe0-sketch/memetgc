@@ -53,7 +53,7 @@ export default function AssetLoadingScreen({ percent, phase }: Props) {
           letterSpacing: "1.5px",
         }}
       >
-        PREPARING THE MEMPOOL
+        PREPARING THE MEMEPOOL
       </div>
 
       <div style={{ width: "min(340px, 86vw)", marginTop: 36 }}>

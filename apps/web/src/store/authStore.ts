@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { BRAND } from "@/lib/brand";
+import { BRAND, clearAuthTokens, getStoredAuthToken } from "@/lib/brand";
 import { API_URL } from "@/lib/constants";
 import { clearAssetsReady } from "@/lib/assetPreloader";
 
@@ -56,7 +56,9 @@ export const useAuthStore = create<AuthStore>()(
       setAuth: (token, userId, username) => {
         if (typeof window !== "undefined") {
           localStorage.setItem(BRAND.authTokenKey, token);
-          localStorage.removeItem(BRAND.legacyAuthTokenKey);
+          for (const key of BRAND.legacyAuthTokenKeys) {
+            localStorage.removeItem(key);
+          }
         }
         set({ token, userId, username });
       },
@@ -68,9 +70,7 @@ export const useAuthStore = create<AuthStore>()(
       setRankTier: (rankTier) => set({ rankTier }),
 
       checkAccess: async () => {
-        const token = get().token ?? (typeof window !== "undefined"
-          ? localStorage.getItem(BRAND.authTokenKey) ?? localStorage.getItem(BRAND.legacyAuthTokenKey)
-          : null);
+        const token = get().token ?? getStoredAuthToken();
         if (!token) {
           set({ hasAccess: null });
           return;
@@ -95,14 +95,11 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       logout: () => {
-        if (typeof window !== "undefined") {
-          localStorage.removeItem(BRAND.authTokenKey);
-          localStorage.removeItem(BRAND.legacyAuthTokenKey);
-        }
+        clearAuthTokens();
         clearAssetsReady();
         set({ token: null, userId: null, username: null, walletAddress: null, hasUsername: false, hasAccess: null, tokenBalance: 0 });
       },
     }),
-    { name: "mempool-auth" }
+    { name: "memepool-auth" }
   )
 );

@@ -46,4 +46,4 @@
 | Rug Pull | destroy |
 | Bleed | fatigue |
 | Burn pile | graveyard |
-| Mempool | deck |
+| Memepool | deck |

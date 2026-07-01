@@ -7,7 +7,7 @@ import GateScreen from "./GateScreen";
 import AssetPreloadGate from "@/components/Loading/AssetPreloadGate";
 
 /** Routes that are always public — no wallet, no token gate, no asset preload. */
-const PUBLIC_PATHS = ["/docs"];
+const PUBLIC_PATHS = ["/docs", "/leaderboard"];
 
 function isPublicPath(pathname: string | null): boolean {
   if (!pathname) return false;
@@ -16,7 +16,7 @@ function isPublicPath(pathname: string | null): boolean {
 
 /**
  * Wraps the whole app. Once a user is authenticated we verify they hold the
- * minimum $MEMPOOL on every app load / login. Under threshold -> the entire app
+ * minimum $MEMEPOOL on every app load / login. Under threshold -> the entire app
  * is locked behind the pump.fun gate screen.
  */
 export default function AccessGate({ children }: { children: React.ReactNode }) {

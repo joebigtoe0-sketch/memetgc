@@ -72,9 +72,13 @@ model User {
   rankTier              String    @default("bronze") @map("rank_tier")
   rankStars             Int       @default(0) @map("rank_stars")
   rankPoints            Int       @default(0) @map("rank_points")
+  mmr                   Int       @default(1000) @map("mmr")
+  seasonPeakPoints      Int       @default(0) @map("season_peak_points")
   seasonWins            Int       @default(0) @map("season_wins")
   seasonLosses          Int       @default(0) @map("season_losses")
-  boardThemeId          String    @default("mempool") @map("board_theme_id")
+  boardThemeId          String    @default("memepool") @map("board_theme_id")
+  equippedCardBack      String?   @map("equipped_card_back")
+  equippedBadge         String?   @map("equipped_badge")
   standardPacksEpic     Int       @default(0) @map("standard_packs_since_epic")
   standardPacksLegendary Int      @default(0) @map("standard_packs_since_legendary")
   factionPacksEpic      Int       @default(0) @map("faction_packs_since_epic")
@@ -91,8 +95,35 @@ model User {
   matchesAsP2   Match[]           @relation("Player2")
   quests        DailyQuest[]
   packs         PackInventory[]
+  cosmetics     UserCosmetic[]
 
   @@map("users")
+}
+
+model Season {
+  id        String    @id @default(cuid())
+  number    Int       @unique
+  name      String
+  startedAt DateTime  @default(now()) @map("started_at")
+  endedAt   DateTime? @map("ended_at")
+  isActive  Boolean   @default(true) @map("is_active")
+
+  @@map("seasons")
+}
+
+model UserCosmetic {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  type      String // "card_back" | "badge"
+  value     String
+  seasonId  String?  @map("season_id")
+  grantedAt DateTime @default(now()) @map("granted_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type, value])
+  @@index([userId])
+  @@map("user_cosmetics")
 }
 
 model PackInventory {
@@ -158,6 +189,7 @@ model Match {
   winnerId    String?   @map("winner_id")
   endReason   String?   @map("end_reason")
   turnCount   Int?      @map("turn_count")
+  seasonId    String?   @map("season_id")
   startedAt   DateTime  @default(now()) @map("started_at")
   endedAt     DateTime? @map("ended_at")
   gameStateJson Json?   @map("game_state_json")

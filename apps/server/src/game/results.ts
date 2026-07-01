@@ -3,10 +3,12 @@ import type { GameRoom } from "./room.js";
 import type { Card } from "@memetgc/types";
 import {
   computeMatchFragments,
-  computeRankPointDelta,
+  computeEloDelta,
   isQuestEligibleMode,
   shouldTrackSeasonStats,
 } from "./matchRewards.js";
+import { tierFromPoints } from "./rank.js";
+import { getActiveSeasonId } from "./season.js";
 
 /**
  * Persist season stats, rank points, match fragments and daily-quest progress
@@ -23,6 +25,25 @@ export async function recordMatchResults(room: GameRoom): Promise<void> {
     const turnNumber = room.state.turnNumber ?? 0;
     const trackStats = shouldTrackSeasonStats(room.mode, endReason, turnNumber);
     const trackQuests = isQuestEligibleMode(room.mode) && trackStats;
+    const isRanked = room.mode === "ranked";
+
+    // Snapshot both players' MMR up-front so each Elo calc uses pre-match ratings.
+    const userSnapshots = new Map<string, { mmr: number; rankPoints: number; games: number }>();
+    if (isRanked && trackStats) {
+      for (const player of humans) {
+        const u = await prisma.user.findUnique({
+          where: { id: player.userId },
+          select: { mmr: true, rankPoints: true, seasonWins: true, seasonLosses: true },
+        });
+        if (u) {
+          userSnapshots.set(player.userId, {
+            mmr: u.mmr,
+            rankPoints: u.rankPoints,
+            games: u.seasonWins + u.seasonLosses,
+          });
+        }
+      }
+    }
 
     for (const player of humans) {
       const userId = player.userId;
@@ -43,12 +64,14 @@ export async function recordMatchResults(room: GameRoom): Promise<void> {
         winnerId,
       });
 
-      const rankDelta = trackStats ? computeRankPointDelta(room.mode, isWinner, user.rankPoints) : null;
-
       const updateData: {
         seasonWins?: { increment: number };
         seasonLosses?: { increment: number };
         rankPoints?: number;
+        mmr?: number;
+        seasonPeakPoints?: number;
+        rankTier?: string;
+        rankStars?: number;
         fragments?: { increment: number };
       } = {};
 
@@ -56,9 +79,31 @@ export async function recordMatchResults(room: GameRoom): Promise<void> {
         updateData.seasonWins = { increment: isWinner ? 1 : 0 };
         updateData.seasonLosses = { increment: isWinner ? 0 : 1 };
       }
-      if (rankDelta != null) {
-        updateData.rankPoints = user.rankPoints + rankDelta;
+
+      // Ranked: Elo update applied to both hidden MMR and visible ladder points.
+      if (isRanked && trackStats) {
+        const me = userSnapshots.get(userId);
+        const oppId = Object.values(room.state.players).find((s) => s.playerId !== userId)?.playerId;
+        const opp = oppId ? userSnapshots.get(oppId) : undefined;
+        const myMmr = me?.mmr ?? user.mmr;
+        const oppMmr = opp?.mmr ?? myMmr; // vs unknown/AI-less: neutral expectation
+        const delta = computeEloDelta({
+          myMmr,
+          oppMmr,
+          isWinner,
+          gamesPlayed: me?.games ?? 0,
+          myPoints: user.rankPoints,
+        });
+        const newPoints = Math.max(0, user.rankPoints + delta);
+        const newMmr = Math.max(0, myMmr + delta);
+        const { tier, stars } = tierFromPoints(newPoints);
+        updateData.rankPoints = newPoints;
+        updateData.mmr = newMmr;
+        updateData.rankTier = tier;
+        updateData.rankStars = stars;
+        updateData.seasonPeakPoints = Math.max(user.seasonPeakPoints, newPoints);
       }
+
       if (matchFragments > 0) {
         updateData.fragments = { increment: matchFragments };
       }
@@ -72,6 +117,7 @@ export async function recordMatchResults(room: GameRoom): Promise<void> {
       }
     }
 
+    const seasonId = isRanked ? await getActiveSeasonId() : null;
     const [p1, p2] = Object.values(room.players);
     if (p1 && !p1.isAI) {
       await prisma.match.create({
@@ -82,6 +128,7 @@ export async function recordMatchResults(room: GameRoom): Promise<void> {
           winnerId: winnerId,
           endReason,
           turnCount: turnNumber || null,
+          seasonId,
           endedAt: now,
         },
       }).catch(() => {});

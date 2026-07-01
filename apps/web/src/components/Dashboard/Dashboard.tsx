@@ -25,6 +25,7 @@ const ROMAN = ["", "I", "II", "III", "IV", "V"];
 interface Profile {
   fragments: number; rankTier: string; rankStars: number; rankPoints: number;
   seasonWins: number; seasonLosses: number; winStreak?: number;
+  ladderPosition?: number | null; isMemepool?: boolean;
 }
 interface Quest {
   id: string; type: string; description: string;
@@ -109,6 +110,7 @@ export default function Dashboard() {
           </div>
           <StatChip icon="fragment" label={`${fragments.toLocaleString()} frags`} />
           <StatChip icon="pack" label={`${packs} packs`} onClick={() => router.push("/packs")} />
+          <button onClick={() => router.push("/leaderboard")} style={{ cursor: "pointer", padding: "7px 12px", borderRadius: 9, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)", color: "#c2cbdb", font: `700 11px var(--font-archivo,'Archivo',sans-serif)` }}>Ranks</button>
           <button onClick={() => router.push("/docs")} style={{ cursor: "pointer", padding: "7px 12px", borderRadius: 9, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)", color: "#c2cbdb", font: `700 11px var(--font-archivo,'Archivo',sans-serif)` }}>Guide</button>
           <SettingsButton />
           <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 12px", borderRadius: 9, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)" }}>
@@ -184,13 +186,15 @@ export default function Dashboard() {
             <div style={{ font: `900 34px/1 var(--font-cinzel,'Cinzel',serif)`, color: "#fff", margin: "10px 0 18px" }}>Climb to {formatRankTier("degen")} Rank</div>
             <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
               <button onClick={() => router.push("/play?mode=ranked")} style={{ cursor: "pointer", border: "none", padding: "13px 38px", borderRadius: 11, font: `800 16px var(--font-cinzel,'Cinzel',serif)`, color: "#2a1a00", background: "linear-gradient(180deg,#ffe07a,#e0890f)", boxShadow: "0 8px 20px rgba(224,137,15,.4), inset 0 1px 0 rgba(255,255,255,.5)" }}>▶  PLAY</button>
-              <span style={{ font: `600 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#c9b48a" }}>2,140 players in queue</span>
+              <span style={{ font: `600 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#c9b48a" }}>
+                {profile?.ladderPosition ? `Ladder #${profile.ladderPosition.toLocaleString()}` : `${(profile?.rankPoints ?? 0).toLocaleString()} ladder pts`}
+              </span>
             </div>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             <ModeCard name="Practice" tag="FREE · VS AI" desc="Learn the ropes against bots. No rewards." badge="Open" badgeColor="#9aa3b2" onClick={() => router.push("/play?mode=practice")} />
-            <ModeCard name="Casual" tag="FREE · VS PLAYERS" desc="No stakes. Earn booster pack tickets." badge="Open" badgeColor="#7b8cf4" onClick={() => router.push("/play?mode=casual")} />
+            <ModeCard name="Casual" tag="FREE · VS PLAYERS" desc="No ladder stakes. Earn fragments per match." badge="Open" badgeColor="#7b8cf4" onClick={() => router.push("/play?mode=casual")} />
             <ModeCard name="Ranked" tag={`HOLD 1,000 ${BRAND.ticker} · OWN DECK`} desc="Climb the ladder with your own deck. Earn fragments & season rewards." badge="Unlocked" badgeColor="#f7931a" highlight onClick={() => router.push("/play?mode=ranked")} />
           </div>
         </div>

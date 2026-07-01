@@ -28,7 +28,7 @@ const PACKS: Pack[] = [
 
 const BUNDLES: Bundle[] = [
   { type: "standard", name: "Starter Bundle", count: 5, cost: 450, desc: "5 Standard Packs", color: "#7b8cf4" },
-  { type: "standard", name: "Mempool Bundle", count: 15, cost: 1250, desc: "15 Standard Packs", color: "#f7931a" },
+  { type: "standard", name: "Memepool Bundle", count: 15, cost: 1250, desc: "15 Standard Packs", color: "#f7931a" },
   { type: "season", name: "Genesis Trio", count: 3, cost: 400, desc: "3 Genesis Drop Packs", color: "#19e08a" },
 ];
 

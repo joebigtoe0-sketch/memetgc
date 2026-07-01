@@ -44,11 +44,11 @@ export function buildListingMessage(args: {
   price: number;
 }): string {
   return [
-    "List for sale on Legends of the Mempool",
+    "List for sale on Legends of the Memepool",
     "",
     `Wallet: ${args.wallet}`,
     `Item: ${args.kind}:${args.itemId}`,
-    `Price: ${args.price} $MEMPOOL`,
+    `Price: ${args.price} $MEMEPOOL`,
   ].join("\n");
 }
 

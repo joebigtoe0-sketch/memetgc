@@ -1,6 +1,6 @@
-# Legends of the Mempool
+# Legends of the Memepool
 
-**Mempool** — *Where legends wait.*
+**Memepool** — *From the depths, legends rise*
 
 A real-time multiplayer crypto-themed trading card game. Hearthstone-inspired mechanics with Web3 economy, 6 factions, and a Three.js 3D board.
 
@@ -91,7 +91,7 @@ pnpm --filter @memetgc/server dev     # Game server on :3001
 - Matchmaking queues: Practice (vs AI), Casual, Ranked
 - REST API: cards, heroes, decks, collection, economy, auth
 - JWT authentication
-- $MEMPOOL SPL token balance gate for Ranked (via Helius RPC)
+- $MEMEPOOL SPL token balance gate for Ranked (via Helius RPC)
 - Daily quests + fragment rewards
 - Pack opening with pity timers
 
@@ -133,8 +133,8 @@ pnpm --filter @memetgc/server dev     # Game server on :3001
 
 ## Web3 Economy
 
-- Ranked requires 1,000 $MEMPOOL tokens in connected wallet
+- Ranked requires 1,000 $MEMEPOOL tokens in connected wallet
 - Fragments (off-chain) earned from wins, quests, rank rewards
-- 1,000 fragments = 1 $MEMPOOL
+- 1,000 fragments = 1 $MEMEPOOL
 - Pack types: Standard (100 frags), Faction (120), Legendary (800), Season (150)
 - Pity timers: Epic guaranteed at 20 packs, Legendary at 40

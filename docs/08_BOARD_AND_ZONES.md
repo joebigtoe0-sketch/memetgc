@@ -78,7 +78,7 @@ interface MinionSlot {
 - Hovering shows "Smart Contract" label and the card back only.
 - When a Secret triggers, it flips face-up briefly before moving to burn pile.
 
-### Deck (Mempool)
+### Deck (Memepool)
 - Shown as a card stack with a count badge.
 - Clicking it does nothing (decks are not inspectable in-game).
 - When deck is empty: stack disappears, replaced by a red blinking counter showing Fatigue value.
@@ -150,7 +150,7 @@ interface MinionSlot {
 
 | Theme ID | Name | Description | Unlock method |
 |---|---|---|---|
-| `mempool` | Mempool | Default dark trading floor | All players |
+| `memepool` | Memepool | Default dark trading floor | All players |
 | `bull_run` | Bull Run | Green candles, rising market | Reach Gold rank |
 | `bear_cave` | Bear Cave | Blood-red crash market | Spend 5,000 $DEGEN fragments |
 | `blockchain` | Blockchain | Glowing chain-link hex floor | Top 100 season reward |

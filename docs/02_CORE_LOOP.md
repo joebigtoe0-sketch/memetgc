@@ -30,13 +30,13 @@ Each turn proceeds through 4 phases in order:
 > **Display name:** "Pump phase"
 
 ### Phase 2 — Draw Phase
-- Draw **1 card** from your deck (Mempool).
+- Draw **1 card** from your deck (Memepool).
 - If your deck is **empty**, suffer Fatigue damage instead.
   - Fatigue damage increases each turn: 1, 2, 3, 4… (cumulative counter per player)
   - This damage goes directly to the Hero and cannot be prevented.
 
 > **Internal name:** `draw_phase`
-> **Display name:** "Pulling from the mempool"
+> **Display name:** "Pulling from the memepool"
 > **Fatigue counter:** `player.fatigue_counter` — increment by 1 each time, deal that value as damage
 
 ### Phase 3 — Main Phase

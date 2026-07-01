@@ -27,11 +27,11 @@ export function buildListingMessage(args: {
   price: number;
 }): string {
   return [
-    "List for sale on Legends of the Mempool",
+    "List for sale on Legends of the Memepool",
     "",
     `Wallet: ${args.wallet}`,
     `Item: ${args.kind}:${args.itemId}`,
-    `Price: ${args.price} $MEMPOOL`,
+    `Price: ${args.price} $MEMEPOOL`,
   ].join("\n");
 }
 
@@ -297,7 +297,7 @@ router.post("/reserve", requireAuth, async (req: AuthRequest, res) => {
     const msg = err instanceof Error ? err.message : "";
     if (msg === "NONE") { res.status(404).json({ error: "No listings available" }); return; }
     if (msg === "OWN") { res.status(400).json({ error: "You cannot buy your own listing" }); return; }
-    if (msg === "BALANCE") { res.status(402).json({ error: "Insufficient $MEMPOOL balance" }); return; }
+    if (msg === "BALANCE") { res.status(402).json({ error: "Insufficient $MEMEPOOL balance" }); return; }
     if (msg === "RACE") { res.status(409).json({ error: "Listing just got reserved, try again" }); return; }
     if (msg === "SELLER") { res.status(409).json({ error: "Seller wallet unavailable" }); return; }
     console.error("market/reserve failed:", err);

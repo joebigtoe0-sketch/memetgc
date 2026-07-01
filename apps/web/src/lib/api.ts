@@ -1,9 +1,8 @@
 import { API_URL } from "./constants";
-import { BRAND } from "./brand";
+import { getStoredAuthToken } from "./brand";
 
 function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(BRAND.authTokenKey) ?? localStorage.getItem(BRAND.legacyAuthTokenKey);
+  return getStoredAuthToken();
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
