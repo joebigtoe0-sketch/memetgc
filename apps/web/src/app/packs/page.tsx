@@ -11,6 +11,7 @@ import { packArtUrl } from "@/lib/packArt";
 import CardComponent, { type CardData } from "@/components/Card/CardComponent";
 import SellModal from "@/components/Market/SellModal";
 import GameIcon from "@/components/UI/GameIcon";
+import { musicManager } from "@/lib/music/MusicManager";
 
 interface PackEntry { packType: string; quantity: number; }
 interface OpenResult { cards: CardData[]; remaining: number; }
@@ -50,6 +51,13 @@ export default function PacksPage() {
   }, []);
 
   useEffect(() => { if (token) loadInventory(); }, [token, loadInventory]);
+
+  useEffect(() => {
+    if (view !== "reveal" || !musicManager.isUnlocked()) return;
+    const returnTo = musicManager.getLastAmbient();
+    musicManager.playPackOpening(openType === "season", returnTo);
+    return () => musicManager.interruptPackOpening(returnTo);
+  }, [view, openType, cards.length]);
 
   if (!token || !hasUsername) return <AuthModal />;
 
@@ -100,7 +108,7 @@ export default function PacksPage() {
 
           <div style={{ display: "flex", gap: 16, flexWrap: "wrap", justifyContent: "center", margin: "30px 0 26px" }}>
             {cards.map((card, i) => (
-              <div key={i} onClick={() => flip(i)} style={{ cursor: revealed[i] ? "default" : "pointer", transition: "transform .15s ease" }}>
+              <div key={i} data-sound-skip-click onClick={() => flip(i)} style={{ cursor: revealed[i] ? "default" : "pointer", transition: "transform .15s ease" }}>
                 {revealed[i] ? (
                   <CardComponent card={card} size="md" glowing={RARITY_RANK[card.rarity] >= 2} />
                 ) : (

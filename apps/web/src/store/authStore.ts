@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { BRAND } from "@/lib/brand";
 import { API_URL } from "@/lib/constants";
+import { clearAssetsReady } from "@/lib/assetPreloader";
 
 interface AccessResponse {
   balance: number;
@@ -98,6 +99,7 @@ export const useAuthStore = create<AuthStore>()(
           localStorage.removeItem(BRAND.authTokenKey);
           localStorage.removeItem(BRAND.legacyAuthTokenKey);
         }
+        clearAssetsReady();
         set({ token: null, userId: null, username: null, walletAddress: null, hasUsername: false, hasAccess: null, tokenBalance: 0 });
       },
     }),

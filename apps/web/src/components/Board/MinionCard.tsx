@@ -45,7 +45,7 @@ export default function MinionCard({ slot, isEnemy, isSelected, isValidTarget, i
 
   return (
     <div
-      data-sound-click={onClick ? "" : undefined}
+      data-sound-skip-click={onClick ? "" : undefined}
       onClick={(e) => { e.stopPropagation(); onClick?.(); }}
       onMouseEnter={() => { onHover?.(true); playSound("cardHover", 0.4); }}
       onMouseLeave={() => onHover?.(false)}

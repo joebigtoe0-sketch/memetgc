@@ -9,6 +9,7 @@ import { FACTION_LABEL, factionColor, factionImageUrl } from "@/lib/factions";
 import { formatRankTier } from "@/lib/brand";
 import FactionIcon from "@/components/Faction/FactionIcon";
 import BottomNav from "@/components/Dashboard/BottomNav";
+import MusicSettings from "@/components/Music/MusicSettings";
 
 interface FactionMastery { faction: string; level: number; }
 interface RecentMatch { opponent: string; won: boolean; mode: string; delta: number; endedAt: string | null; }
@@ -149,6 +150,13 @@ export default function ProfilePage() {
                 </div>
               ))}
             </div>
+          </Panel>
+        </div>
+
+        <div style={{ marginTop: 18 }}>
+          <Panel>
+            <PanelTitle>Audio</PanelTitle>
+            <MusicSettings />
           </Panel>
         </div>
       </div>

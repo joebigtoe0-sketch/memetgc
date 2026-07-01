@@ -131,6 +131,7 @@ export default function CardComponent({
 
   return (
     <div
+      {...(onClick || onRightClick ? { "data-sound-skip-click": "" } : {})}
       style={{
         width: outer.w,
         height: outer.h,

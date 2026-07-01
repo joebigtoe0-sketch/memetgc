@@ -15,6 +15,7 @@ import BoardBackground from "./BoardBackground";
 import { CARD_BACK_DEFAULT, CARD_BACK_RADIUS } from "@/lib/cardBacks";
 import GameIcon from "@/components/UI/GameIcon";
 import { playSound } from "@/lib/sounds";
+import MusicSettings from "@/components/Music/MusicSettings";
 import type { MinionSlot, Card } from "@memetgc/types";
 import type { CardData } from "../Card/CardComponent";
 
@@ -409,6 +410,7 @@ export default function GameBoard() {
 
           {/* Opponent board — slots at bottom */}
           <div
+            data-sound-skip-click
             onClick={handleBoardBackgroundClick}
             style={{ flex: 1, display: "flex", alignItems: "flex-end", justifyContent: "center", gap: 8, padding: "0 8px 4px", cursor: phase !== "idle" ? "pointer" : "default", position: "relative" }}
           >
@@ -497,7 +499,10 @@ export default function GameBoard() {
             <HeroZone
               heroName={myState.heroName} faction={myState.heroFaction}
               hp={myState.hp} armor={myState.armor}
-              heroPowerName={myState.heroPower.name} heroPowerUsed={myState.heroPowerUsed}
+              heroPowerName={myState.heroPower.name}
+              heroPowerDescription={myState.heroPower.description}
+              heroPowerCost={myState.heroPower.cost}
+              heroPowerUsed={myState.heroPowerUsed}
               hasWeapon={myState.hasWeapon} weaponAttack={myState.weaponAttack} weaponDurability={myState.weaponDurability}
               isValidTarget={phase === "select_play_target" && validPlayTargets.includes("hero_" + playerId)}
               onHeroClick={() => handleHeroClick(false)}
@@ -520,6 +525,7 @@ export default function GameBoard() {
         <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0, overflow: "visible" }}>
           {/* Player board */}
           <div
+            data-sound-skip-click
             onClick={handleBoardBackgroundClick}
             style={{ flex: 1, display: "flex", alignItems: "flex-start", justifyContent: "center", gap: 8, padding: "6px 0 0", cursor: phase !== "idle" ? "pointer" : "default" }}
           >
@@ -702,6 +708,8 @@ export default function GameBoard() {
               <button onClick={() => setShowSettings(false)} style={{ background: "none", border: "none", color: "#5a6478", cursor: "pointer", fontSize: 18, lineHeight: 1 }}>✕</button>
             </div>
             <div style={{ padding: "8px 0" }}>
+              <MusicSettings />
+              <div style={{ height: 1, background: "rgba(255,255,255,.07)", margin: "4px 0" }} />
               <SettingsRow
                 label="Combat Log"
                 description="Show event log panel on the right"
@@ -826,7 +834,7 @@ function BoardSlot({ children, highlighted, glowing, dimmed, clickable, onClick 
   onClick?: () => void;
 }) {
   return (
-    <div onClick={onClick} style={{ width: 96, height: 116, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", border: highlighted ? (glowing ? "2px solid rgba(255,200,60,.85)" : "1.5px dashed rgba(64,224,128,.65)") : "1.5px dashed rgba(255,255,255,.22)", background: highlighted ? (glowing ? "rgba(255,200,60,.12)" : "rgba(64,224,128,.08)") : "rgba(0,0,0,.28)", boxShadow: highlighted ? undefined : "inset 0 0 12px rgba(0,0,0,.35)", opacity: dimmed ? 0.45 : 1, cursor: clickable ? "pointer" : "default", transition: "all 0.15s", flexShrink: 0 }}>
+    <div data-sound-skip-click={onClick ? "" : undefined} onClick={onClick} style={{ width: 96, height: 116, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", border: highlighted ? (glowing ? "2px solid rgba(255,200,60,.85)" : "1.5px dashed rgba(64,224,128,.65)") : "1.5px dashed rgba(255,255,255,.22)", background: highlighted ? (glowing ? "rgba(255,200,60,.12)" : "rgba(64,224,128,.08)") : "rgba(0,0,0,.28)", boxShadow: highlighted ? undefined : "inset 0 0 12px rgba(0,0,0,.35)", opacity: dimmed ? 0.45 : 1, cursor: clickable ? "pointer" : "default", transition: "all 0.15s", flexShrink: 0 }}>
       {children}
     </div>
   );

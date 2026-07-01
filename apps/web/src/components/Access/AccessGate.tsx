@@ -3,6 +3,7 @@
 import React, { useEffect } from "react";
 import { useAuthStore } from "@/store/authStore";
 import GateScreen from "./GateScreen";
+import AssetPreloadGate from "@/components/Loading/AssetPreloadGate";
 
 /**
  * Wraps the whole app. Once a user is authenticated we verify they hold the
@@ -33,5 +34,5 @@ export default function AccessGate({ children }: { children: React.ReactNode }) 
 
   if (!hasAccess) return <GateScreen />;
 
-  return <>{children}</>;
+  return <AssetPreloadGate>{children}</AssetPreloadGate>;
 }

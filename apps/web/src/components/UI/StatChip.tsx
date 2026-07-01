@@ -13,7 +13,10 @@ interface Props {
 export default function StatChip({ icon, label, onClick }: Props) {
   return (
     <div
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
       onClick={onClick}
+      onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") onClick(); } : undefined}
       style={{
         display: "flex", alignItems: "center", gap: 7, padding: "7px 12px", borderRadius: 9,
         background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)",

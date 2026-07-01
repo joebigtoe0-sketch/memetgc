@@ -39,10 +39,11 @@ export default function CardZoom({ card, onClose, actions }: Props) {
     >
       <div
         className="relative"
+        data-sound-skip-click
         onClick={(e) => e.stopPropagation()}
         style={{ animation: "cardZoom 0.2s ease-out" }}
       >
-        <CardComponent card={card} size="lg" glowing interactive soundOnHover />
+        <CardComponent card={card} size="lg" glowing interactive />
         <button
           className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-gray-800 border border-gray-600 text-gray-300 text-sm flex items-center justify-center hover:bg-gray-700"
           onClick={onClose}

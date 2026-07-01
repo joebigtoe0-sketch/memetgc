@@ -54,7 +54,6 @@ export default function HandZone({ hand, selectedInstanceId, currentMana, action
               if (!instId) return;
               if (!actionsEnabled) { playSound("denied"); return; }
               if (!canPlay) { playSound("noMana"); return; }
-              playSound("click");
               onCardClick?.(instId);
             }}
             onMouseEnter={() => {

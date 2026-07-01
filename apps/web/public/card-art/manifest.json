@@ -46,5 +46,12 @@
   "meme_influencer_call": "/card-art/meme_influencer_call.png",
   "bitcoin_holder_distribution": "/card-art/bitcoin_holder_distribution.png",
   "solana_dex_sniper": "/card-art/solana_dex_sniper.png",
-  "degen_concentration_risk": "/card-art/degen_concentration_risk.png"
+  "degen_concentration_risk": "/card-art/degen_concentration_risk.png",
+  "degen_paper_hands_panic": "/card-art/degen_paper_hands_panic.png",
+  "stable_on_chain_auditor": "/card-art/stable_on_chain_auditor.png",
+  "meme_meme_coin_swarm": "/card-art/meme_meme_coin_swarm.png",
+  "bitcoin_bull_run_energy": "/card-art/bitcoin_bull_run_energy.png",
+  "solana_solana_validator": "/card-art/solana_solana_validator.png",
+  "degen_thin_liquidity": "/card-art/degen_thin_liquidity.png",
+  "bitcoin_diamond_conviction": "/card-art/bitcoin_diamond_conviction.png"
 }

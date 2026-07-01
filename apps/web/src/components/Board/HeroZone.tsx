@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { factionDisplayName, factionColor } from "@/lib/factions";
 import FactionIcon from "@/components/Faction/FactionIcon";
 import GameIcon from "@/components/UI/GameIcon";
@@ -11,6 +11,8 @@ interface Props {
   hp: number;
   armor: number;
   heroPowerName?: string;
+  heroPowerDescription?: string;
+  heroPowerCost?: number;
   heroPowerUsed?: boolean;
   hasWeapon?: boolean;
   weaponAttack?: number;
@@ -28,6 +30,8 @@ export default function HeroZone({
   hp,
   armor,
   heroPowerName,
+  heroPowerDescription,
+  heroPowerCost = 2,
   heroPowerUsed,
   hasWeapon,
   weaponAttack,
@@ -38,6 +42,7 @@ export default function HeroZone({
   onHeroPowerClick,
   secretCount = 0,
 }: Props) {
+  const [powerTipOpen, setPowerTipOpen] = useState(false);
   const fac = factionColor(faction);
   const facName = factionDisplayName(faction);
   const isDangerous = hp <= 10;
@@ -62,7 +67,7 @@ export default function HeroZone({
 
       {/* Hero portrait */}
       <div
-        data-sound-click={onHeroClick ? "" : undefined}
+        data-sound-skip-click={onHeroClick ? "" : undefined}
         onClick={onHeroClick}
         style={{
           position: "relative",
@@ -130,39 +135,85 @@ export default function HeroZone({
 
       {/* Hero Power button (player side only) */}
       {!isEnemy && heroPowerName && (
-        <button
-          onClick={onHeroPowerClick}
-          disabled={heroPowerUsed}
-          style={{
-            position: "relative",
-            width: 72, height: 72,
-            borderRadius: "50%",
-            cursor: heroPowerUsed ? "not-allowed" : "pointer",
-            border: `2px solid ${heroPowerUsed ? "#3a4050" : "#e0b13a"}`,
-            background: heroPowerUsed ? "radial-gradient(circle at 40% 30%,#2a3040,#0e1015)" : "radial-gradient(circle at 40% 30%,#3a4150,#12161f)",
-            boxShadow: heroPowerUsed ? "none" : `0 0 18px rgba(231,199,104,.4)`,
-            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-            animation: heroPowerUsed ? "none" : "pulseGlow 2.4s ease-in-out infinite",
-            opacity: heroPowerUsed ? 0.5 : 1,
-          }}
+        <div
+          style={{ position: "relative" }}
+          onMouseEnter={() => setPowerTipOpen(true)}
+          onMouseLeave={() => setPowerTipOpen(false)}
         >
-          <span style={{ font: `900 13px var(--font-cinzel,'Cinzel',serif)`, color: heroPowerUsed ? "#5a6478" : "#f3e8cc" }}>
-            {heroPowerName}
-          </span>
-          <span style={{ font: `600 7px var(--font-archivo,'Archivo',sans-serif)`, color: heroPowerUsed ? "#4a5060" : "#c9b48a", letterSpacing: "1px" }}>
-            POWER
-          </span>
-          {/* Mana cost chip */}
-          <div style={{
-            position: "absolute", top: -8, right: -6,
-            width: 26, height: 26,
-            borderRadius: "50%",
-            background: "radial-gradient(circle at 38% 30%,#dcefff,#4a90e6 60%,#1f4f9e)",
-            boxShadow: "0 0 0 2px #d6b052",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            font: `800 12px var(--font-mono,'JetBrains Mono',monospace)`, color: "#fff",
-          }}>2</div>
-        </button>
+          {powerTipOpen && heroPowerDescription && (
+            <div
+              style={{
+                position: "absolute",
+                bottom: "calc(100% + 10px)",
+                left: "50%",
+                transform: "translateX(-50%)",
+                width: 220,
+                padding: "12px 14px",
+                borderRadius: 12,
+                background: "rgba(10,14,22,.96)",
+                border: "1px solid rgba(231,199,104,.45)",
+                boxShadow: "0 12px 32px rgba(0,0,0,.55), 0 0 20px rgba(231,199,104,.12)",
+                zIndex: 40,
+                pointerEvents: "none",
+              }}
+            >
+              <div style={{ font: `800 12px var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc", marginBottom: 4 }}>
+                {heroPowerName}
+              </div>
+              <div style={{ font: `700 10px var(--font-mono,'JetBrains Mono',monospace)`, color: "#7cc4ff", marginBottom: 8 }}>
+                {heroPowerCost} mana · once per game
+              </div>
+              <div style={{ font: `500 11px/1.45 var(--font-archivo,'Archivo',sans-serif)`, color: "#aeb6c4" }}>
+                {heroPowerDescription}
+              </div>
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: -6,
+                  left: "50%",
+                  transform: "translateX(-50%) rotate(45deg)",
+                  width: 10,
+                  height: 10,
+                  background: "rgba(10,14,22,.96)",
+                  borderRight: "1px solid rgba(231,199,104,.45)",
+                  borderBottom: "1px solid rgba(231,199,104,.45)",
+                }}
+              />
+            </div>
+          )}
+          <button
+            onClick={onHeroPowerClick}
+            disabled={heroPowerUsed}
+            style={{
+              position: "relative",
+              width: 72, height: 72,
+              borderRadius: "50%",
+              cursor: heroPowerUsed ? "not-allowed" : "pointer",
+              border: `2px solid ${heroPowerUsed ? "#3a4050" : "#e0b13a"}`,
+              background: heroPowerUsed ? "radial-gradient(circle at 40% 30%,#2a3040,#0e1015)" : "radial-gradient(circle at 40% 30%,#3a4150,#12161f)",
+              boxShadow: heroPowerUsed ? "none" : `0 0 18px rgba(231,199,104,.4)`,
+              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+              animation: heroPowerUsed ? "none" : "pulseGlow 2.4s ease-in-out infinite",
+              opacity: heroPowerUsed ? 0.5 : 1,
+            }}
+          >
+            <span style={{ font: `900 13px var(--font-cinzel,'Cinzel',serif)`, color: heroPowerUsed ? "#5a6478" : "#f3e8cc" }}>
+              {heroPowerName}
+            </span>
+            <span style={{ font: `600 7px var(--font-archivo,'Archivo',sans-serif)`, color: heroPowerUsed ? "#4a5060" : "#c9b48a", letterSpacing: "1px" }}>
+              POWER
+            </span>
+            <div style={{
+              position: "absolute", top: -8, right: -6,
+              width: 26, height: 26,
+              borderRadius: "50%",
+              background: "radial-gradient(circle at 38% 30%,#dcefff,#4a90e6 60%,#1f4f9e)",
+              boxShadow: "0 0 0 2px #d6b052",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              font: `800 12px var(--font-mono,'JetBrains Mono',monospace)`, color: "#fff",
+            }}>{heroPowerCost}</div>
+          </button>
+        </div>
       )}
 
       <style>{`

@@ -206,11 +206,11 @@ export default function CollectionPage() {
                 {filtered.map((entry) => {
                   const inDeck = copiesInDeck(entry.cardId);
                   return (
-                    <div key={entry.cardId} data-sound-click style={{ position: "relative", cursor: "pointer" }}
+                    <div key={entry.cardId} data-sound-skip-click style={{ position: "relative", cursor: "pointer" }}
                       onClick={() => setZoom({ card: { ...entry.card, ownedCount: entry.quantity }, source: "grid" })}
                       onContextMenu={(e) => { e.preventDefault(); addCard(entry.card); }}
                     >
-                      <CardComponent card={{ ...entry.card, ownedCount: entry.quantity }} size="md" interactive soundOnHover dimmed={inDeck > 0 && inDeck >= (COPY_LIMIT[entry.card.rarity] ?? 1)} />
+                      <CardComponent card={{ ...entry.card, ownedCount: entry.quantity }} size="md" interactive dimmed={inDeck > 0 && inDeck >= (COPY_LIMIT[entry.card.rarity] ?? 1)} />
                       <div style={{ position: "absolute", bottom: -10, left: "50%", transform: "translateX(-50%)", padding: "2px 11px", borderRadius: 20, font: `800 11px var(--font-mono,'JetBrains Mono',monospace)`, background: "#0d1020", border: `1px solid ${factionColor(entry.card.faction)}`, color: factionColor(entry.card.faction), whiteSpace: "nowrap" }}>
                         ×{entry.quantity}{inDeck > 0 ? ` · ${inDeck} in deck` : ""}
                       </div>
@@ -256,6 +256,7 @@ export default function CollectionPage() {
           <div style={{ flex: 1, overflowY: "auto", padding: "8px 10px" }}>
             {deckCardEntries.map((c) => (
               <div key={c.cardId}
+                data-sound-skip-click
                 onClick={() => setZoom({ card: { ...c.card, ownedCount: ownedMap.get(c.cardId) ?? 0 }, source: "deck" })}
                 onContextMenu={(e) => { e.preventDefault(); removeCard(c.cardId); }}
                 style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 8px", borderRadius: 8, cursor: "pointer", marginBottom: 3, background: "rgba(255,255,255,.025)", border: "1px solid rgba(255,255,255,.05)" }}>

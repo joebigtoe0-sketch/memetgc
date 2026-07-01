@@ -7,10 +7,12 @@ import { useAuthStore } from "@/store/authStore";
 import { useGameStore } from "@/store/gameStore";
 import { useBalances } from "@/hooks/useBalances";
 import BottomNav from "./BottomNav";
+import { SoundEnableHint } from "@/components/Music/MusicProvider";
 import StatChip from "@/components/UI/StatChip";
 import GameIcon from "@/components/UI/GameIcon";
 import { factionImageUrl } from "@/lib/factions";
 import Logo from "@/components/Brand/Logo";
+import SettingsButton from "@/components/Settings/SettingsButton";
 import { BRAND, formatRankTier } from "@/lib/brand";
 
 const RANK_TIERS = ["bronze", "silver", "gold", "platinum", "diamond", "degen"] as const;
@@ -107,6 +109,7 @@ export default function Dashboard() {
           </div>
           <StatChip icon="fragment" label={`${fragments.toLocaleString()} frags`} />
           <StatChip icon="pack" label={`${packs} packs`} onClick={() => router.push("/packs")} />
+          <SettingsButton />
           <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 12px", borderRadius: 9, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)" }}>
             <span style={{ width: 7, height: 7, borderRadius: "50%", background: connected ? "#19e08a" : "#ff5555", flexShrink: 0 }} />
             <span style={{ font: `700 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#e7ecf3" }}>{walletAddress ? `${walletAddress.slice(0, 4)}..${walletAddress.slice(-2)}` : (connected ? "online" : "offline")}</span>
@@ -253,6 +256,7 @@ export default function Dashboard() {
       </div>
 
       <BottomNav active="play" />
+      <SoundEnableHint />
     </div>
   );
 }
@@ -267,7 +271,7 @@ function Panel({ children, style }: { children: React.ReactNode; style?: React.C
 
 function ModeCard({ name, tag, desc, badge, badgeColor, highlight, onClick }: { name: string; tag: string; desc: string; badge: string; badgeColor: string; highlight?: boolean; onClick: () => void }) {
   return (
-    <div onClick={onClick} style={{ cursor: "pointer", borderRadius: 14, padding: 16, background: highlight ? `linear-gradient(150deg,color-mix(in srgb,${badgeColor} 14%,transparent),rgba(18,23,35,.55))` : "rgba(255,255,255,.03)", border: `1px solid ${highlight ? badgeColor + "88" : "rgba(255,255,255,.08)"}`, transition: "transform .12s ease, border-color .12s ease" }}
+    <div onClick={onClick} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClick(); }} style={{ cursor: "pointer", borderRadius: 14, padding: 16, background: highlight ? `linear-gradient(150deg,color-mix(in srgb,${badgeColor} 14%,transparent),rgba(18,23,35,.55))` : "rgba(255,255,255,.03)", border: `1px solid ${highlight ? badgeColor + "88" : "rgba(255,255,255,.08)"}`, transition: "transform .12s ease, border-color .12s ease" }}
       onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(-3px)"; (e.currentTarget as HTMLDivElement).style.borderColor = badgeColor; }}
       onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.transform = "none"; (e.currentTarget as HTMLDivElement).style.borderColor = highlight ? badgeColor + "88" : "rgba(255,255,255,.08)"; }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>

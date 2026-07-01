@@ -13,7 +13,10 @@ const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], weight: ["500","700",
 export const metadata: Metadata = {
   title: `${BRAND.fullName} — ${BRAND.shortName}`,
   description: `${BRAND.tagline} A crypto-native trading card game. HODL minions, rug pulls, and climb the ladder.`,
-  icons: { icon: BRAND.logoUrl, apple: BRAND.logoUrl },
+  icons: {
+    icon: [{ url: "/logo.png", type: "image/png" }],
+    apple: [{ url: "/logo.png", type: "image/png" }],
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

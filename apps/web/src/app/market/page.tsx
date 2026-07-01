@@ -99,7 +99,7 @@ export default function MarketPage() {
               const info = summary[card.id];
               const hasListings = (info?.count ?? 0) > 0;
               return (
-                <div key={card.id} style={{ position: "relative", cursor: "pointer", opacity: hasListings ? 1 : 0.72 }} onClick={() => setInspect(card)}>
+                <div key={card.id} data-sound-skip-click style={{ position: "relative", cursor: "pointer", opacity: hasListings ? 1 : 0.72 }} onClick={() => setInspect(card)}>
                   <CardComponent card={card} size="md" interactive />
                   <div style={{ position: "absolute", bottom: -14, left: "50%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, whiteSpace: "nowrap" }}>
                     {hasListings ? (

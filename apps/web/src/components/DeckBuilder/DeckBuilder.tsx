@@ -190,6 +190,7 @@ export default function DeckBuilder() {
                 <div
                   key={card.id}
                   className="relative cursor-pointer group"
+                  data-sound-skip-click
                   onClick={() => addCard(card)}
                   onContextMenu={(e) => { e.preventDefault(); setZoomedCard(card); }}
                 >
@@ -274,6 +275,7 @@ export default function DeckBuilder() {
               <div
                 key={card.id}
                 className="flex items-center gap-2 px-2 py-1 rounded cursor-pointer hover:opacity-80 transition-opacity"
+                data-sound-skip-click
                 style={{ background: `${fac.bg}`, border: `1px solid ${fac.base}44` }}
                 onClick={() => removeCard(card.id)}
               >

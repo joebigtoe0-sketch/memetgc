@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { isUiClickTarget, playSound, preloadSounds } from "@/lib/sounds";
+import { preloadSounds, resolveClickSound, playSound } from "@/lib/sounds";
 
 export default function ClickSoundLayer() {
   useEffect(() => {
@@ -9,7 +9,9 @@ export default function ClickSoundLayer() {
 
     function onPointerDown(e: PointerEvent) {
       if (e.button !== 0) return;
-      playSound(isUiClickTarget(e.target) ? "click" : "clickempty");
+      const decision = resolveClickSound(e.target);
+      if (decision === "none") return;
+      playSound(decision);
     }
 
     document.addEventListener("pointerdown", onPointerDown, true);

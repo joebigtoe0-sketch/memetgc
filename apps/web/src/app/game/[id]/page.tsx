@@ -4,11 +4,14 @@ import React, { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useGameStore } from "@/store/gameStore";
 import GameBoard from "@/components/Game/GameBoard";
+import { useGameMusic } from "@/hooks/useGameMusic";
 
 export default function GamePage() {
   const params = useParams();
   const router = useRouter();
   const { gameState, gameId, connected } = useGameStore();
+
+  useGameMusic();
 
   useEffect(() => {
     if (!gameId && !gameState) {

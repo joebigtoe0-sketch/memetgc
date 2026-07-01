@@ -25,9 +25,24 @@ const PATHS: Record<SoundId, string> = {
   destroy: "/audio/destroy.wav",
 };
 
+/** All SFX file paths (for bulk preloading). */
+export const SOUND_PATHS: Record<SoundId, string> = PATHS;
+
 const pool = new Map<SoundId, HTMLAudioElement>();
 let enabled = true;
-let masterVolume = 0.65;
+
+const STORAGE_SFX_VOLUME = "sfx_volume";
+const DEFAULT_SFX_VOLUME = 0.65;
+
+function readSfxVolume(): number {
+  if (typeof window === "undefined") return DEFAULT_SFX_VOLUME;
+  const stored = localStorage.getItem(STORAGE_SFX_VOLUME);
+  if (stored == null) return DEFAULT_SFX_VOLUME;
+  const n = Number(stored);
+  return Number.isFinite(n) ? Math.max(0, Math.min(1, n / 100)) : DEFAULT_SFX_VOLUME;
+}
+
+let masterVolume = typeof window !== "undefined" ? readSfxVolume() : DEFAULT_SFX_VOLUME;
 
 function baseAudio(id: SoundId): HTMLAudioElement {
   let audio = pool.get(id);
@@ -43,8 +58,15 @@ export function setSoundEnabled(on: boolean): void {
   enabled = on;
 }
 
+export function getMasterVolume(): number {
+  return masterVolume;
+}
+
 export function setMasterVolume(vol: number): void {
   masterVolume = Math.max(0, Math.min(1, vol));
+  if (typeof window !== "undefined") {
+    localStorage.setItem(STORAGE_SFX_VOLUME, String(Math.round(masterVolume * 100)));
+  }
 }
 
 export function preloadSounds(): void {
@@ -56,6 +78,36 @@ export function preloadSounds(): void {
       /* ignore */
     }
   });
+}
+
+/** Preload all SFX and wait until each clip is ready to play. */
+export function preloadSoundsAsync(onEach?: () => void): Promise<void> {
+  if (typeof window === "undefined") return Promise.resolve();
+  const ids = Object.keys(PATHS) as SoundId[];
+  return Promise.all(
+    ids.map(
+      (id) =>
+        new Promise<void>((resolve) => {
+          try {
+            const audio = baseAudio(id);
+            const finish = () => {
+              onEach?.();
+              resolve();
+            };
+            if (audio.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
+              finish();
+              return;
+            }
+            audio.addEventListener("canplaythrough", finish, { once: true });
+            audio.addEventListener("error", finish, { once: true });
+            audio.load();
+          } catch {
+            onEach?.();
+            resolve();
+          }
+        }),
+    ),
+  ).then(() => undefined);
 }
 
 export function playSound(id: SoundId, volume = 1): void {
@@ -70,12 +122,40 @@ export function playSound(id: SoundId, volume = 1): void {
   }
 }
 
-/** True for buttons, links, menus, and explicitly marked click targets. */
-export function isUiClickTarget(target: EventTarget | null): boolean {
+export type ClickSoundDecision = "click" | "clickempty" | "none";
+
+const SKIP_CLICK_SELECTOR =
+  "[data-sound-skip-click], [data-sound-hand-card], [data-sound-action]";
+const UI_CLICK_SELECTOR =
+  "button, a[href], input, select, textarea, [role='button'], [role='tab'], [role='menuitem']";
+
+function isDisabledControl(el: HTMLElement): boolean {
+  const control = el.closest("button, input, select, textarea") as
+    | HTMLButtonElement
+    | HTMLInputElement
+    | null;
+  return !!control?.disabled;
+}
+
+/** Decide which global pointer-down click sound to play, if any. */
+export function resolveClickSound(target: EventTarget | null): ClickSoundDecision {
   const el = target as HTMLElement | null;
-  if (!el) return false;
-  if (el.closest("[data-sound-hand-card]")) return false;
-  return !!el.closest(
-    'button, a[href], input, select, textarea, label, [role="button"], [role="tab"], [role="menuitem"], [data-sound-click]'
-  );
+  if (!el) return "clickempty";
+
+  if (el.closest(SKIP_CLICK_SELECTOR)) return "none";
+
+  const ui = el.closest(UI_CLICK_SELECTOR);
+  if (ui) {
+    if (isDisabledControl(el)) return "none";
+    return "click";
+  }
+
+  if (el.closest("label")) return "click";
+
+  return "clickempty";
+}
+
+/** @deprecated Use resolveClickSound instead. */
+export function isUiClickTarget(target: EventTarget | null): boolean {
+  return resolveClickSound(target) === "click";
 }
