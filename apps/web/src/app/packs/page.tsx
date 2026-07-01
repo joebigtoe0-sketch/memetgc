@@ -127,7 +127,7 @@ export default function PacksPage() {
             </div>
           ) : (
             <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-              <button onClick={revealAll} style={goldBtn}>Reveal All ⚡</button>
+              <button onClick={revealAll} style={goldBtn}>Reveal All</button>
               <span style={{ font: `500 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#6a7488" }}>Tap each card to flip</span>
             </div>
           )}
@@ -198,7 +198,8 @@ function rarityLabel(r: string): string {
 }
 
 function CardBackFace({ small }: { small?: boolean }) {
-  const w = small ? 140 : 220, h = small ? 200 : 315;
+  // `small` matches CardComponent size="md" (195×285) used for revealed cards.
+  const w = small ? 195 : 260, h = small ? 285 : 380;
   return (
     <img
       src={CARD_BACK_DEFAULT}

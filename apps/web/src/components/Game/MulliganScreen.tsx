@@ -147,21 +147,13 @@ export default function MulliganScreen({ hand, isFirstPlayer, boardBg = null }: 
         </div>
 
         {/* Buttons */}
-        <div className="flex gap-4 items-center">
+        <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 4 }}>
           {!confirmed && (
             <>
-              <button
-                onClick={() => setReplacing(new Set(hand.map((c) => c.instanceId)))}
-                className="px-5 py-2 rounded-lg text-sm font-bold"
-                style={{ background: "rgba(100,40,40,0.3)", border: "1px solid #804040", color: "#ff8888" }}
-              >
+              <button onClick={() => setReplacing(new Set(hand.map((c) => c.instanceId)))} style={ghostBtn("#ff8f8f", "rgba(255,90,90,.3)")}>
                 Replace All
               </button>
-              <button
-                onClick={() => setReplacing(new Set())}
-                className="px-5 py-2 rounded-lg text-sm font-bold"
-                style={{ background: "rgba(20,40,80,0.3)", border: "1px solid #2a4080", color: "#6080c0" }}
-              >
+              <button onClick={() => setReplacing(new Set())} style={ghostBtn("#cdd4df", "rgba(255,255,255,.16)")}>
                 Keep All
               </button>
             </>
@@ -169,16 +161,20 @@ export default function MulliganScreen({ hand, isFirstPlayer, boardBg = null }: 
           <button
             onClick={() => confirmMulligan(replacing)}
             disabled={confirmed}
-            className="px-8 py-3 rounded-xl font-black text-base transition-all"
             style={{
-              background: confirmed ? "rgba(30,30,40,0.6)" : "linear-gradient(135deg, #2a6040, #1a5025)",
-              border: `2px solid ${confirmed ? "#333" : "#40e080"}`,
-              color: confirmed ? "#555" : "#40e080",
-              boxShadow: confirmed ? "none" : "0 0 20px rgba(64,224,128,0.3)",
               cursor: confirmed ? "not-allowed" : "pointer",
+              border: "none",
+              padding: "13px 30px",
+              borderRadius: 12,
+              font: `800 15px var(--font-cinzel,'Cinzel',serif)`,
+              letterSpacing: ".3px",
+              color: confirmed ? "#7a828f" : "#04160b",
+              background: confirmed ? "rgba(255,255,255,.06)" : "linear-gradient(180deg,#4ff08f,#17a94f)",
+              boxShadow: confirmed ? "none" : "0 10px 24px rgba(23,169,79,.4), inset 0 1px 0 rgba(255,255,255,.45)",
+              transition: "transform .12s ease",
             }}
           >
-            {confirmed ? "⏳ Waiting for opponent..." : `Confirm (${hand.length - replacing.size} kept)`}
+            {confirmed ? "Waiting for opponent…" : `Confirm (${hand.length - replacing.size} kept)`}
           </button>
         </div>
       </div>
@@ -191,4 +187,17 @@ export default function MulliganScreen({ hand, isFirstPlayer, boardBg = null }: 
       `}</style>
     </div>
   );
+}
+
+function ghostBtn(color: string, borderColor: string): React.CSSProperties {
+  return {
+    cursor: "pointer",
+    padding: "12px 22px",
+    borderRadius: 12,
+    background: "rgba(255,255,255,.04)",
+    border: `1px solid ${borderColor}`,
+    color,
+    font: `700 13px var(--font-archivo,'Archivo',sans-serif)`,
+    transition: "transform .12s ease, background .12s ease",
+  };
 }

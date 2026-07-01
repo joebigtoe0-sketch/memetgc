@@ -45,7 +45,7 @@ export default function LeaderboardPage() {
     <div style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", background: "radial-gradient(140% 90% at 50% -8%,#141b2a 0%,#090c13 60%,#06080d 100%)", fontFamily: "var(--font-archivo,'Archivo',sans-serif)" }}>
       <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(120% 80% at 85% -10%,rgba(247,147,26,.06),transparent 55%),radial-gradient(100% 80% at 0% 110%,rgba(123,140,244,.06),transparent 55%)", pointerEvents: "none" }} />
 
-      <header style={{ position: "relative", zIndex: 2, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 22px", flexShrink: 0, borderBottom: "1px solid rgba(255,255,255,.07)", background: "rgba(8,11,18,.55)", backdropFilter: "blur(8px)" }}>
+      <header style={{ position: "relative", zIndex: 2, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 72px 14px 22px", flexShrink: 0, borderBottom: "1px solid rgba(255,255,255,.07)", background: "rgba(8,11,18,.55)", backdropFilter: "blur(8px)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <Logo size={34} />
           <div>

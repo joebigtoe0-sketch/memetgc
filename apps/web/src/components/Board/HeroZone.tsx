@@ -144,9 +144,9 @@ export default function HeroZone({
             <div
               style={{
                 position: "absolute",
-                bottom: "calc(100% + 10px)",
-                left: "50%",
-                transform: "translateX(-50%)",
+                left: "calc(100% + 12px)",
+                top: "50%",
+                transform: "translateY(-50%)",
                 width: 220,
                 padding: "12px 14px",
                 borderRadius: 12,
@@ -169,13 +169,13 @@ export default function HeroZone({
               <div
                 style={{
                   position: "absolute",
-                  bottom: -6,
-                  left: "50%",
-                  transform: "translateX(-50%) rotate(45deg)",
+                  left: -6,
+                  top: "50%",
+                  transform: "translateY(-50%) rotate(45deg)",
                   width: 10,
                   height: 10,
                   background: "rgba(10,14,22,.96)",
-                  borderRight: "1px solid rgba(231,199,104,.45)",
+                  borderLeft: "1px solid rgba(231,199,104,.45)",
                   borderBottom: "1px solid rgba(231,199,104,.45)",
                 }}
               />
