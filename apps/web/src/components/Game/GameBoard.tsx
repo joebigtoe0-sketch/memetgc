@@ -10,9 +10,9 @@ import MulliganScreen from "./MulliganScreen";
 import CardComponent from "../Card/CardComponent";
 import { getPlayCardTargets } from "@memetgc/game-engine";
 import { preloadCardArt, preloadAllCardArt, preloadFactionArt } from "@/lib/preloadArt";
-import { getMatchBoardBackground } from "@/lib/boards";
+import { getMatchBoardBackground, getDefaultBoardBackground } from "@/lib/boards";
 import BoardBackground from "./BoardBackground";
-import { CARD_BACK_DEFAULT } from "@/lib/cardBacks";
+import { CARD_BACK_DEFAULT, CARD_BACK_RADIUS } from "@/lib/cardBacks";
 import type { MinionSlot, Card } from "@memetgc/types";
 import type { CardData } from "../Card/CardComponent";
 
@@ -40,7 +40,7 @@ export default function GameBoard() {
   const [lungeId, setLungeId] = useState<string | null>(null);
   const [damageFlashIds, setDamageFlashIds] = useState<Set<string>>(new Set());
   const [damageFloats, setDamageFloats] = useState<DamageFloat[]>([]);
-  const [boardBg, setBoardBg] = useState<string | null>(null);
+  const [boardBg, setBoardBg] = useState<string>(getDefaultBoardBackground);
   // Draw animation
   const [newCardIds, setNewCardIds] = useState<string[]>([]);
   const prevHandIds = useRef<string[]>([]);
@@ -384,8 +384,8 @@ export default function GameBoard() {
         {/* Opponent center: face-down hand (top) + board (bottom) */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
           {/* Face-down opponent hand at top */}
-          <div style={{ flex: "0 0 68px", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "6px 0 0", overflow: "visible" }}>
-            <FaceDownHand count={opponentState.handCount} faction={opponentState.heroFaction} />
+          <div style={{ flex: "0 0 200px", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "8px 0 0", overflow: "visible" }}>
+            <FaceDownHand count={opponentState.handCount} />
           </div>
 
           {/* Opponent board — slots at bottom */}
@@ -761,17 +761,22 @@ function FloatNumber({ amount, isHeal }: { amount: number; isHeal: boolean }) {
   );
 }
 
-function FaceDownHand({ count }: { count: number; faction?: string }) {
+// Matches player hand: CardComponent lg (260×380) at 0.50 scale
+const OPP_HAND_W = 130;
+const OPP_HAND_H = 190;
+const OPP_HAND_SPREAD = 72;
+
+function FaceDownHand({ count }: { count: number }) {
   const n = Math.min(count, 10);
   const mid = (n - 1) / 2;
   if (n === 0) return null;
   return (
-    <div style={{ position: "relative", height: 68, width: Math.max(160, n * 44 + 40), flexShrink: 0 }}>
+    <div style={{ position: "relative", height: OPP_HAND_H + 16, width: Math.max(OPP_HAND_W + 40, n * OPP_HAND_SPREAD + OPP_HAND_W), flexShrink: 0 }}>
       {Array.from({ length: n }).map((_, i) => {
         const off = i - mid;
         const ang = off * 6;
-        const x = off * 38;
-        const y = Math.abs(off) * Math.abs(off) * 3;
+        const x = off * OPP_HAND_SPREAD;
+        const y = Math.abs(off) * Math.abs(off) * 4;
         return (
           <img
             key={i}
@@ -782,8 +787,9 @@ function FaceDownHand({ count }: { count: number; faction?: string }) {
               position: "absolute", left: "50%",
               transform: `translateX(calc(-50% + ${x}px)) translateY(${y}px) rotate(${ang}deg)`,
               transformOrigin: "top center",
-              width: 38, height: 52, borderRadius: 6, objectFit: "cover",
-              boxShadow: "0 3px 8px rgba(0,0,0,.55)",
+              width: OPP_HAND_W, height: OPP_HAND_H,
+              borderRadius: CARD_BACK_RADIUS, objectFit: "cover",
+              boxShadow: "0 6px 18px rgba(0,0,0,.55)",
               zIndex: 10 + i,
             }}
           />
@@ -812,7 +818,7 @@ function DeckPile({ count }: { count: number }) {
         src={CARD_BACK_DEFAULT}
         alt=""
         draggable={false}
-        style={{ width: "100%", height: "100%", borderRadius: 7, objectFit: "cover", boxShadow: "2px 2px 0 rgba(0,0,0,.45), 0 4px 12px rgba(0,0,0,.35)" }}
+        style={{ width: "100%", height: "100%", borderRadius: CARD_BACK_RADIUS, objectFit: "cover", boxShadow: "2px 2px 0 rgba(0,0,0,.45), 0 4px 12px rgba(0,0,0,.35)" }}
       />
       <div style={{ position: "absolute", inset: 0, borderRadius: 7, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2, background: "rgba(0,0,0,.45)", border: "1.5px solid rgba(231,199,104,.35)" }}>
         <span style={{ font: `800 14px var(--font-mono,'JetBrains Mono',monospace)`, color: "#f3e8cc", textShadow: "0 1px 4px rgba(0,0,0,.8)" }}>{count}</span>

@@ -6,7 +6,7 @@ import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import AuthModal from "@/components/Auth/AuthModal";
 import BottomNav from "@/components/Dashboard/BottomNav";
-import { CARD_BACK_DEFAULT } from "@/lib/cardBacks";
+import { CARD_BACK_DEFAULT, CARD_BACK_RADIUS } from "@/lib/cardBacks";
 import { packArtUrl } from "@/lib/packArt";
 import CardComponent, { type CardData } from "@/components/Card/CardComponent";
 import SellModal from "@/components/Market/SellModal";
@@ -150,7 +150,7 @@ export default function PacksPage() {
             {inventory.map((p) => {
               const m = packMeta(p.packType);
               return (
-                <div key={p.packType} style={{ borderRadius: 16, padding: 20, background: `linear-gradient(155deg,color-mix(in srgb,${m.color} 14%,transparent),rgba(18,23,35,.6))`, border: `1px solid ${m.color}55`, display: "flex", flexDirection: "column", alignItems: "center" }}>
+                <div key={p.packType} style={{ borderRadius: 16, padding: "20px 16px 18px", background: `linear-gradient(155deg,color-mix(in srgb,${m.color} 10%,transparent),rgba(18,23,35,.55))`, display: "flex", flexDirection: "column", alignItems: "center" }}>
                   <div style={{ position: "relative" }}>
                     <PackBack small packType={p.packType} />
                     <div style={{ position: "absolute", top: -8, right: -8, minWidth: 26, height: 26, padding: "0 6px", borderRadius: 13, background: m.color, color: "#1a1206", font: `900 13px var(--font-mono,'JetBrains Mono',monospace)`, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(0,0,0,.4)" }}>×{p.quantity}</div>
@@ -189,36 +189,30 @@ function rarityLabel(r: string): string {
 }
 
 function CardBackFace({ small }: { small?: boolean }) {
-  const w = small ? 110 : 195, h = small ? 160 : 285;
+  const w = small ? 140 : 220, h = small ? 200 : 315;
   return (
     <img
       src={CARD_BACK_DEFAULT}
       alt=""
       draggable={false}
-      style={{ width: w, height: h, borderRadius: 14, objectFit: "cover", boxShadow: "0 10px 26px rgba(0,0,0,.5)" }}
+      style={{ width: w, height: h, borderRadius: CARD_BACK_RADIUS, objectFit: "cover", boxShadow: "0 10px 26px rgba(0,0,0,.5)" }}
     />
   );
 }
 
 function PackBack({ small, packType = "standard" }: { small?: boolean; packType?: string }) {
-  const w = small ? 110 : 195, h = small ? 160 : 285;
+  const w = small ? 150 : 230, h = small ? 215 : 330;
   const isLegendary = packType === "legendary";
   return (
-    <div style={{
-      width: w, height: h, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center",
-      background: isLegendary ? "radial-gradient(circle at 50% 40%,rgba(255,224,122,.2),transparent 70%)" : "rgba(0,0,0,.2)",
-      border: isLegendary ? "2px solid rgba(255,224,122,.55)" : "2px solid rgba(255,255,255,.12)",
-      boxShadow: isLegendary
-        ? "0 10px 26px rgba(0,0,0,.5), 0 0 28px rgba(255,200,80,.4)"
-        : "0 10px 26px rgba(0,0,0,.5)",
-    }}>
-      <img
-        src={packArtUrl(packType)}
-        alt=""
-        draggable={false}
-        style={{ width: "92%", height: "92%", objectFit: "contain", filter: isLegendary ? "drop-shadow(0 0 12px rgba(255,220,120,.55))" : undefined }}
-      />
-    </div>
+    <img
+      src={packArtUrl(packType)}
+      alt=""
+      draggable={false}
+      style={{
+        width: w, height: h, objectFit: "contain", display: "block",
+        filter: isLegendary ? "drop-shadow(0 0 18px rgba(255,200,80,.55)) drop-shadow(0 0 36px rgba(255,180,40,.25))" : "drop-shadow(0 8px 20px rgba(0,0,0,.45))",
+      }}
+    />
   );
 }
 

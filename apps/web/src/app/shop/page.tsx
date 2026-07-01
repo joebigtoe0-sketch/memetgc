@@ -102,7 +102,7 @@ export default function ShopPage() {
               ◆ {FEATURED.cost} · BUY NOW
             </button>
           </div>
-          <PackArt packType={FEATURED.type} color={FEATURED.color} big />
+          <PackArt packType={FEATURED.type} big />
         </div>
 
         {/* Booster packs */}
@@ -116,7 +116,7 @@ export default function ShopPage() {
             return (
               <div key={p.name} style={{ position: "relative", borderRadius: 16, padding: 18, background: "linear-gradient(155deg,rgba(255,255,255,.045),rgba(18,23,35,.6))", border: `1px solid ${p.color}40` }}>
                 {p.badge && <div style={{ position: "absolute", top: 12, right: 12, font: `800 8px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "1px", padding: "4px 8px", borderRadius: 6, background: p.color, color: "#1a1206" }}>{p.badge}</div>}
-                <div style={{ display: "flex", justifyContent: "center", padding: "14px 0 18px" }}><PackArt packType={p.type} color={p.color} /></div>
+                <div style={{ display: "flex", justifyContent: "center", padding: "8px 0 14px" }}><PackArt packType={p.type} /></div>
                 <div style={{ font: `800 15px var(--font-cinzel,'Cinzel',serif)`, color: "#f1f4f9" }}>{p.name}</div>
                 <div style={{ font: `500 11px var(--font-archivo,'Archivo',sans-serif)`, color: "#aeb6c4", marginTop: 6, minHeight: 32, lineHeight: 1.4 }}>{p.desc}</div>
 
@@ -182,25 +182,19 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   return <div style={{ font: `700 10px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "2px", color: "#8a93a6", margin: "0 0 12px" }}>{(children as string).toUpperCase()}</div>;
 }
 
-function PackArt({ packType, color, big }: { packType: string; color: string; big?: boolean }) {
-  const w = big ? 96 : 70, h = big ? 132 : 96;
+function PackArt({ packType, big }: { packType: string; color?: string; big?: boolean }) {
+  const w = big ? 165 : 120, h = big ? 238 : 172;
   const isLegendary = packType === "legendary";
   return (
-    <div style={{
-      width: w, height: h, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center",
-      background: isLegendary ? "radial-gradient(circle at 50% 40%,rgba(255,224,122,.25),transparent 70%)" : `radial-gradient(circle at 50% 32%,color-mix(in srgb,${color} 22%,#1a1420),#0c0a12)`,
-      border: isLegendary ? "1.5px solid rgba(255,224,122,.55)" : `1.5px solid ${color}66`,
-      boxShadow: isLegendary
-        ? "0 8px 22px rgba(0,0,0,.45), 0 0 28px rgba(255,200,80,.45), 0 0 48px rgba(255,180,40,.2)"
-        : `0 8px 22px rgba(0,0,0,.45), 0 0 18px ${color}33`,
-    }}>
-      <img
-        src={packArtUrl(packType)}
-        alt=""
-        draggable={false}
-        style={{ width: "88%", height: "88%", objectFit: "contain", filter: isLegendary ? "drop-shadow(0 0 10px rgba(255,220,120,.6))" : undefined }}
-      />
-    </div>
+    <img
+      src={packArtUrl(packType)}
+      alt=""
+      draggable={false}
+      style={{
+        width: w, height: h, objectFit: "contain", display: "block",
+        filter: isLegendary ? "drop-shadow(0 0 18px rgba(255,200,80,.55)) drop-shadow(0 0 36px rgba(255,180,40,.25))" : "drop-shadow(0 8px 20px rgba(0,0,0,.45))",
+      }}
+    />
   );
 }
 
