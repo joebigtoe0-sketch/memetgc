@@ -62,6 +62,7 @@ export default function HeroZone({
 
       {/* Hero portrait */}
       <div
+        data-sound-click={onHeroClick ? "" : undefined}
         onClick={onHeroClick}
         style={{
           position: "relative",

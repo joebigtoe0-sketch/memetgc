@@ -1,7 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useRef } from "react";
 import { factionColor, factionImageUrl } from "@/lib/factions";
+import { playSound } from "@/lib/sounds";
 
 export interface CardData {
   id: string;
@@ -36,6 +37,7 @@ interface Props {
   glowing?: boolean;
   selected?: boolean;
   dimmed?: boolean;
+  soundOnHover?: boolean;
   onClick?: () => void;
   onRightClick?: (e: React.MouseEvent) => void;
 }
@@ -82,6 +84,7 @@ export default function CardComponent({
   glowing = false,
   selected = false,
   dimmed = false,
+  soundOnHover = false,
   onClick,
   onRightClick,
 }: Props) {
@@ -116,6 +119,16 @@ export default function CardComponent({
     ? "radial-gradient(circle at 38% 30%,#ffd8d8 0%,#e6604a 52%,#9e2718 100%)"
     : "radial-gradient(circle at 38% 30%,#dcefff 0%,#4a90e6 52%,#1f4f9e 100%)";
 
+  const hoverPlayed = useRef(false);
+  function handleMouseEnter() {
+    if (!soundOnHover || hoverPlayed.current) return;
+    hoverPlayed.current = true;
+    playSound("cardHover", 0.55);
+  }
+  function handleMouseLeave() {
+    hoverPlayed.current = false;
+  }
+
   return (
     <div
       style={{
@@ -133,6 +146,8 @@ export default function CardComponent({
       }}
       onClick={onClick}
       onContextMenu={onRightClick}
+      onMouseEnter={soundOnHover ? handleMouseEnter : undefined}
+      onMouseLeave={soundOnHover ? handleMouseLeave : undefined}
     >
       {/* Scaled inner — always renders at 260×380, scaled down */}
       <div style={{ width: 260, height: 380, transform: `scale(${scale})`, transformOrigin: "top left", position: "absolute", top: 0, left: 0 }}>

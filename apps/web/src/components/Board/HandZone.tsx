@@ -2,6 +2,7 @@
 
 import React from "react";
 import CardComponent from "../Card/CardComponent";
+import { playSound } from "@/lib/sounds";
 import type { Card } from "@memetgc/types";
 import type { CardData } from "../Card/CardComponent";
 
@@ -9,6 +10,7 @@ interface Props {
   hand: (Card & { instanceId?: string })[];
   selectedInstanceId?: string | null;
   currentMana: number;
+  actionsEnabled?: boolean;
   newCardIds?: string[];
   onCardClick?: (instanceId: string) => void;
   onCardHover?: (card: CardData | null) => void;
@@ -17,7 +19,7 @@ interface Props {
 // Card display in hand is scaled to 0.50× of ~260px wide = 130px
 const CARD_SCALE = 0.50;
 
-export default function HandZone({ hand, selectedInstanceId, currentMana, newCardIds = [], onCardClick, onCardHover }: Props) {
+export default function HandZone({ hand, selectedInstanceId, currentMana, actionsEnabled = true, newCardIds = [], onCardClick, onCardHover }: Props) {
   const n = hand.length;
   const mid = (n - 1) / 2;
 
@@ -37,6 +39,7 @@ export default function HandZone({ hand, selectedInstanceId, currentMana, newCar
         return (
           <div
             key={instId}
+            data-sound-hand-card
             style={{
               position: "absolute",
               left: "50%",
@@ -47,8 +50,17 @@ export default function HandZone({ hand, selectedInstanceId, currentMana, newCar
               pointerEvents: "auto",
               cursor: canPlay ? "pointer" : "default",
             }}
-            onClick={() => { if (instId && canPlay) onCardClick?.(instId); }}
-            onMouseEnter={() => onCardHover?.(card as CardData)}
+            onClick={() => {
+              if (!instId) return;
+              if (!actionsEnabled) { playSound("denied"); return; }
+              if (!canPlay) { playSound("noMana"); return; }
+              playSound("click");
+              onCardClick?.(instId);
+            }}
+            onMouseEnter={() => {
+              playSound("cardHover", 0.5);
+              onCardHover?.(card as CardData);
+            }}
             onMouseLeave={() => onCardHover?.(null)}
           >
             <div

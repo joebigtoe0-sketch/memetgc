@@ -14,6 +14,7 @@ import { getMatchBoardBackground, getDefaultBoardBackground } from "@/lib/boards
 import BoardBackground from "./BoardBackground";
 import { CARD_BACK_DEFAULT, CARD_BACK_RADIUS } from "@/lib/cardBacks";
 import GameIcon from "@/components/UI/GameIcon";
+import { playSound } from "@/lib/sounds";
 import type { MinionSlot, Card } from "@memetgc/types";
 import type { CardData } from "../Card/CardComponent";
 
@@ -50,6 +51,7 @@ export default function GameBoard() {
   const turnTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const prevIsMyTurn = useRef(false);
   const logEndRef = useRef<HTMLDivElement | null>(null);
+  const endSoundPlayed = useRef(false);
 
   // Turn timer + new-turn flash
   useEffect(() => {
@@ -139,6 +141,7 @@ export default function GameBoard() {
           flashIds.push(slot.instanceId);
           addFloat(`${side}_slot_${idx}`, delta, false);
           addLog(`${slot.card.name} took ${delta} damage (${slot.currentHealth} HP left)`, gameState.turnNumber);
+          playSound(side === "my" ? "takingDamage" : "dealDamage", 0.75);
         } else if (delta < 0) {
           addFloat(`${side}_slot_${idx}`, Math.abs(delta), true);
         }
@@ -155,11 +158,13 @@ export default function GameBoard() {
       flashIds.push("hero_my");
       addFloat("my_hero", prevMyHp - myHp, false);
       addLog(`${gameState.myState.heroName} took ${prevMyHp - myHp} damage`, gameState.turnNumber);
+      playSound("takingDamage", 0.75);
     }
     if (prevOppHp !== undefined && oppHp < prevOppHp) {
       flashIds.push("hero_opp");
       addFloat("opp_hero", prevOppHp - oppHp, false);
       addLog(`${gameState.opponentState.heroName} took ${prevOppHp - oppHp} damage`, gameState.turnNumber);
+      playSound("dealDamage", 0.75);
     }
     prevHeroHp.current["my"] = myHp;
     prevHeroHp.current["opp"] = oppHp;
@@ -182,6 +187,7 @@ export default function GameBoard() {
     for (const anim of pendingAnimations) {
       if (anim.type === "draw") {
         const d = anim.data as { overdraw?: boolean; fatigue?: number; playerId?: string; memeBonus?: string };
+        if (d.playerId === playerId && !d.overdraw && !d.fatigue) playSound("playCard", 0.7);
         if (d.memeBonus === "extra_draw") {
           // Meme faction coin-flip bonus — explains the extra card so it doesn't look like a bug
           if (d.playerId === playerId) { addToast("🎲 Meme Bonus: +1 card!", "#ff5fae"); addLog("Meme bonus: drew an extra card", gameState?.turnNumber ?? 0); }
@@ -208,12 +214,14 @@ export default function GameBoard() {
         }
       } else if (anim.type === "death") {
         const d = anim.data as { cardId?: string };
+        playSound("destroy", 0.8);
         addToast("💀 Minion destroyed", "#ff8888");
         addLog(`Minion destroyed (${d.cardId ?? "?"})`, gameState?.turnNumber ?? 0);
       } else if (anim.type === "heal") {
         addToast("💚 Healed", "#66ee88");
       } else if (anim.type === "play_card") {
         const d = anim.data as { cardId?: string };
+        playSound("playCard", 0.85);
         addLog(`Card played: ${d.cardId ?? "?"}`, gameState?.turnNumber ?? 0);
       } else if (anim.type === "game_over") {
         const d = anim.data as { winner?: string };
@@ -222,6 +230,16 @@ export default function GameBoard() {
     }
     clearAnimations();
   }, [pendingAnimations, playerId, addToast, addLog, clearAnimations, gameState?.turnNumber]);
+
+  useEffect(() => {
+    if (gameState?.status !== "finished") {
+      endSoundPlayed.current = false;
+      return;
+    }
+    if (endSoundPlayed.current) return;
+    endSoundPlayed.current = true;
+    playSound(gameState.winner === playerId ? "winGame" : "loseGame");
+  }, [gameState?.status, gameState?.winner, playerId]);
 
   if (!gameState) {
     return (
@@ -542,6 +560,7 @@ export default function GameBoard() {
               hand={myState.hand as (Card & { instanceId?: string })[]}
               selectedInstanceId={selectedCardInstanceId}
               currentMana={manaAvailable}
+              actionsEnabled={canAct}
               newCardIds={newCardIds}
               onCardClick={(id) => {
                 if (!canAct) return;

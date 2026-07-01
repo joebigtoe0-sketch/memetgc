@@ -206,11 +206,11 @@ export default function CollectionPage() {
                 {filtered.map((entry) => {
                   const inDeck = copiesInDeck(entry.cardId);
                   return (
-                    <div key={entry.cardId} style={{ position: "relative", cursor: "pointer" }}
+                    <div key={entry.cardId} data-sound-click style={{ position: "relative", cursor: "pointer" }}
                       onClick={() => setZoom({ card: { ...entry.card, ownedCount: entry.quantity }, source: "grid" })}
                       onContextMenu={(e) => { e.preventDefault(); addCard(entry.card); }}
                     >
-                      <CardComponent card={{ ...entry.card, ownedCount: entry.quantity }} size="md" interactive dimmed={inDeck > 0 && inDeck >= (COPY_LIMIT[entry.card.rarity] ?? 1)} />
+                      <CardComponent card={{ ...entry.card, ownedCount: entry.quantity }} size="md" interactive soundOnHover dimmed={inDeck > 0 && inDeck >= (COPY_LIMIT[entry.card.rarity] ?? 1)} />
                       <div style={{ position: "absolute", bottom: -10, left: "50%", transform: "translateX(-50%)", padding: "2px 11px", borderRadius: 20, font: `800 11px var(--font-mono,'JetBrains Mono',monospace)`, background: "#0d1020", border: `1px solid ${factionColor(entry.card.faction)}`, color: factionColor(entry.card.faction), whiteSpace: "nowrap" }}>
                         ×{entry.quantity}{inDeck > 0 ? ` · ${inDeck} in deck` : ""}
                       </div>

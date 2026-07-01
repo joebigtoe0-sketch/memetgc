@@ -4,6 +4,7 @@ import React from "react";
 import type { MinionSlot } from "@memetgc/types";
 
 import { factionColor } from "@/lib/factions";
+import { playSound } from "@/lib/sounds";
 
 interface Props {
   slot: MinionSlot;
@@ -44,8 +45,9 @@ export default function MinionCard({ slot, isEnemy, isSelected, isValidTarget, i
 
   return (
     <div
+      data-sound-click={onClick ? "" : undefined}
       onClick={(e) => { e.stopPropagation(); onClick?.(); }}
-      onMouseEnter={() => onHover?.(true)}
+      onMouseEnter={() => { onHover?.(true); playSound("cardHover", 0.4); }}
       onMouseLeave={() => onHover?.(false)}
       style={{
         position: "relative",

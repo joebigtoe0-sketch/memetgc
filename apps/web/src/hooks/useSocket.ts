@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { io, type Socket } from "socket.io-client";
 import { WS_URL } from "@/lib/constants";
+import { playSound } from "@/lib/sounds";
 import { useGameStore } from "@/store/gameStore";
 import { useAuthStore } from "@/store/authStore";
 import type { ServerToClientEvents, ClientToServerEvents, GameAction } from "@memetgc/types";
@@ -52,6 +53,7 @@ export function useSocket() {
 
     socket.on("game:action_result", (result) => {
       if (!result.success) {
+        playSound("denied");
         setActionError(result.error ?? "Action failed");
       } else if (result.animations) {
         setAnimations(result.animations);
@@ -63,6 +65,7 @@ export function useSocket() {
     });
 
     socket.on("game:error", (msg) => {
+      playSound("denied");
       setActionError(msg);
     });
 

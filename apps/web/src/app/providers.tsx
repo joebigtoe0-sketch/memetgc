@@ -5,6 +5,7 @@ import { ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 import type { Adapter } from "@solana/wallet-adapter-base";
 import { useSocket } from "@/hooks/useSocket";
+import ClickSoundLayer from "@/components/UI/ClickSoundLayer";
 
 const SOLANA_RPC =
   process.env.NEXT_PUBLIC_SOLANA_RPC ?? "https://api.mainnet-beta.solana.com";
@@ -33,6 +34,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       <WalletProvider wallets={wallets} autoConnect>
         <WalletModalProvider>
           <SocketInit />
+          <ClickSoundLayer />
           {children}
         </WalletModalProvider>
       </WalletProvider>
