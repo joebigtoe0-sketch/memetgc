@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { BRAND } from "@/lib/brand";
 
 interface AuthStore {
   token: string | null;
@@ -34,7 +35,8 @@ export const useAuthStore = create<AuthStore>()(
 
       setAuth: (token, userId, username) => {
         if (typeof window !== "undefined") {
-          localStorage.setItem("degen_token", token);
+          localStorage.setItem(BRAND.authTokenKey, token);
+          localStorage.removeItem(BRAND.legacyAuthTokenKey);
         }
         set({ token, userId, username });
       },
@@ -47,11 +49,12 @@ export const useAuthStore = create<AuthStore>()(
 
       logout: () => {
         if (typeof window !== "undefined") {
-          localStorage.removeItem("degen_token");
+          localStorage.removeItem(BRAND.authTokenKey);
+          localStorage.removeItem(BRAND.legacyAuthTokenKey);
         }
         set({ token: null, userId: null, username: null, walletAddress: null, hasUsername: false });
       },
     }),
-    { name: "degen-auth" }
+    { name: "mempool-auth" }
   )
 );

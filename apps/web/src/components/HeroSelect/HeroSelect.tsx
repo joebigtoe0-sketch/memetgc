@@ -7,6 +7,7 @@ import { getSocket } from "@/hooks/useSocket";
 import { useGameStore } from "@/store/gameStore";
 
 import { FACTION_NAME, factionColor, factionDisplayName } from "@/lib/factions";
+import { formatRankTier } from "@/lib/brand";
 import FactionIcon from "@/components/Faction/FactionIcon";
 import { preloadFactionArt } from "@/lib/preloadArt";
 
@@ -104,7 +105,7 @@ export default function HeroSelect() {
         <button onClick={() => router.push("/")} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 7, padding: "8px 16px", borderRadius: 10, background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)", color: "#cdd4df", font: `700 12px var(--font-archivo,'Archivo',sans-serif)` }}>‹ Back</button>
         <div style={{ font: `900 22px var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc", letterSpacing: "1px" }}>Battle Setup</div>
         <div style={{ padding: "8px 14px", borderRadius: 10, background: "rgba(247,147,26,.1)", border: "1px solid rgba(247,147,26,.35)", color: "#ffce85", font: `700 11px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "1px" }}>
-          {MODE_LABEL[mode]} · {tier.rankTier[0]?.toUpperCase()}{tier.rankTier.slice(1)} {["", "I", "II", "III", "IV", "V"][Math.max(1, 5 - tier.rankStars)]}
+          {MODE_LABEL[mode]} · {formatRankTier(tier.rankTier)} {["", "I", "II", "III", "IV", "V"][Math.max(1, 5 - tier.rankStars)]}
         </div>
       </div>
 
@@ -256,7 +257,7 @@ function FindingOpponent({ mode, tier, hero, sfc, onCancel, statusMsg }: { mode:
       <div style={{ position: "absolute", inset: 0, backgroundImage: "linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px)", backgroundSize: "44px 44px", maskImage: "radial-gradient(70% 60% at 50% 45%,#000,transparent)" }} />
 
       <div style={{ font: `700 12px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "4px", color: "#f7931a", marginBottom: 40, zIndex: 1 }}>
-        {MODE_LABEL[mode]} · {tier.rankTier[0]?.toUpperCase()}{tier.rankTier.slice(1)} {["", "I", "II", "III", "IV", "V"][Math.max(1, 5 - tier.rankStars)]}
+        {MODE_LABEL[mode]} · {formatRankTier(tier.rankTier)} {["", "I", "II", "III", "IV", "V"][Math.max(1, 5 - tier.rankStars)]}
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 44, zIndex: 1 }}>

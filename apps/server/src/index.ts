@@ -55,7 +55,7 @@ async function start(): Promise<void> {
   await loadCardRegistry();
 
   httpServer.listen(PORT, () => {
-    console.log(`🎮 Degen TCG server running on port ${PORT}`);
+    console.log(`🎮 Legends of the Mempool server running on port ${PORT}`);
     console.log(`   REST API: http://localhost:${PORT}/api`);
     console.log(`   WebSocket: ws://localhost:${PORT}`);
   });

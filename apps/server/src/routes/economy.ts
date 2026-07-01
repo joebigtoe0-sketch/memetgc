@@ -68,7 +68,7 @@ router.post("/packs/buy", requireAuth, async (req: AuthRequest, res) => {
   const qty = Math.max(1, Math.min(40, Number(count) || 1));
 
   if (currency === "degen") {
-    res.status(501).json({ error: "On-chain $DEGEN purchases are coming soon" });
+    res.status(501).json({ error: "On-chain $MEMPOOL purchases are coming soon" });
     return;
   }
 

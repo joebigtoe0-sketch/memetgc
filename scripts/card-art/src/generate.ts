@@ -242,7 +242,7 @@ async function run(): Promise<void> {
 
   if (args.limit && args.limit > 0) pending = pending.slice(0, args.limit);
 
-  console.log(`\nDegen TCG — Card Art Generator`);
+  console.log(`\nLegends of the Mempool — Card Art Generator`);
   console.log(`  Model:     ${MODEL} (falls back: gpt-image-2 → gpt-image-1 → dall-e-3)`);
   console.log(`  Brief:     ${BRIEF_MODEL} + hand-written catalog (${Object.keys(ART_LABELS).length} cards)`);
   console.log(`  Source:    ${args.source}`);

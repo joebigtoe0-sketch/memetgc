@@ -6,6 +6,8 @@ import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import AuthModal from "@/components/Auth/AuthModal";
 import BottomNav from "@/components/Dashboard/BottomNav";
+import Logo from "@/components/Brand/Logo";
+import { BRAND } from "@/lib/brand";
 import CardComponent, { type CardData } from "@/components/Card/CardComponent";
 
 interface PackEntry { packType: string; quantity: number; }
@@ -175,7 +177,7 @@ function PackBack({ small }: { small?: boolean }) {
       border: "2px solid #e7c768", boxShadow: "0 10px 26px rgba(0,0,0,.5), 0 0 24px rgba(231,199,104,.25)",
       display: "flex", alignItems: "center", justifyContent: "center",
     }}>
-      <div style={{ width: small ? 38 : 56, height: small ? 38 : 56, borderRadius: small ? 9 : 12, display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(150deg,#f7c64a,#c2860f)", color: "#2a1a00", font: `900 ${small ? 22 : 30}px var(--font-mono,'JetBrains Mono',monospace)`, boxShadow: "0 0 16px rgba(231,199,104,.5)" }}>D</div>
+      <Logo size={small ? 38 : 56} />
     </div>
   );
 }

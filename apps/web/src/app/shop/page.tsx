@@ -7,6 +7,8 @@ import { useAuthStore } from "@/store/authStore";
 import { useBalances } from "@/hooks/useBalances";
 import AuthModal from "@/components/Auth/AuthModal";
 import BottomNav from "@/components/Dashboard/BottomNav";
+import Logo from "@/components/Brand/Logo";
+import { BRAND } from "@/lib/brand";
 
 interface Pack { type: string; name: string; cost: number; color: string; desc: string; badge?: string; }
 interface Bundle { type: string; name: string; count: number; cost: number; desc: string; color: string; }
@@ -22,7 +24,7 @@ const PACKS: Pack[] = [
 
 const BUNDLES: Bundle[] = [
   { type: "standard", name: "Starter Bundle", count: 5, cost: 450, desc: "5 Standard Packs", color: "#7b8cf4" },
-  { type: "standard", name: "Degen Bundle", count: 15, cost: 1250, desc: "15 Standard Packs", color: "#f7931a" },
+  { type: "standard", name: "Mempool Bundle", count: 15, cost: 1250, desc: "15 Standard Packs", color: "#f7931a" },
   { type: "legendary", name: "Legendary Trio", count: 3, cost: 2200, desc: "3 Legendary Packs", color: "#e7c768" },
 ];
 
@@ -59,7 +61,7 @@ export default function ShopPage() {
         <button onClick={() => router.push("/")} style={backBtn}>‹ Back</button>
         <div style={{ font: `900 20px var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc", letterSpacing: "1px" }}>Pack Store</div>
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
-          <Chip icon="◆" label={`${(degen ?? 0).toLocaleString()} $DEGEN`} color="#e7c768" />
+          <Chip icon="◆" label={`${(degen ?? 0).toLocaleString()} ${BRAND.ticker}`} color="#e7c768" />
           <Chip icon="✦" label={`${fragments.toLocaleString()} frags`} color="#7b8cf4" />
           <Chip icon="🎁" label={`${packs}`} color="#19e08a" onClick={() => router.push("/packs")} />
         </div>
@@ -124,7 +126,7 @@ export default function ShopPage() {
         </div>
 
         <div style={{ font: `500 11px var(--font-archivo,'Archivo',sans-serif)`, color: "#5a6478", marginTop: 24, textAlign: "center" }}>
-          Premium $DEGEN-priced packs are coming soon — paid directly on-chain with your token.
+          Premium {BRAND.ticker}-priced packs are coming soon — paid directly on-chain with your token.
         </div>
       </div>
 
@@ -143,9 +145,10 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 function PackArt({ color, big }: { color: string; big?: boolean }) {
   const w = big ? 96 : 70, h = big ? 132 : 96;
+  const logoSize = big ? 42 : 32;
   return (
     <div style={{ width: w, height: h, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", background: `radial-gradient(circle at 50% 32%,color-mix(in srgb,${color} 32%,#1a1420),#0c0a12)`, border: `1.5px solid ${color}66`, boxShadow: `0 8px 22px rgba(0,0,0,.45), 0 0 18px ${color}33` }}>
-      <div style={{ width: big ? 42 : 32, height: big ? 42 : 32, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(150deg,#f7c64a,#c2860f)", color: "#2a1a00", font: `900 ${big ? 22 : 17}px var(--font-mono,'JetBrains Mono',monospace)` }}>D</div>
+      <Logo size={logoSize} />
     </div>
   );
 }

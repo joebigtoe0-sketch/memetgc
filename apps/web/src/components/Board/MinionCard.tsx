@@ -91,7 +91,16 @@ export default function MinionCard({ slot, isEnemy, isSelected, isValidTarget, i
               src={slot.card.art_url ?? `/card-art/${slot.card.id}.png`}
               alt={slot.card.name}
               loading="eager"
-              style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }}
+              style={{
+                width: "108%",
+                height: "112%",
+                objectFit: "cover",
+                objectPosition: "50% 12%",
+                position: "absolute",
+                left: "50%",
+                top: "-6%",
+                transform: "translateX(-50%)",
+              }}
               onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
             />
           </div>

@@ -156,7 +156,7 @@ export default function CardComponent({
             {/* Art window */}
             <div style={{
               position: "relative",
-              height: 158,
+              height: 178,
               borderRadius: "48% 48% 16% 16% / 30% 30% 10% 10%",
               overflow: "hidden",
               background: `repeating-linear-gradient(135deg, color-mix(in srgb,${fac} 26%,#171c26) 0 11px, #13171f 11px 22px)`,
@@ -183,13 +183,23 @@ export default function CardComponent({
               <img
                 src={artSrc}
                 alt={card.name}
-                style={{ position: "relative", zIndex: 1, width: "100%", height: "100%", objectFit: "cover" }}
+                style={{
+                  position: "absolute",
+                  zIndex: 1,
+                  left: "50%",
+                  top: "-6%",
+                  width: "108%",
+                  height: "112%",
+                  transform: "translateX(-50%)",
+                  objectFit: "cover",
+                  objectPosition: "50% 12%",
+                }}
                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
               />
-              {/* Legendary sheen */}
+              {/* Legendary sheen — above art (z-index 2) */}
               {isLeg && (
                 <div style={{
-                  position: "absolute", top: 0, bottom: 0, width: "38%", left: 0,
+                  position: "absolute", top: 0, bottom: 0, width: "38%", left: 0, zIndex: 2,
                   background: "linear-gradient(90deg,transparent,rgba(255,243,200,.5),transparent)",
                   mixBlendMode: "screen",
                   animation: "dcSheen 3.6s ease-in-out infinite",
@@ -200,7 +210,7 @@ export default function CardComponent({
 
             {/* Name bar */}
             <div style={{
-              position: "relative", margin: "-15px auto 0", width: "97%", height: 32, zIndex: 6,
+              position: "relative", margin: "-14px auto 0", width: "97%", height: 32, zIndex: 6,
               display: "flex", alignItems: "center", justifyContent: "center",
               borderRadius: 6,
               background: "linear-gradient(#2f3645,#161b24)",
@@ -229,7 +239,7 @@ export default function CardComponent({
 
             {/* Card text */}
             <div style={{
-              margin: "14px 7px 0",
+              margin: "11px 7px 0",
               textAlign: "center",
               font: `500 10.5px/1.32 var(--font-archivo,'Archivo',sans-serif)`,
               color: "#d3d9e3",

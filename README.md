@@ -1,4 +1,6 @@
-# Degen TCG
+# Legends of the Mempool
+
+**Mempool** — *Where legends wait.*
 
 A real-time multiplayer crypto-themed trading card game. Hearthstone-inspired mechanics with Web3 economy, 6 factions, and a Three.js 3D board.
 
@@ -89,7 +91,7 @@ pnpm --filter @memetgc/server dev     # Game server on :3001
 - Matchmaking queues: Practice (vs AI), Casual, Ranked
 - REST API: cards, heroes, decks, collection, economy, auth
 - JWT authentication
-- $DEGEN ERC-20 balance gate for Ranked (via viem RPC call)
+- $MEMPOOL SPL token balance gate for Ranked (via Helius RPC)
 - Daily quests + fragment rewards
 - Pack opening with pity timers
 
@@ -131,8 +133,8 @@ pnpm --filter @memetgc/server dev     # Game server on :3001
 
 ## Web3 Economy
 
-- Ranked requires 1,000 $DEGEN tokens in connected wallet
+- Ranked requires 1,000 $MEMPOOL tokens in connected wallet
 - Fragments (off-chain) earned from wins, quests, rank rewards
-- 1,000 fragments = 1 $DEGEN
+- 1,000 fragments = 1 $MEMPOOL
 - Pack types: Standard (100 frags), Faction (120), Legendary (800), Season (150)
 - Pity timers: Epic guaranteed at 20 packs, Legendary at 40

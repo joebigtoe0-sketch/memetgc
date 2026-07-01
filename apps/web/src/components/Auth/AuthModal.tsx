@@ -6,6 +6,8 @@ import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import bs58 from "bs58";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
+import Logo from "@/components/Brand/Logo";
+import { BRAND } from "@/lib/brand";
 
 type Step = "connect" | "sign" | "username";
 
@@ -54,10 +56,13 @@ export default function AuthModal() {
         setAuth(res.token, res.userId, res.username);
       } else {
         // Persist token for the /username call, but don't enter the app yet.
-        if (typeof window !== "undefined") localStorage.setItem("degen_token", res.token);
+        if (typeof window !== "undefined") {
+          localStorage.setItem(BRAND.authTokenKey, res.token);
+          localStorage.removeItem(BRAND.legacyAuthTokenKey);
+        }
         setPendingToken(res.token);
         setPendingUserId(res.userId);
-        setUsernameInput(res.username.startsWith("degen_") ? "" : res.username);
+        setUsernameInput(res.username.startsWith("degen_") || res.username.startsWith("mempool_") ? "" : res.username);
         setStep("username");
       }
     } catch (e) {
@@ -86,7 +91,10 @@ export default function AuthModal() {
   function reset() {
     setError("");
     setPendingToken(null);
-    if (typeof window !== "undefined") localStorage.removeItem("degen_token");
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(BRAND.authTokenKey);
+      localStorage.removeItem(BRAND.legacyAuthTokenKey);
+    }
     disconnect().catch(() => {});
     setStep("connect");
   }
@@ -103,9 +111,11 @@ export default function AuthModal() {
 
       <div style={{ position: "relative", width: "100%", maxWidth: 400, padding: 34, borderRadius: 20, background: "linear-gradient(150deg,rgba(255,255,255,.05),rgba(14,18,28,.85))", border: "1px solid rgba(255,255,255,.1)", boxShadow: "0 24px 60px rgba(0,0,0,.5)" }}>
         <div style={{ textAlign: "center", marginBottom: 26 }}>
-          <div style={{ width: 56, height: 56, margin: "0 auto 14px", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(150deg,#f7c64a,#c2860f)", boxShadow: "0 0 22px rgba(231,199,104,.5)", font: `900 28px var(--font-mono,'JetBrains Mono',monospace)`, color: "#2a1a00" }}>D</div>
-          <h1 style={{ font: `900 26px var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc", letterSpacing: ".5px" }}>DEGEN TCG</h1>
-          <p style={{ font: `600 10px var(--font-mono,'JetBrains Mono',monospace)`, color: "#f7931a", letterSpacing: "2px", marginTop: 6 }}>THE CRYPTO TRADING CARD GAME</p>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }}>
+            <Logo size={56} />
+          </div>
+          <h1 style={{ font: `900 26px var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc", letterSpacing: ".5px" }}>{BRAND.fullName}</h1>
+          <p style={{ font: `600 11px var(--font-archivo,'Archivo',sans-serif)`, color: "#aeb6c4", letterSpacing: ".3px", marginTop: 8, fontStyle: "italic" }}>{BRAND.tagline}</p>
         </div>
 
         {step === "username" ? (
@@ -124,7 +134,7 @@ export default function AuthModal() {
             <p style={{ font: `500 10px var(--font-mono,'JetBrains Mono',monospace)`, color: "#6a7488", marginTop: 8 }}>3–20 chars · letters, numbers, underscore</p>
             {error && <p style={{ font: `600 11px var(--font-archivo,'Archivo',sans-serif)`, color: "#ff6b6b", marginTop: 10 }}>{error}</p>}
             <button type="submit" disabled={loading || username.length < 3} style={primaryBtn(loading || username.length < 3)}>
-              {loading ? "Saving…" : "Enter Degen TCG"}
+              {loading ? "Saving…" : `Enter ${BRAND.shortName}`}
             </button>
           </form>
         ) : step === "sign" ? (

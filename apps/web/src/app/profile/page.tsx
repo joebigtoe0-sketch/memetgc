@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import AuthModal from "@/components/Auth/AuthModal";
 import { FACTION_LABEL, factionColor, factionImageUrl } from "@/lib/factions";
+import { formatRankTier } from "@/lib/brand";
 import FactionIcon from "@/components/Faction/FactionIcon";
 import BottomNav from "@/components/Dashboard/BottomNav";
 
@@ -82,7 +83,7 @@ export default function ProfilePage() {
           <div style={{ gridRow: "span 2", borderRadius: 16, padding: 18, background: `linear-gradient(155deg,color-mix(in srgb,${tc} 12%,transparent),rgba(18,23,35,.6))`, border: `1px solid ${tc}44`, display: "flex", flexDirection: "column" }}>
             <div style={{ font: `700 9px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "2px", color: "#8a93a6" }}>CURRENT RANK</div>
             <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginTop: 10 }}>
-              <div style={{ font: `900 30px/1 var(--font-cinzel,'Cinzel',serif)`, color: tc, textTransform: "uppercase" }}>{tier} {ROMAN[Math.max(1, 5 - stars)] ?? ""}</div>
+              <div style={{ font: `900 30px/1 var(--font-cinzel,'Cinzel',serif)`, color: tc, textTransform: "uppercase" }}>{formatRankTier(tier)} {ROMAN[Math.max(1, 5 - stars)] ?? ""}</div>
               <div style={{ textAlign: "right" }}>
                 <div style={{ font: `900 22px/1 var(--font-mono,'JetBrains Mono',monospace)`, color: "#f3e8cc" }}>{(p?.rankPoints ?? 0).toLocaleString()}</div>
                 <div style={{ font: `600 8px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6", marginTop: 3 }}>LADDER PTS</div>
@@ -94,7 +95,7 @@ export default function ProfilePage() {
               ))}
             </div>
             <div style={{ marginTop: "auto", paddingTop: 14, display: "flex", justifyContent: "space-between", font: `600 10px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6" }}>
-              <span>Season high</span><span style={{ color: "#cdd4df" }}>{tier.toUpperCase()}</span>
+              <span>Season high</span><span style={{ color: "#cdd4df" }}>{formatRankTier(tier).toUpperCase()}</span>
             </div>
           </div>
 

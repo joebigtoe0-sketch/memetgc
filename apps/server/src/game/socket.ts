@@ -146,7 +146,7 @@ export function registerSocketHandlers(
         }
         const hasTokens = await checkDegenBalance(user.walletAddress);
         if (!hasTokens) {
-          socket.emit("game:error", "Need 1,000 $DEGEN to play ranked");
+          socket.emit("game:error", "Need 1,000 $MEMPOOL to play ranked");
           return;
         }
       }

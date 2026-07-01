@@ -8,6 +8,8 @@ import { useGameStore } from "@/store/gameStore";
 import { useBalances } from "@/hooks/useBalances";
 import BottomNav from "./BottomNav";
 import { factionImageUrl } from "@/lib/factions";
+import Logo from "@/components/Brand/Logo";
+import { BRAND, formatRankTier } from "@/lib/brand";
 
 const RANK_TIERS = ["bronze", "silver", "gold", "platinum", "diamond", "degen"] as const;
 const TIER_COLOR: Record<string, string> = {
@@ -90,14 +92,14 @@ export default function Dashboard() {
       {/* Top bar */}
       <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 26px", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 38, height: 38, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(150deg,#f7c64a,#c2860f)", boxShadow: "0 0 16px rgba(231,199,104,.45)", font: `900 19px/1 var(--font-mono,'JetBrains Mono',monospace)`, color: "#2a1a00" }}>D</div>
+          <Logo size={38} />
           <div>
-            <div style={{ font: `900 17px/1 var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc", letterSpacing: ".5px" }}>DEGEN TCG</div>
-            <div style={{ font: `600 9px var(--font-mono,'JetBrains Mono',monospace)`, color: "#f7931a", letterSpacing: "2px", marginTop: 3 }}>GENESIS · SEASON 1</div>
+            <div style={{ font: `900 17px/1 var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc", letterSpacing: ".5px" }}>{BRAND.shortName.toUpperCase()}</div>
+            <div style={{ font: `600 9px var(--font-mono,'JetBrains Mono',monospace)`, color: "#f7931a", letterSpacing: "1.5px", marginTop: 3 }}>{BRAND.tagline.toUpperCase()}</div>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <Chip icon="◆" label={`${(degen ?? 0).toLocaleString()} $DEGEN`} color="#e7c768" />
+          <Chip icon="◆" label={`${(degen ?? 0).toLocaleString()} ${BRAND.ticker}`} color="#e7c768" />
           <Chip icon="✦" label={`${fragments.toLocaleString()} frags`} color="#7b8cf4" />
           <Chip icon="🎁" label={`${packs} packs`} color="#19e08a" onClick={() => router.push("/packs")} />
           <Chip icon="●" label={walletAddress ? `${walletAddress.slice(0, 4)}..${walletAddress.slice(-2)}` : (connected ? "online" : "offline")} color={connected ? "#19e08a" : "#ff5555"} />
@@ -126,7 +128,7 @@ export default function Dashboard() {
             <div style={{ marginTop: 18, display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
               <div>
                 <div style={{ font: `900 26px/1 var(--font-cinzel,'Cinzel',serif)`, color: tierColor, textTransform: "uppercase", letterSpacing: ".5px" }}>
-                  {tier} {ROMAN[Math.max(1, 5 - stars)] ?? ""}
+                  {formatRankTier(tier)} {ROMAN[Math.max(1, 5 - stars)] ?? ""}
                 </div>
                 <div style={{ display: "flex", gap: 5, marginTop: 8 }}>
                   {Array.from({ length: 5 }).map((_, i) => (
@@ -142,7 +144,7 @@ export default function Dashboard() {
 
             <div style={{ marginTop: 16 }}>
               <div style={{ display: "flex", justifyContent: "space-between", font: `600 9.5px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6", marginBottom: 6 }}>
-                <span>Progress to {nextTier}</span><span>{progressPct}%</span>
+                <span>Progress to {formatRankTier(nextTier)}</span><span>{progressPct}%</span>
               </div>
               <div style={{ height: 7, borderRadius: 4, background: "rgba(255,255,255,.06)", overflow: "hidden" }}>
                 <div style={{ width: `${progressPct}%`, height: "100%", borderRadius: 4, background: `linear-gradient(90deg,${tierColor},#f7c64a)`, boxShadow: `0 0 8px ${tierColor}88` }} />
@@ -167,7 +169,7 @@ export default function Dashboard() {
           <div style={{ position: "relative", borderRadius: 16, overflow: "hidden", padding: "26px 30px", minHeight: 158, display: "flex", flexDirection: "column", justifyContent: "center", background: "linear-gradient(110deg,rgba(247,147,26,.22),rgba(20,26,42,.35) 62%)", border: "1px solid rgba(247,147,26,.3)" }}>
             <img src={factionImageUrl("bitcoin")} alt="" draggable={false} style={{ position: "absolute", top: -20, right: 10, width: 200, height: 200, objectFit: "contain", opacity: 0.09, pointerEvents: "none" }} />
             <div style={{ font: `700 11px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "3px", color: "#ffd187" }}>RANKED LADDER · LIVE</div>
-            <div style={{ font: `900 34px/1 var(--font-cinzel,'Cinzel',serif)`, color: "#fff", margin: "10px 0 18px" }}>Climb to Degen Rank</div>
+            <div style={{ font: `900 34px/1 var(--font-cinzel,'Cinzel',serif)`, color: "#fff", margin: "10px 0 18px" }}>Climb to {formatRankTier("degen")} Rank</div>
             <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
               <button onClick={() => router.push("/play?mode=ranked")} style={{ cursor: "pointer", border: "none", padding: "13px 38px", borderRadius: 11, font: `800 16px var(--font-cinzel,'Cinzel',serif)`, color: "#2a1a00", background: "linear-gradient(180deg,#ffe07a,#e0890f)", boxShadow: "0 8px 20px rgba(224,137,15,.4), inset 0 1px 0 rgba(255,255,255,.5)" }}>▶  PLAY</button>
               <span style={{ font: `600 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#c9b48a" }}>2,140 players in queue</span>
@@ -177,7 +179,7 @@ export default function Dashboard() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             <ModeCard name="Practice" tag="FREE · VS AI" desc="Learn the ropes against bots. No rewards." badge="Open" badgeColor="#9aa3b2" onClick={() => router.push("/play?mode=practice")} />
             <ModeCard name="Casual" tag="FREE · VS PLAYERS" desc="No stakes. Earn booster pack tickets." badge="Open" badgeColor="#7b8cf4" onClick={() => router.push("/play?mode=casual")} />
-            <ModeCard name="Ranked" tag="HOLD 1,000 $DEGEN · OWN DECK" desc="Climb the ladder with your own deck. Earn fragments & season rewards." badge="Unlocked" badgeColor="#f7931a" highlight onClick={() => router.push("/play?mode=ranked")} />
+            <ModeCard name="Ranked" tag={`HOLD 1,000 ${BRAND.ticker} · OWN DECK`} desc="Climb the ladder with your own deck. Earn fragments & season rewards." badge="Unlocked" badgeColor="#f7931a" highlight onClick={() => router.push("/play?mode=ranked")} />
           </div>
         </div>
 

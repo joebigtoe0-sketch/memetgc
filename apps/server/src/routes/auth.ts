@@ -21,11 +21,11 @@ function isValidSolanaAddress(addr: string): boolean {
 }
 
 function buildSignInMessage(wallet: string, nonce: string): string {
-  return `Sign in to Degen TCG\n\nWallet: ${wallet}\nNonce: ${nonce}`;
+  return `Sign in to Legends of the Mempool\n\nWallet: ${wallet}\nNonce: ${nonce}`;
 }
 
 async function generateHandle(wallet: string): Promise<string> {
-  const base = `degen_${wallet.slice(0, 4)}${wallet.slice(-4)}`.toLowerCase();
+  const base = `mempool_${wallet.slice(0, 4)}${wallet.slice(-4)}`.toLowerCase();
   let candidate = base;
   for (let i = 0; i < 5; i++) {
     const exists = await prisma.user.findUnique({ where: { username: candidate } });
