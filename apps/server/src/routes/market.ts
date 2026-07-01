@@ -17,7 +17,7 @@ const router: ReturnType<typeof Router> = Router();
 
 const FEE_RATE = 0.05;
 const RESERVE_MS = 30_000;
-const CANCEL_COOLDOWN_MS = 60_000;
+const CANCEL_COOLDOWN_MS = 30_000;
 
 /** Canonical message a seller signs to authorize a listing. Must match the frontend. */
 export function buildListingMessage(args: {
@@ -114,6 +114,7 @@ router.get("/mine", requireAuth, async (req: AuthRequest, res) => {
       price: priceNum(r.price),
       status: r.status,
       cooldownUntil: r.cooldownUntil,
+      reservedUntil: r.reservedUntil,
       createdAt: r.createdAt,
     }))
   );
@@ -201,16 +202,27 @@ router.post("/listings/:id/cancel", requireAuth, async (req: AuthRequest, res) =
   const id = String(req.params.id);
   const listing = await prisma.marketListing.findFirst({ where: { id, sellerId: req.user!.userId } });
   if (!listing) { res.status(404).json({ error: "Listing not found" }); return; }
-  if (listing.status === "reserved") { res.status(409).json({ error: "Listing is reserved by a buyer" }); return; }
-  if (listing.status !== "active") { res.status(400).json({ error: "Listing cannot be cancelled" }); return; }
+  if (listing.status === "cancelling") {
+    res.json({ status: "cancelling", cooldownUntil: listing.cooldownUntil });
+    return;
+  }
+  if (listing.status !== "active" && listing.status !== "reserved") {
+    res.status(400).json({ error: "Listing cannot be cancelled" });
+    return;
+  }
+
+  const now = Date.now();
+  const cooldownUntil = listing.status === "reserved" && listing.reservedUntil
+    ? new Date(Math.max(listing.reservedUntil.getTime(), now + CANCEL_COOLDOWN_MS))
+    : new Date(now + CANCEL_COOLDOWN_MS);
 
   const updated = await prisma.marketListing.updateMany({
-    where: { id, status: "active" },
-    data: { status: "cancelling", cooldownUntil: new Date(Date.now() + CANCEL_COOLDOWN_MS) },
+    where: { id, status: { in: ["active", "reserved"] } },
+    data: { status: "cancelling", cooldownUntil },
   });
   if (updated.count === 0) { res.status(409).json({ error: "Listing state changed" }); return; }
 
-  res.json({ status: "cancelling", cooldownUntil: new Date(Date.now() + CANCEL_COOLDOWN_MS) });
+  res.json({ status: "cancelling", cooldownUntil });
 });
 
 // ─────────────────────────── Reserve ───────────────────────────
@@ -311,7 +323,10 @@ router.post("/confirm", requireAuth, async (req: AuthRequest, res) => {
   const listing = await prisma.marketListing.findUnique({ where: { id: listingId } });
   if (!listing) { res.status(404).json({ error: "Listing not found" }); return; }
   if (listing.status === "sold") { res.json({ status: "sold" }); return; }
-  if (listing.status !== "reserved") { res.status(409).json({ error: "Listing is not reserved" }); return; }
+  if (listing.status !== "reserved" && listing.status !== "cancelling") {
+    res.status(409).json({ error: "Listing is not reserved" });
+    return;
+  }
   if (listing.reservedById !== buyer.id) { res.status(403).json({ error: "Not your reservation" }); return; }
 
   // Block signature reuse.
@@ -348,7 +363,11 @@ router.post("/confirm", requireAuth, async (req: AuthRequest, res) => {
     await prisma.$transaction(async (tx) => {
       // Atomically flip reserved -> sold; guards against double-processing.
       const flipped = await tx.marketListing.updateMany({
-        where: { id: listing.id, status: "reserved", reservedById: buyer.id },
+        where: {
+          id: listing.id,
+          status: { in: ["reserved", "cancelling"] },
+          reservedById: buyer.id,
+        },
         data: {
           status: "sold",
           buyerId: buyer.id,
@@ -389,10 +408,16 @@ router.post("/confirm", requireAuth, async (req: AuthRequest, res) => {
 async function sweep(): Promise<void> {
   const now = new Date();
   try {
-    // Expire stale reservations back to active.
+    // Expire stale reservations back to active (not while seller is cancelling).
     await prisma.marketListing.updateMany({
       where: { status: "reserved", reservedUntil: { lt: now } },
       data: { status: "active", reservedById: null, reservedUntil: null },
+    });
+
+    // Clear expired buyer holds on listings already in cancel flow.
+    await prisma.marketListing.updateMany({
+      where: { status: "cancelling", reservedUntil: { lt: now } },
+      data: { reservedById: null, reservedUntil: null },
     });
 
     // Finalize cancellations past cooldown: return the asset to the seller.

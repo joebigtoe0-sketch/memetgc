@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { ART_LABELS } from "./art-labels";
+import { GENESIS_DROP_CARDS } from "./genesis-drop-cards";
 
 const prisma = new PrismaClient();
 
@@ -952,6 +953,7 @@ export const CARDS = [
     dustValue: 400,
     craftCost: 1600,
   },
+  ...GENESIS_DROP_CARDS,
 ];
 
 // Starter deck card lists

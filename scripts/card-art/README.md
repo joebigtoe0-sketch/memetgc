@@ -28,6 +28,13 @@ Faction archetypes and the 12 canonical sample briefs live in `cards.json`. Full
 # Generate all missing art (skips existing PNGs)
 pnpm art:generate
 
+# Genesis Drop pack — 20 exclusive cards only
+pnpm art:genesis-drop:dry    # preview prompts, no API cost
+pnpm art:genesis-drop        # generate up to 20 missing genesis_drop cards
+
+# After seed + generate, sync art URLs to DB
+pnpm --filter @memetgc/card-art sync:db
+
 # Regenerate only cards that previously had human characters (keeps approved art)
 pnpm art:regenerate-humans
 

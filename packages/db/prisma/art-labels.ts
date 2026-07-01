@@ -94,4 +94,46 @@ export const ART_LABELS: Record<string, string> = {
     "a corporate bank vault automaton pouring healing green liquid through infinite liquidity pipes into a glowing reservoir",
   stable_the_fed:
     "an imposing clockwork banker automaton at an infinite money printer, bills flooding the room in a teal-green torrent",
+
+  // ── Genesis Drop Pack (exclusive) ─────────────────────────────────────────
+  degen_ansem_black_bull:
+    "a muscular black bull trader in a dark hoodie and sunglasses, charging forward through a neon crypto trading floor, golden horns glowing, legendary KOL presence — intentionally human",
+  solana_pump_fun_launchpad:
+    "a glowing green rocket launchpad platform made of circuit boards and coin slots, tiny minion silhouettes blasting off from its surface, no characters — the launchpad itself is the subject",
+  degen_the_trenches:
+    "a chaotic battlefield trench carved into a glowing chart canyon, minion silhouettes clashing amid dust and fake ticker symbols, apocalyptic degen energy",
+  degen_weekly_airdrop:
+    "golden parachute crates raining from a creator-fee vault in the sky onto cheering minion silhouettes below, pink and green confetti tokens",
+  stable_whale_pod:
+    "a pod of three serene teal crystal whales swimming in formation above tiny token fish, calm dominant presence",
+  degen_blknoiz06:
+    "a sharp-eyed human KOL in headphones at a glowing trading desk, charts reflected in sunglasses, legendary market-mover energy — intentionally human",
+  meme_copycat_token:
+    "a glitchy mirror-frog creature copying the silhouette of a larger minion behind it, same pose different colors, uncanny meme energy",
+  solana_pumpswap:
+    "a pair of glowing swap arrows rotating around a minion stat orb on a solana-green trading terminal, mechanical and precise",
+  stable_liquidity_pod:
+    "a teal healing pod chamber with pipes feeding HP glow into a hero silhouette above, community-owned vault aesthetic",
+  meme_influencer_call:
+    "a megaphone bird creature blasting a hype shockwave at a minion, tweet icons spiraling outward",
+  bitcoin_holder_distribution:
+    "orange coin slices being distributed from a giant bitcoin wheel to a crowd of small holder silhouettes",
+  solana_dex_sniper:
+    "a sleek green sniper-bot creature with scope eyes perched on a DEX order book, lightning-fast pose",
+  degen_concentration_risk:
+    "a few enormous wallets towering over a field of tiny retail silhouettes, red risk lightning between them",
+  degen_paper_hands_panic:
+    "a panicked paper goblin sprinting back toward its owner's hand portal, cards flying loose",
+  stable_on_chain_auditor:
+    "a stern magnifying-glass automaton scanning a suspicious contract scroll, teal warning flags popping up",
+  meme_meme_coin_swarm:
+    "a swarm of tiny identical frog coins pouring out of a cracked meme crate, overwhelming the frame",
+  bitcoin_bull_run_energy:
+    "a minion silhouette charging forward wrapped in orange bull-energy flames and a HODL shield aura",
+  solana_solana_validator:
+    "a compact validator node robot stamping gas discounts onto the top card of a deck stack, green throughput lines",
+  degen_thin_liquidity:
+    "a narrow liquidity pool bridge cracking under damage, slippage arrows bouncing hero and minion",
+  bitcoin_diamond_conviction:
+    "a stubborn small token golem with diamond fists and feet cemented to the ground, refusing to budge",
 };

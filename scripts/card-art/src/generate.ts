@@ -29,6 +29,7 @@ const SAMPLE_ART_BRIEFS = getSampleArtBriefs();
 
 interface CliArgs {
   cardId?: string;
+  set?: string;
   force: boolean;
   forceHumans: boolean;
   limit?: number;
@@ -47,6 +48,7 @@ function parseArgs(): CliArgs {
     else if (arg === "--source=seed") args.source = "seed";
     else if (arg === "--source=db") args.source = "db";
     else if (arg.startsWith("--card-id=")) args.cardId = arg.slice("--card-id=".length);
+    else if (arg.startsWith("--set=")) args.set = arg.slice("--set=".length);
     else if (arg.startsWith("--limit=")) args.limit = Number(arg.slice("--limit=".length));
   }
   return args;
@@ -149,6 +151,7 @@ type CardRow = {
   type: string;
   faction: string;
   rarity: string;
+  set?: string;
   text: string | null;
   artLabel: string | null;
   artUrl: string | null;
@@ -164,12 +167,14 @@ async function loadCards(args: CliArgs): Promise<CardRow[]> {
       type: c.type,
       faction: c.faction,
       rarity: c.rarity,
+      set: (c as { set?: string }).set,
       text: c.text ?? null,
       artLabel: resolveArtBrief({ id: c.id, artLabel: (c as { artLabel?: string }).artLabel }),
       artUrl: (c as { artUrl?: string }).artUrl ?? null,
       collectible: c.collectible !== false,
       flavorText: (c as { flavorText?: string }).flavorText ?? null,
     }));
+    if (args.set) cards = cards.filter((c) => c.set === args.set);
     if (args.cardId) cards = cards.filter((c) => c.id === args.cardId);
     if (!args.all) cards = cards.filter((c) => !c.artUrl);
     return cards;
@@ -184,7 +189,8 @@ async function loadCards(args: CliArgs): Promise<CardRow[]> {
     }];
   }
 
-  const where = args.all ? {} : { artUrl: null };
+  const where: Record<string, unknown> = args.all ? {} : { artUrl: null };
+  if (args.set) where.set = args.set;
   const rows = await prisma.card.findMany({
     where,
     orderBy: [{ faction: "asc" }, { cost: "asc" }, { name: "asc" }],

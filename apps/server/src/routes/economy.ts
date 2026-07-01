@@ -229,11 +229,18 @@ async function generatePackCards(
 ): Promise<Array<{ cardId: string; rarity: string }>> {
   const where: Record<string, unknown> = { collectible: true };
   if (packType === "faction" && faction) where.faction = faction;
-  if (packType === "season") where.set = "genesis";
-  if (packType === "legendary") where.rarity = { in: ["legendary", "epic", "rare"] };
+  if (packType === "season") where.set = { in: ["genesis", "genesis_drop"] };
+  if (packType === "standard") where.set = { not: "genesis_drop" };
+  if (packType === "legendary") {
+    where.rarity = { in: ["legendary", "epic", "rare"] };
+    where.set = { not: "genesis_drop" };
+  }
 
   const allCards = await prisma.card.findMany({ where });
   if (allCards.length === 0) return [];
+
+  const legendaryRate = packType === "season" ? 0.01 : 0.05;
+  const epicRate = 0.15;
 
   const getByRarity = (rarity: string) => allCards.filter((c) => c.rarity === rarity);
   const pick = (pool: typeof allCards) => pool[Math.floor(Math.random() * pool.length)]!;
@@ -252,8 +259,8 @@ async function generatePackCards(
     const roll = Math.random();
     if (guaranteedLegendary && i === 1) { rarity = "legendary"; guaranteedLegendary = false; }
     else if (guaranteedEpic && i === 1) { rarity = "epic"; guaranteedEpic = false; }
-    else if (roll < 0.05) rarity = "legendary";
-    else if (roll < 0.2) rarity = "epic";
+    else if (roll < legendaryRate) rarity = "legendary";
+    else if (roll < legendaryRate + epicRate) rarity = "epic";
     else rarity = "common";
     const pool = getByRarity(rarity);
     const card = pick(pool.length > 0 ? pool : allCards);

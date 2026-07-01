@@ -6,7 +6,10 @@
   "scripts": {
     "generate": "tsx src/generate.ts --source=seed",
     "generate:dry": "tsx src/generate.ts --source=seed --dry-run --limit=3",
+    "generate:genesis-drop": "tsx src/generate.ts --source=seed --set=genesis_drop --limit=20",
+    "generate:genesis-drop:dry": "tsx src/generate.ts --source=seed --set=genesis_drop --dry-run --limit=20",
     "generate:db": "tsx src/generate.ts --source=db",
+    "generate:db:genesis-drop": "tsx src/generate.ts --source=db --set=genesis_drop --limit=20",
     "regenerate:humans": "tsx src/generate.ts --source=seed --force-humans",
     "sync:db": "tsx src/syncToDb.ts"
   },

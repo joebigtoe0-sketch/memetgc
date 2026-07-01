@@ -20,6 +20,7 @@ export interface MyListing {
   price: number;
   status: string;
   cooldownUntil: string | null;
+  reservedUntil: string | null;
   createdAt: string;
 }
 

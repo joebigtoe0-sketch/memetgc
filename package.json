@@ -12,6 +12,8 @@
     "db:studio": "turbo run db:studio --filter=@memetgc/db",
     "art:generate": "pnpm --filter @memetgc/card-art generate",
     "art:dry": "pnpm --filter @memetgc/card-art generate:dry",
+    "art:genesis-drop": "pnpm --filter @memetgc/card-art generate:genesis-drop",
+    "art:genesis-drop:dry": "pnpm --filter @memetgc/card-art generate:genesis-drop:dry",
     "art:regenerate-humans": "pnpm --filter @memetgc/card-art regenerate:humans",
     "boards:sync": "node scripts/sync-board-manifest.mjs"
   },

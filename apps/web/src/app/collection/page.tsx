@@ -12,6 +12,7 @@ import BottomNav from "@/components/Dashboard/BottomNav";
 import { factionColor, FACTIONS } from "@/lib/factions";
 import FactionIcon from "@/components/Faction/FactionIcon";
 import SellModal from "@/components/Market/SellModal";
+import MyListingsModal from "@/components/Market/MyListingsModal";
 import GameIcon from "@/components/UI/GameIcon";
 
 interface CollectionEntry { cardId: string; quantity: number; card: CardData; }
@@ -31,6 +32,7 @@ export default function CollectionPage() {
   const [loading, setLoading] = useState(true);
   const [zoom, setZoom] = useState<{ card: CardData; source: "grid" | "deck" } | null>(null);
   const [sellCard, setSellCard] = useState<CardData | null>(null);
+  const [showListings, setShowListings] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState("");
   const [toast, setToast] = useState("");
@@ -159,6 +161,7 @@ export default function CollectionPage() {
 
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
           <button onClick={() => router.push("/market")} style={{ cursor: "pointer", height: 34, padding: "0 14px", borderRadius: 9, display: "flex", alignItems: "center", gap: 6, font: `800 12px var(--font-cinzel,'Cinzel',serif)`, color: "#04140d", background: "linear-gradient(180deg,#4ff0a8,#129c66)", border: "none", boxShadow: "0 4px 12px rgba(25,224,138,.3)" }}>Buy Cards</button>
+          <button onClick={() => setShowListings(true)} style={{ cursor: "pointer", height: 34, padding: "0 14px", borderRadius: 9, display: "flex", alignItems: "center", gap: 6, font: `800 12px var(--font-cinzel,'Cinzel',serif)`, color: "#e7ecf3", background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.14)" }}>My Listings</button>
           <button onClick={newDeck} style={{ cursor: "pointer", height: 34, padding: "0 14px", borderRadius: 9, display: "flex", alignItems: "center", gap: 6, font: `800 12px var(--font-cinzel,'Cinzel',serif)`, color: "#2a1a00", background: "linear-gradient(180deg,#ffe07a,#e0890f)", border: "none", boxShadow: "0 4px 12px rgba(224,137,15,.3)" }}>+ New Deck</button>
           <FacBtn active={filterFaction === ""} color="#cdd4df" onClick={() => setFilterFaction("")}>ALL</FacBtn>
           <div style={{ width: 1, height: 24, background: "rgba(255,255,255,.1)", margin: "0 2px" }} />
@@ -297,6 +300,12 @@ export default function CollectionPage() {
           title={sellCard.name}
           onClose={() => setSellCard(null)}
           onListed={() => { api.get<CollectionEntry[]>("/api/collection").then(setCollection).catch(() => {}); }}
+        />
+      )}
+      {showListings && (
+        <MyListingsModal
+          onClose={() => setShowListings(false)}
+          onChanged={() => { api.get<CollectionEntry[]>("/api/collection").then(setCollection).catch(() => {}); }}
         />
       )}
     </div>
