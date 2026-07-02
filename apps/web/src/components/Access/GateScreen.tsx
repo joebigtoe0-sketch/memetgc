@@ -7,7 +7,7 @@ import { useAuthStore } from "@/store/authStore";
 
 const PUMPFUN_URL =
   process.env.NEXT_PUBLIC_PUMPFUN_URL ??
-  "https://pump.fun/coin/4Su8CfXFssGtgNmhhXr9cU4BeQ6oBo5akVG8SHRXpump";
+  "https://pump.fun/coin/68JiTDgY8o4Kg3Z9NakA4EHbqSgnAdRCZVGdkLvWpump";
 
 export default function GateScreen() {
   const { tokenBalance, accessRequired, checkAccess, accessChecking, logout } = useAuthStore();
