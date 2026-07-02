@@ -4,21 +4,22 @@ import React from "react";
 import { useViewportSize } from "@/hooks/useViewport";
 
 /**
- * Renders children at a fixed design canvas and scales the whole thing with a
- * CSS transform to fit the viewport, letterboxed on black. This makes the dense,
- * fixed-pixel battle board resolution-independent without touching its internal
- * layout. All HUD/overlays are children, so they scale together and stay aligned.
+ * Renders children at a fixed 16:9 design canvas (1920x1080) and scales the whole
+ * thing with a CSS transform to fit the viewport. This makes the dense, fixed-pixel
+ * battle board resolution-independent without touching its internal layout. All
+ * HUD/overlays are children, so they scale together and stay aligned.
  *
- * The design canvas is intentionally large (1440x810) so that on a normal 1080p
- * screen the whole board renders a touch smaller than 1:1-per-pixel would, giving
- * more breathing room and preventing elements from overlapping. `maxScale` caps
- * how large it can blow up on very big / high-DPI monitors (letterboxed beyond).
+ * Because the canvas is 16:9, any normal 16:9 monitor fills edge-to-edge with NO
+ * letterbox bars (scale = viewport / canvas on both axes). Bars only appear on
+ * genuinely off-aspect displays (ultrawide / very tall), and only on one axis.
+ * On a 1080p screen scale is 1.0 (pixel-perfect); it scales up proportionally on
+ * bigger monitors and down on smaller ones. `maxScale` is a very high safety cap.
  */
 export default function ScaleToFit({
   children,
-  designWidth = 1440,
-  designHeight = 810,
-  maxScale = 1.4,
+  designWidth = 1920,
+  designHeight = 1080,
+  maxScale = 4,
 }: {
   children: React.ReactNode;
   designWidth?: number;

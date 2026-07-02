@@ -589,8 +589,10 @@ export default function GameBoard() {
             })}
           </div>
 
-          {/* Player hand */}
-          <div style={{ flex: "0 0 148px", position: "relative", overflow: "visible" }}>
+          {/* Player hand — container is at least as tall as a hand card (190px)
+              so the fanned cards sit fully inside this zone instead of spilling
+              up over the board. */}
+          <div style={{ flex: "0 0 196px", position: "relative", overflow: "visible" }}>
             <HandZone
               hand={myState.hand as (Card & { instanceId?: string })[]}
               selectedInstanceId={selectedCardInstanceId}
