@@ -34,20 +34,18 @@ export function factionImageUrl(faction: string): string {
   return `/factions/${id}.png`;
 }
 
-// Certain heroes have their own portrait art that overrides the faction icon
-// (e.g. after playing the Satoshi or Ansem hero cards). Matched by heroId substring.
-const HERO_PORTRAITS: { match: string; file: string }[] = [
-  { match: "satoshi", file: "satoshi" },
-  { match: "ansem", file: "ansem" },
-];
+// Only the playable HERO CARDS (which replace your hero mid-game) get their own
+// portrait art. Matched by exact card id — NOT the default starting heroes
+// (e.g. "hero_satoshi" keeps the plain Bitcoin faction logo).
+const HERO_CARD_PORTRAITS: Record<string, string> = {
+  card_hero_satoshi: "satoshi",
+  degen_ansem_black_bull: "ansem",
+};
 
-/** Portrait for a hero: a special hero portrait if one exists, else the faction icon. */
+/** Portrait for a hero: a played hero-card portrait if one exists, else the faction icon. */
 export function heroPortraitUrl(heroId: string | undefined, faction: string): string {
-  if (heroId) {
-    const id = heroId.toLowerCase();
-    const special = HERO_PORTRAITS.find((h) => id.includes(h.match));
-    if (special) return `/factions/${special.file}.png`;
-  }
+  const special = heroId ? HERO_CARD_PORTRAITS[heroId] : undefined;
+  if (special) return `/factions/${special}.png`;
   return factionImageUrl(faction);
 }
 
