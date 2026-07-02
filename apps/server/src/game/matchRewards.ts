@@ -73,3 +73,16 @@ export function computeEloDelta(opts: {
 export function shouldTrackSeasonStats(mode: string, endReason: string | null, turnNumber: number): boolean {
   return isQuestEligibleMode(mode) && isMatchRewardEligible(endReason, turnNumber);
 }
+
+/**
+ * Bonus ladder points for consecutive ranked wins, on top of the base Elo gain.
+ * `streak` is the running win count *including* the current victory. The 2nd win
+ * in a row adds +3, the 3rd +6, etc., capped at +15 (reached at a 6-win streak).
+ * This is applied to visible ladder points only — hidden MMR stays pure Elo.
+ */
+export const WIN_STREAK_STEP = 3;
+export const WIN_STREAK_BONUS_CAP = 15;
+export function winStreakBonus(streak: number): number {
+  if (streak < 2) return 0;
+  return Math.min(WIN_STREAK_BONUS_CAP, (streak - 1) * WIN_STREAK_STEP);
+}

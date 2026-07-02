@@ -15,7 +15,7 @@ interface GameStore {
   pendingAnimations: AnimationHint[];
   lastActionError: string | null;
   matchReward: number | null;
-  rankUpdate: { delta: number; points: number; tier: string; stars: number } | null;
+  rankUpdate: { delta: number; points: number; tier: string; stars: number; streakBonus?: number; streak?: number } | null;
 
   // UI state
   selectedCardInstanceId: string | null;
@@ -31,7 +31,7 @@ interface GameStore {
   setAnimations: (animations: AnimationHint[]) => void;
   clearAnimations: () => void;
   setMatchReward: (fragments: number | null) => void;
-  setRankUpdate: (r: { delta: number; points: number; tier: string; stars: number } | null) => void;
+  setRankUpdate: (r: { delta: number; points: number; tier: string; stars: number; streakBonus?: number; streak?: number } | null) => void;
   setActionError: (error: string | null) => void;
   selectCard: (instanceId: string | null) => void;
   selectAttacker: (instanceId: string | null) => void;

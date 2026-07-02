@@ -347,17 +347,26 @@ export default function GameBoard() {
           const ROMAN = ["", "I", "II", "III", "IV", "V"];
           const tc = TIER_COLOR[rankUpdate.tier] ?? "#e7c768";
           const up = rankUpdate.delta >= 0;
+          const streakBonus = rankUpdate.streakBonus ?? 0;
+          const streak = rankUpdate.streak ?? 0;
           return (
-            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 22px", borderRadius: 12, background: `color-mix(in srgb,${tc} 12%,transparent)`, border: `1px solid color-mix(in srgb,${tc} 40%,transparent)` }}>
-              <span style={{ font: `900 16px var(--font-cinzel,'Cinzel',serif)`, color: tc, textTransform: "uppercase", letterSpacing: ".5px" }}>
-                {rankUpdate.tier} {ROMAN[Math.max(1, 5 - rankUpdate.stars)] ?? ""}
-              </span>
-              <span style={{ font: `800 18px var(--font-mono,'JetBrains Mono',monospace)`, color: up ? "#19e08a" : "#ff6b6b" }}>
-                {up ? "+" : ""}{rankUpdate.delta} LP
-              </span>
-              <span style={{ font: `600 12px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6" }}>
-                {rankUpdate.points.toLocaleString()} pts
-              </span>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 22px", borderRadius: 12, background: `color-mix(in srgb,${tc} 12%,transparent)`, border: `1px solid color-mix(in srgb,${tc} 40%,transparent)` }}>
+                <span style={{ font: `900 16px var(--font-cinzel,'Cinzel',serif)`, color: tc, textTransform: "uppercase", letterSpacing: ".5px" }}>
+                  {rankUpdate.tier} {ROMAN[Math.max(1, 5 - rankUpdate.stars)] ?? ""}
+                </span>
+                <span style={{ font: `800 18px var(--font-mono,'JetBrains Mono',monospace)`, color: up ? "#19e08a" : "#ff6b6b" }}>
+                  {up ? "+" : ""}{rankUpdate.delta} LP
+                </span>
+                <span style={{ font: `600 12px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6" }}>
+                  {rankUpdate.points.toLocaleString()} pts
+                </span>
+              </div>
+              {streakBonus > 0 && (
+                <span style={{ font: `700 12px var(--font-mono,'JetBrains Mono',monospace)`, color: "#f7931a" }}>
+                  🔥 {streak}-win streak · +{streakBonus} LP bonus
+                </span>
+              )}
             </div>
           );
         })()}

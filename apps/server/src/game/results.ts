@@ -5,6 +5,7 @@ import type { Card, ServerToClientEvents, ClientToServerEvents } from "@memetgc/
 import {
   computeMatchFragments,
   computeEloDelta,
+  winStreakBonus,
   isQuestEligibleMode,
   shouldTrackSeasonStats,
 } from "./matchRewards.js";
@@ -92,15 +93,28 @@ export async function recordMatchResults(
         const opp = oppId ? userSnapshots.get(oppId) : undefined;
         const myMmr = me?.mmr ?? user.mmr;
         const oppMmr = opp?.mmr ?? myMmr; // vs unknown/AI-less: neutral expectation
-        const delta = computeEloDelta({
+        const baseDelta = computeEloDelta({
           myMmr,
           oppMmr,
           isWinner,
           gamesPlayed: me?.games ?? 0,
           myPoints: user.rankPoints,
         });
+
+        // Win-streak bonus (ladder points only). The prior streak is read from
+        // match history *before* this match is inserted, so the current win
+        // makes the effective streak priorStreak + 1.
+        let streakBonus = 0;
+        let streak = 0;
+        if (isWinner) {
+          const priorStreak = await computeWinStreak(userId);
+          streak = priorStreak + 1;
+          streakBonus = winStreakBonus(streak);
+        }
+
+        const delta = baseDelta + streakBonus;
         const newPoints = Math.max(0, user.rankPoints + delta);
-        const newMmr = Math.max(0, myMmr + delta);
+        const newMmr = Math.max(0, myMmr + baseDelta); // MMR stays pure Elo, no streak boost
         const { tier, stars } = tierFromPoints(newPoints);
         updateData.rankPoints = newPoints;
         updateData.mmr = newMmr;
@@ -111,7 +125,7 @@ export async function recordMatchResults(
         // Tell the player how their ladder points changed so the end-of-game
         // screen can show it (ranked only — casual/practice never move rank).
         if (io && player.socketId) {
-          io.to(player.socketId).emit("game:rank_update", { delta, points: newPoints, tier, stars });
+          io.to(player.socketId).emit("game:rank_update", { delta, points: newPoints, tier, stars, streakBonus, streak });
         }
       }
 
