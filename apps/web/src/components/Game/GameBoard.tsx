@@ -15,6 +15,7 @@ import BoardBackground from "./BoardBackground";
 import { CARD_BACK_DEFAULT, CARD_BACK_RADIUS } from "@/lib/cardBacks";
 import GameIcon from "@/components/UI/GameIcon";
 import { playSound } from "@/lib/sounds";
+import { api } from "@/lib/api";
 import { useIsMobile } from "@/hooks/useViewport";
 import MusicSettings from "@/components/Music/MusicSettings";
 import type { MinionSlot, Card } from "@memetgc/types";
@@ -26,6 +27,7 @@ type PhaseAction = "idle" | "select_play_target" | "select_attack_target" | "sel
 interface Toast { id: string; text: string; color: string; }
 interface DamageFloat { id: string; entityKey: string; amount: number; isHeal: boolean; }
 interface LogEntry { id: string; text: string; turn: number; }
+interface CollectionEntry { cardId: string; quantity: number; }
 
 export default function GameBoard() {
   const { gameState, isMyTurn, selectedCardInstanceId, selectedAttackerId, lastActionError, playerId, pendingAnimations, matchReward, rankUpdate, opponentDisconnected } = useGameStore();
@@ -35,6 +37,7 @@ export default function GameBoard() {
   // On mobile a card is inspected via tap; the zoom overlay becomes tap-to-close.
   const [inspectMode, setInspectMode] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [ownedCounts, setOwnedCounts] = useState<Map<string, number>>(new Map());
   const isMobile = useIsMobile();
 
   const toggleFullscreen = useCallback(() => {
@@ -139,6 +142,12 @@ export default function GameBoard() {
     preloadFactionArt();
     void preloadAllCardArt();
     void getMatchBoardBackground().then(setBoardBg);
+  }, []);
+
+  useEffect(() => {
+    api.get<CollectionEntry[]>("/api/collection")
+      .then((entries) => setOwnedCounts(new Map(entries.map((e) => [e.cardId, e.quantity]))))
+      .catch(() => {});
   }, []);
 
   // Preload art for every card currently visible (hand + both boards + graveyards)
@@ -767,7 +776,9 @@ export default function GameBoard() {
                   <div style={{ position: "relative" }}>
                     {slot && (
                       <MinionCard
-                        slot={slot} isSelected={isAttacking} isAttacking={isAttacking} isValidTarget={isPlayTarget || isHpTarget}
+                        slot={slot}
+                        ownedCount={ownedCounts.get(slot.card.id)}
+                        isSelected={isAttacking} isAttacking={isAttacking} isValidTarget={isPlayTarget || isHpTarget}
                         isLunging={lungeId === slot.instanceId}
                         isDamageFlash={damageFlashIds.has(slot.instanceId)}
                         onClick={() => handleMinionClick(slot.instanceId, false)}

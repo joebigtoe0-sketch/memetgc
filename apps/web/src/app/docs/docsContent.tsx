@@ -182,8 +182,8 @@ export const DOC_GROUPS: DocGroup[] = [
             <H3>Recommended first steps</H3>
             <UL>
               <LI>
-                <Strong>Play a Practice game</Strong> vs the AI with a starter deck to learn the flow — low stakes, and
-                you still earn 2 fragments per win.
+                <Strong>Play a Practice game</Strong> vs the AI with a starter deck to learn the flow — low stakes,
+                2 fragments per win, and three daily quests count here too.
               </LI>
               <LI>
                 <Strong>Open your 5 packs</Strong> from the Packs screen to start building a collection.
@@ -253,8 +253,14 @@ export const DOC_GROUPS: DocGroup[] = [
             </UL>
             <H3>Hero Power</H3>
             <P>
-              Every Hero has a <Strong>Hero Power</Strong> you can use <Strong>once per turn</Strong> for{" "}
-              <Strong>2 Gas</Strong> by default. It's a reliable source of value when you have spare Gas.
+              Every Hero has a <Strong>Hero Power</Strong> you can use <Strong>once each turn</Strong> for{" "}
+              <Strong>2 Gas</Strong> by default. It resets at the start of your next turn. It's a reliable source of
+              value when you have spare Gas.
+            </P>
+            <H3>Turn timer</H3>
+            <P>
+              Each player has <Strong>30 seconds</Strong> per turn. If time runs out, your turn ends automatically — the
+              same as pressing End Turn. Pick a discover card or finish your action before the clock hits zero.
             </P>
           </>
         ),
@@ -449,14 +455,14 @@ export const DOC_GROUPS: DocGroup[] = [
             <Table
               head={["Mode", "Opponent", "Rewards", "Notes"]}
               rows={[
-                [<Strong key="p">Practice</Strong>, "AI", "2 frags per win", "Learn decks risk-free. Does not progress quests."],
-                [<Strong key="c">Casual</Strong>, "Real players", "Fragments", "No ladder impact. Great for testing decks."],
-                [<Strong key="r">Ranked</Strong>, "Real players", "Fragments + ladder points", "Requires a custom (non-starter) deck."],
+                [<Strong key="p">Practice</Strong>, "AI", "2 frags per win", "Learn decks risk-free. Three daily quests progress here (see Daily Quests). No ladder impact."],
+                [<Strong key="c">Casual</Strong>, "Real players", "Fragments + all daily quests", "No ladder impact. Great for testing decks."],
+                [<Strong key="r">Ranked</Strong>, "Real players", "Fragments + ladder points + all daily quests", "Requires a custom (non-starter) deck."],
               ]}
             />
-            <Callout tone="warn">
-              <Strong>Daily quests only count in Casual and Ranked.</Strong> Practice games against the AI award a small
-              2-fragment win bonus but never progress daily quests or the ladder.
+            <Callout tone="info">
+              <Strong>8 daily quests</Strong> reset each day — <Strong>3</Strong> can be completed in Practice (vs AI), and{" "}
+              <Strong>5</Strong> require Casual or Ranked. Practice never affects your ladder rank or season record.
             </Callout>
           </>
         ),
@@ -489,6 +495,13 @@ export const DOC_GROUPS: DocGroup[] = [
               more; lose to someone well below you and you lose more. Even, expected results move you by a smaller amount.
               New players swing faster (larger adjustments) until the system learns their rating; movement shrinks at
               Diamond and above. Points never drop below 0, and Practice / Casual never affect your ladder points.
+            </P>
+            <H3>Win streak bonus</H3>
+            <P>
+              Consecutive ranked wins add extra ladder points on top of the normal Elo gain. Your{" "}
+              <Strong>2nd win in a row</Strong> earns <Strong>+3</Strong> bonus points, the 3rd <Strong>+6</Strong>, then{" "}
+              <Strong>+9</Strong>, <Strong>+12</Strong>, and <Strong>+15</Strong> (capped) for longer streaks. The bonus
+              shows on the victory screen. Losses reset your streak.
             </P>
             <H3>Memepool rank</H3>
             <P>
@@ -554,8 +567,8 @@ export const DOC_GROUPS: DocGroup[] = [
             </P>
             <H3>Ways to earn fragments</H3>
             <UL>
-              <LI><Strong>Daily quests</Strong> — 15 to 60 frags each (Casual/Ranked only).</LI>
-              <LI><Strong>Match rewards</Strong> — small payouts for playing Casual and Ranked.</LI>
+              <LI><Strong>Daily quests</Strong> — 8 per day, <Frag>15</Frag> to <Frag>60</Frag> frags each (3 completable in Practice, 5 need Casual/Ranked).</LI>
+              <LI><Strong>Match rewards</Strong> — win or lose payouts in Casual and Ranked; Practice wins pay <Frag>2</Frag> frags.</LI>
               <LI><Strong>Dusting cards</Strong> — break down extra cards into frags.</LI>
             </UL>
           </>
@@ -713,24 +726,41 @@ export const DOC_GROUPS: DocGroup[] = [
         body: (
           <>
             <P>
-              Every day you get <Strong>5 daily quests</Strong> (reset at midnight UTC). Each one rewards{" "}
-              <Strong>fragments only</Strong> — 15, 30, or 60 frags depending on difficulty. They progress in{" "}
-              <Strong>Casual and Ranked</Strong> games only; Practice vs AI does not count.
+              Every day you get <Strong>8 daily quests</Strong> (reset at midnight UTC). Each rewards{" "}
+              <Strong>fragments only</Strong> — <Frag>15</Frag>, <Frag>30</Frag>, or <Frag>60</Frag> depending on
+              difficulty. Claim completed quests from the dashboard.
             </P>
-            <P>Examples of quests you might see:</P>
+            <H3>Solo quests (any mode)</H3>
+            <P>
+              <Strong>3 quests</Strong> progress in <Strong>Practice, Casual, and Ranked</Strong> — so you can finish
+              part of your daily grind against the AI without queueing for humans. Examples:
+            </P>
             <Table
-              head={["Quest type", "Reward"]}
+              head={["Example quest", "Reward tier"]}
               rows={[
-                ["Play 2–4 games", <><Frag>15–30</Frag> frags</>],
-                ["Win 2–3 games", <><Frag>30–60</Frag> frags</>],
-                ["Destroy 10–20 minions", <><Frag>30–60</Frag> frags</>],
-                ["Play or win Ranked / Casual matches", <><Frag>15–60</Frag> frags</>],
+                ["Play 2 or 4 games (any mode)", <><Frag>15</Frag> or <Frag>30</Frag></>],
+                ["Win 1, 2, or 3 games (any mode)", <><Frag>15</Frag> to <Frag>60</Frag></>],
+                ["Destroy 10 or 20 minions (any mode)", <><Frag>30</Frag> or <Frag>60</Frag></>],
               ]}
             />
+            <H3>Competitive quests (Casual &amp; Ranked only)</H3>
             <P>
-              Your five quests are picked from a rotating pool each day, so they vary day to day. Claim completed
-              quests from the dashboard to collect fragments.
+              <Strong>5 quests</Strong> only count in <Strong>Casual or Ranked</Strong> matches — Practice does not
+              progress these. They include mode-specific goals like winning Ranked games or playing Casual only:
             </P>
+            <Table
+              head={["Example quest", "Reward tier"]}
+              rows={[
+                ["Play 2–4 Casual or Ranked games", <><Frag>15</Frag> to <Frag>30</Frag></>],
+                ["Win 1–3 Casual or Ranked games", <><Frag>15</Frag> to <Frag>60</Frag></>],
+                ["Play or win Ranked / Casual-only matches", <><Frag>15</Frag> to <Frag>60</Frag></>],
+                ["Destroy 10–20 minions (Casual or Ranked)", <><Frag>30</Frag> to <Frag>60</Frag></>],
+              ]}
+            />
+            <Callout tone="info">
+              Your eight quests are picked from a rotating pool each day (one easy, one medium, and one hard from each
+              pool), so they vary day to day. Early surrenders before turn 4 grant no quest progress to either player.
+            </Callout>
           </>
         ),
       },
@@ -766,14 +796,14 @@ export const DOC_GROUPS: DocGroup[] = [
               rows={[
                 [<Strong key="r">Ranked</Strong>, <><Frag>5</Frag> frags</>, <><Frag>2</Frag> frags</>],
                 [<Strong key="c">Casual</Strong>, <><Frag>2</Frag> frags</>, <Frag>0</Frag>],
-                [<Strong key="p">Practice (vs AI)</Strong>, <Frag>0</Frag>, <Frag>0</Frag>],
+                [<Strong key="p">Practice (vs AI)</Strong>, <><Frag>2</Frag> frags</>, <Frag>0</Frag>],
               ]}
             />
             <H3>Anti-abuse</H3>
             <UL>
               <LI><Strong>Surrendering early</Strong> (before turn 4) grants no fragments or quest progress to either player.</LI>
               <LI>A player who surrenders never receives fragments for that match — even in Ranked.</LI>
-              <LI>Only Casual and Ranked games update rank, season stats, and quests.</LI>
+              <LI>Rank and season stats only update in Casual and Ranked. Practice updates three of your eight daily quests.</LI>
             </UL>
             <Callout tone="good">
               Play matches out normally and you'll never be affected — these rules only target instant-surrender farming.

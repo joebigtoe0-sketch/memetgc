@@ -1,15 +1,18 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import type { MinionSlot } from "@memetgc/types";
 
 import { factionColor } from "@/lib/factions";
 import { cardArtUrl } from "@/lib/cardArt";
+import { boardFrameStyle, frameTierFromOwned } from "@/lib/cardFrame";
 import { playSound } from "@/lib/sounds";
 
 interface Props {
   slot: MinionSlot;
   isEnemy?: boolean;
+  /** Copies owned — drives default/silver/gold frame on your minions. */
+  ownedCount?: number;
   isSelected?: boolean;
   isValidTarget?: boolean;
   isAttacking?: boolean;
@@ -19,7 +22,18 @@ interface Props {
   onHover?: (hovered: boolean) => void;
 }
 
-export default function MinionCard({ slot, isEnemy, isSelected, isValidTarget, isAttacking, isLunging, isDamageFlash, onClick, onHover }: Props) {
+export default function MinionCard({
+  slot,
+  isEnemy,
+  ownedCount,
+  isSelected,
+  isValidTarget,
+  isAttacking,
+  isLunging,
+  isDamageFlash,
+  onClick,
+  onHover,
+}: Props) {
   const fac = factionColor(slot.card.faction);
   const isDamaged = slot.currentHealth < (slot.card.health ?? slot.maxHealth ?? slot.currentHealth);
   const hp1 = isDamaged ? "#ff6a5a" : "#ff8f7e";
@@ -28,12 +42,19 @@ export default function MinionCard({ slot, isEnemy, isSelected, isValidTarget, i
   const attacked = !!(slot.hasAttacked && !isEnemy);
   const taunt = slot.hasTaunt;
   const shield = slot.hasDivineShield;
+  const [artFailed, setArtFailed] = useState(false);
+
+  useEffect(() => {
+    setArtFailed(false);
+  }, [slot.card.id, slot.card.art_url]);
 
   const atk = (slot.currentAttack ?? 0) + (slot.tempAttackBoost ?? 0);
 
-  // Glow border for interactive states
-  let borderColor = "#caa24a";
-  let outerShadow = `0 6px 12px rgba(0,0,0,.55), 0 1px 0 rgba(255,240,190,.3)`;
+  const tier = isEnemy ? "dark" : frameTierFromOwned(ownedCount);
+  const frame = boardFrameStyle(tier);
+
+  let borderColor = frame.borderColor;
+  let outerShadow = frame.outerShadow;
   if (isValidTarget) {
     borderColor = "#e0e040";
     outerShadow = `0 0 16px 4px rgba(224,224,64,0.7), 0 6px 12px rgba(0,0,0,.55)`;
@@ -41,8 +62,10 @@ export default function MinionCard({ slot, isEnemy, isSelected, isValidTarget, i
     borderColor = "#40e080";
     outerShadow = `0 0 16px 4px rgba(64,224,128,0.7), 0 6px 12px rgba(0,0,0,.55)`;
   } else if (taunt) {
-    outerShadow = `0 0 0 2px rgba(231,199,104,.9), 0 0 14px rgba(231,199,104,.55)`;
+    outerShadow = `0 0 0 2px rgba(231,199,104,.9), 0 0 14px rgba(231,199,104,.55), ${frame.outerShadow}`;
   }
+
+  const statRing = frame.statRing;
 
   return (
     <div
@@ -69,46 +92,54 @@ export default function MinionCard({ slot, isEnemy, isSelected, isValidTarget, i
           : undefined,
       }}
     >
-      {/* Gold border frame */}
       <div style={{
         position: "absolute", inset: 0, borderRadius: 11, padding: 3, boxSizing: "border-box",
         background: `linear-gradient(160deg,${borderColor},${borderColor}88 55%,${borderColor}44)`,
         boxShadow: outerShadow,
       }}>
-        {/* Inner faction-colored content */}
         <div style={{
           position: "relative", width: "100%", height: "100%", borderRadius: 9, overflow: "hidden",
-          background: `radial-gradient(120% 90% at 50% 0%,color-mix(in srgb,${fac} 22%,#1a1f29),#0e1219)`,
-          boxShadow: `inset 0 0 0 1.5px color-mix(in srgb,${fac} 55%,#000)`,
+          background: artFailed
+            ? `radial-gradient(120% 90% at 50% 0%,color-mix(in srgb,${fac} 22%,#1a1f29),#0e1219)`
+            : "#0a0c10",
+          boxShadow: `inset 0 0 0 1.5px color-mix(in srgb,${fac} 35%,#000)`,
         }}>
-          {/* Art window: full card image, with name fallback underneath (shows on 404) */}
-          <div style={{
-            position: "absolute", inset: 0,
-            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3,
-            background: `repeating-linear-gradient(135deg,color-mix(in srgb,${fac} 16%,transparent) 0 8px,transparent 8px 16px)`,
-          }}>
-            <div style={{ font: `700 9px/1.1 var(--font-archivo,'Archivo',sans-serif)`, textAlign: "center", color: `color-mix(in srgb,${fac} 50%,#fff)`, textShadow: "0 1px 2px #000", padding: "0 6px" }}>
-              {(slot.card.name ?? "").toUpperCase()}
-            </div>
+          <div style={{ position: "absolute", inset: 0 }}>
+            {artFailed && (
+              <div style={{
+                position: "absolute", inset: 0,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                background: `repeating-linear-gradient(135deg,color-mix(in srgb,${fac} 16%,transparent) 0 8px,transparent 8px 16px)`,
+                padding: "0 6px",
+              }}>
+                <div style={{
+                  font: `700 9px/1.1 var(--font-archivo,'Archivo',sans-serif)`,
+                  textAlign: "center",
+                  color: `color-mix(in srgb,${fac} 50%,#fff)`,
+                  textShadow: "0 1px 2px #000",
+                }}>
+                  {(slot.card.name ?? "").toUpperCase()}
+                </div>
+              </div>
+            )}
             <img
               src={cardArtUrl(slot.card.id, slot.card.art_url)}
               alt={slot.card.name}
               loading="eager"
+              draggable={false}
               style={{
-                width: "108%",
-                height: "112%",
-                objectFit: "cover",
-                objectPosition: "50% 12%",
                 position: "absolute",
-                left: "50%",
-                top: "-6%",
-                transform: "translateX(-50%)",
+                inset: 0,
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                objectPosition: "center center",
+                display: artFailed ? "none" : "block",
               }}
-              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+              onError={() => setArtFailed(true)}
             />
           </div>
 
-          {/* Divine Shield inner glow */}
           {shield && (
             <div style={{
               position: "absolute", inset: 0, borderRadius: 9,
@@ -120,7 +151,6 @@ export default function MinionCard({ slot, isEnemy, isSelected, isValidTarget, i
         </div>
       </div>
 
-      {/* Name tag (top-center, outside frame) */}
       <div style={{
         position: "absolute", top: -7, left: "50%", transform: "translateX(-50%)",
         maxWidth: "92%", padding: "2px 7px", borderRadius: 5, zIndex: 3,
@@ -133,45 +163,40 @@ export default function MinionCard({ slot, isEnemy, isSelected, isValidTarget, i
         {slot.card.name}
       </div>
 
-      {/* Attack bubble (bottom-left) */}
       <div style={{
         position: "absolute", bottom: -8, left: -8, zIndex: 4,
         width: 30, height: 30,
         display: "flex", alignItems: "center", justifyContent: "center",
         borderRadius: "50%",
         background: "radial-gradient(circle at 38% 30%,#ffe7a8,#d97a16 70%)",
-        boxShadow: "0 0 0 2px #caa24a, 0 2px 5px rgba(0,0,0,.6)",
+        boxShadow: `0 0 0 2px ${statRing}, 0 2px 5px rgba(0,0,0,.6)`,
       }}>
         <span style={{ font: `800 15px/1 var(--font-mono,'JetBrains Mono',monospace)`, color: "#3a1d00", textShadow: "0 1px 0 rgba(255,255,255,.3)" }}>
           {atk}
         </span>
       </div>
 
-      {/* Health bubble (bottom-right) */}
       <div style={{
         position: "absolute", bottom: -8, right: -8, zIndex: 4,
         width: 30, height: 30,
         display: "flex", alignItems: "center", justifyContent: "center",
         borderRadius: "50%",
         background: `radial-gradient(circle at 38% 30%,${hp1},${hp2} 70%)`,
-        boxShadow: "0 0 0 2px #caa24a, 0 2px 5px rgba(0,0,0,.6)",
+        boxShadow: `0 0 0 2px ${statRing}, 0 2px 5px rgba(0,0,0,.6)`,
       }}>
         <span style={{ font: `800 15px/1 var(--font-mono,'JetBrains Mono',monospace)`, color: "#fff", textShadow: "0 1px 2px rgba(0,0,0,.6)" }}>
           {slot.currentHealth}
         </span>
       </div>
 
-      {/* Summoning sickness overlay */}
       {sick && (
         <div style={{ position: "absolute", inset: 0, borderRadius: 11, background: "rgba(8,10,16,.45)", backdropFilter: "saturate(.4)", zIndex: 2, pointerEvents: "none" }} />
       )}
 
-      {/* Attacked overlay */}
       {attacked && (
         <div style={{ position: "absolute", inset: 0, borderRadius: 11, background: "rgba(0,0,0,0.25)", zIndex: 2, pointerEvents: "none" }} />
       )}
 
-      {/* Frozen overlay */}
       {slot.frozen && (
         <div style={{ position: "absolute", inset: 0, borderRadius: 11, background: "linear-gradient(160deg,rgba(140,196,255,.32),rgba(60,120,200,.22))", boxShadow: "inset 0 0 0 2px rgba(180,220,255,.7), inset 0 0 14px rgba(150,200,255,.6)", zIndex: 3, pointerEvents: "none" }}>
           <span style={{ position: "absolute", top: 3, right: 4, fontSize: 13 }}>❄️</span>
