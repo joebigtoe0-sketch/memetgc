@@ -15,6 +15,7 @@ import BoardBackground from "./BoardBackground";
 import { CARD_BACK_DEFAULT, CARD_BACK_RADIUS } from "@/lib/cardBacks";
 import GameIcon from "@/components/UI/GameIcon";
 import { playSound } from "@/lib/sounds";
+import { useIsMobile } from "@/hooks/useViewport";
 import MusicSettings from "@/components/Music/MusicSettings";
 import type { MinionSlot, Card } from "@memetgc/types";
 import type { CardData } from "../Card/CardComponent";
@@ -31,6 +32,34 @@ export default function GameBoard() {
   const { selectCard, selectAttacker, setActionError, clearAnimations } = useGameStore();
   const [phase, setPhase] = useState<PhaseAction>("idle");
   const [zoomedCard, setZoomedCard] = useState<CardData | null>(null);
+  // On mobile a card is inspected via tap; the zoom overlay becomes tap-to-close.
+  const [inspectMode, setInspectMode] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const isMobile = useIsMobile();
+
+  const toggleFullscreen = useCallback(() => {
+    const doc = document as Document & { webkitFullscreenElement?: Element; webkitExitFullscreen?: () => void };
+    const el = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => void };
+    const active = document.fullscreenElement ?? doc.webkitFullscreenElement;
+    if (active) {
+      (document.exitFullscreen ?? doc.webkitExitFullscreen)?.call(document);
+    } else {
+      (el.requestFullscreen ?? el.webkitRequestFullscreen)?.call(el);
+    }
+  }, []);
+
+  useEffect(() => {
+    const onChange = () => {
+      const doc = document as Document & { webkitFullscreenElement?: Element };
+      setIsFullscreen(!!(document.fullscreenElement ?? doc.webkitFullscreenElement));
+    };
+    document.addEventListener("fullscreenchange", onChange);
+    document.addEventListener("webkitfullscreenchange", onChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", onChange);
+      document.removeEventListener("webkitfullscreenchange", onChange);
+    };
+  }, []);
   const [turnSecondsLeft, setTurnSecondsLeft] = useState(TURN_SECONDS);
   const [showNewTurn, setShowNewTurn] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -568,6 +597,8 @@ export default function GameBoard() {
               currentMana={manaAvailable}
               actionsEnabled={canAct}
               newCardIds={newCardIds}
+              isMobile={isMobile}
+              onCardInspect={(card) => { setZoomedCard(card); setInspectMode(true); }}
               onCardClick={(id) => {
                 if (!canAct) return;
                 const card = myState.hand.find((c) => (c as Card & { instanceId?: string }).instanceId === id) as Card | undefined;
@@ -612,14 +643,38 @@ export default function GameBoard() {
         }}
       >⚙</button>
 
+      {/* Fullscreen toggle — mobile only, reclaims space from browser chrome */}
+      {isMobile && (
+        <button
+          onClick={toggleFullscreen}
+          title="Fullscreen"
+          style={{
+            position: "absolute", top: 12, right: 68, zIndex: 82,
+            cursor: "pointer", width: 46, height: 46, borderRadius: 12,
+            background: "rgba(8,11,18,.85)", border: "1px solid rgba(255,255,255,.14)",
+            color: "#c4ccd8", fontSize: 20,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            boxShadow: "0 4px 16px rgba(0,0,0,.45)",
+          }}
+        >{isFullscreen ? "⤢" : "⛶"}</button>
+      )}
+
       {/* ══════════════ OVERLAYS ══════════════ */}
 
-      {/* Card zoom */}
+      {/* Card zoom — on mobile (inspect mode) it's tap-to-close */}
       {zoomedCard && (
-        <div style={{ position: "absolute", inset: 0, zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none", background: "rgba(4,6,12,.55)", backdropFilter: "blur(4px)" }}>
+        <div
+          onClick={inspectMode ? () => { setZoomedCard(null); setInspectMode(false); } : undefined}
+          style={{ position: "absolute", inset: 0, zIndex: 60, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, pointerEvents: inspectMode ? "auto" : "none", background: "rgba(4,6,12,.55)", backdropFilter: "blur(4px)" }}
+        >
           <div style={{ animation: "cardZoomIn 0.18s ease-out", filter: "drop-shadow(0 0 40px rgba(0,0,0,.9))" }}>
             <CardComponent card={zoomedCard} size="lg" glowing />
           </div>
+          {inspectMode && (
+            <div style={{ font: `700 11px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "1px", color: "#9aa3b4", background: "rgba(8,11,20,.85)", border: "1px solid rgba(255,255,255,.12)", padding: "7px 16px", borderRadius: 999 }}>
+              TAP TO CLOSE · DRAG A CARD UP TO PLAY
+            </div>
+          )}
         </div>
       )}
 
