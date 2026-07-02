@@ -16,7 +16,7 @@ import {
   resolveHeroAttacksMinion,
   resolveHeroAttacksHero,
 } from "./combat.js";
-import { resolveEffects, drawCard, fireHealTriggers, summonResurrectedMinion, type EffectContext } from "./effects.js";
+import { resolveEffects, drawCard, fireHealTriggers, fireTakeDamageTriggers, summonResurrectedMinion, type EffectContext } from "./effects.js";
 import { applyVolatility } from "./utils.js";
 
 export interface ActionResult {
@@ -125,12 +125,12 @@ function handleAction(
 
     case "attack": {
       if (state.phase !== "main") return { success: false, error: "Not main phase" };
-      return handleAttack(state, action, animations, rng);
+      return handleAttack(state, action, animations, rng, cardRegistry);
     }
 
     case "hero_power": {
       if (state.phase !== "main") return { success: false, error: "Not main phase" };
-      if (activePlayer.heroPowerUsed) return { success: false, error: "Hero power already used" };
+      if (activePlayer.heroPowerUsed) return { success: false, error: "Hero power already used this round" };
       return handleHeroPower(state, action, animations, rng, cardRegistry);
     }
 
@@ -223,6 +223,19 @@ function handleDiscoverChoice(
   if (!chosen) return { success: false, error: "Invalid discover choice" };
 
   const mode = pending.mode ?? "pool";
+
+  if (mode === "reduce_cost") {
+    // Gas Refund etc.: discount a card already in hand instead of adding one.
+    const target = player.hand.find(
+      (c) => c.id === action.cardId
+    ) as (Card & { costModifier?: number }) | undefined;
+    if (target) {
+      target.costModifier = (target.costModifier ?? 0) + (pending.costModifier ?? 0);
+    }
+    state.pendingDiscover = null;
+    animations.push({ type: "discover", data: { cardId: action.cardId } });
+    return { success: true };
+  }
 
   if (mode === "resurrect") {
     // Pull the chosen minion out of the burn pile and summon it with any buffs.
@@ -390,6 +403,22 @@ function handlePlayCard(
       resolveEffects(card.effects ?? [], "on_play", ctx);
       activePlayer.burnPile.unshift(card);
       animations.push({ type: "spell_cast", data: { cardId: card.id, playerId: activePlayer.playerId, card } });
+
+      // Opponent's board minions may react to us casting a spell (e.g. MEV Bot:
+      // "Whenever your opponent plays a spell, deal 1 damage to their Hero.").
+      for (const slot of [...opponent.board]) {
+        if (!slot) continue;
+        if (!(slot.card.effects ?? []).some((e) => e.trigger === "on_opponent_spell")) continue;
+        const reactCtx: EffectContext = {
+          state,
+          activePlayerId: opponentId,
+          sourceCard: slot.card,
+          animations,
+          rng,
+          cardRegistry,
+        } as EffectContext & { cardRegistry?: Map<string, Card> };
+        resolveEffects(slot.card.effects ?? [], "on_opponent_spell", reactCtx);
+      }
       break;
     }
 
@@ -444,7 +473,8 @@ function handleAttack(
   state: GameState,
   action: Extract<GameAction, { type: "attack" }>,
   animations: AnimationHint[],
-  rng: () => number
+  rng: () => number,
+  cardRegistry?: Map<string, Card>
 ): { success: boolean; error?: string } {
   const activePlayer = state.players[state.activePlayerId]!;
   const opponentId = getOpponentId(state);
@@ -473,8 +503,12 @@ function handleAttack(
     } else {
       const defenderSlot = findMinionOnBoard(action.defenderInstanceId, opponent.board);
       if (!defenderSlot) return { success: false, error: "Target not found" };
+      const defenderPrevHp = defenderSlot.currentHealth;
       const result = resolveHeroAttacksMinion(activePlayer, defenderSlot);
       animations.push(...result.animations);
+      if (defenderSlot.currentHealth < defenderPrevHp) {
+        fireTakeDamageTriggers(state, defenderSlot, opponentId, animations, rng, cardRegistry);
+      }
     }
   } else {
     // Minion attack
@@ -506,6 +540,8 @@ function handleAttack(
       const defenderSlot = findMinionOnBoard(action.defenderInstanceId, opponent.board);
       if (!defenderSlot) return { success: false, error: "Defender not found" };
 
+      const attackerPrevHp = attackerSlot.currentHealth;
+      const defenderPrevHp = defenderSlot.currentHealth;
       const result = resolveMinionAttack(attackerSlot, defenderSlot, activePlayer, opponent);
       animations.push(...result.animations);
 
@@ -516,6 +552,14 @@ function handleAttack(
           player.hp = Math.min(player.maxHp, player.hp + lh.amount);
           animations.push({ type: "heal", data: { playerId: lh.playerId, amount: lh.amount } });
         }
+      }
+
+      // "Whenever this takes damage and survives…" reactions for both combatants.
+      if (defenderSlot.currentHealth < defenderPrevHp) {
+        fireTakeDamageTriggers(state, defenderSlot, opponentId, animations, rng, cardRegistry);
+      }
+      if (attackerSlot.currentHealth < attackerPrevHp) {
+        fireTakeDamageTriggers(state, attackerSlot, state.activePlayerId, animations, rng, cardRegistry);
       }
     }
   }

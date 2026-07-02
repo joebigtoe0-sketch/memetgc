@@ -57,6 +57,31 @@ export function fireHealTriggers(
   }
 }
 
+/**
+ * Fire a minion's "on_take_damage" reactions (e.g. Wojak: draw a card when it
+ * takes damage and survives). Only fires for minions still alive after the hit.
+ */
+export function fireTakeDamageTriggers(
+  state: GameState,
+  slot: MinionSlot,
+  ownerId: string,
+  animations: AnimationHint[],
+  rng: () => number,
+  cardRegistry?: Map<string, Card>
+): void {
+  if (slot.currentHealth <= 0) return;
+  if (!(slot.card.effects ?? []).some((e) => e.trigger === "on_take_damage")) return;
+  const ctx: EffectContext = {
+    state,
+    activePlayerId: ownerId,
+    sourceCard: slot.card,
+    animations,
+    rng,
+    cardRegistry,
+  } as EffectContext & { cardRegistry?: Map<string, Card> };
+  resolveEffects(slot.card.effects ?? [], "on_take_damage", ctx);
+}
+
 /** Whole-effect gate for conditions like coin flips. Returns false to skip the effect entirely. */
 function effectGatePasses(effect: CardEffect, ctx: EffectContext): boolean {
   const condition = effect.params?.condition as string | undefined;
@@ -64,6 +89,14 @@ function effectGatePasses(effect: CardEffect, ctx: EffectContext): boolean {
   switch (condition) {
     case "coin_heads": return ctx.coinFlip === "heads";
     case "coin_tails": return ctx.coinFlip === "tails";
+    case "hero_hp_leading": {
+      // e.g. Algo Stable: only fire if my hero has more HP than the opponent's.
+      const me = ctx.state.players[ctx.activePlayerId];
+      const oppId = Object.keys(ctx.state.players).find((id) => id !== ctx.activePlayerId);
+      const opp = oppId ? ctx.state.players[oppId] : undefined;
+      if (!me || !opp) return false;
+      return me.hp > opp.hp;
+    }
     default: return true; // per-target conditions handled at target resolution
   }
 }
@@ -296,6 +329,20 @@ function resolveEffect(effect: CardEffect, ctx: EffectContext): void {
         if (activePlayer.hand.length > 0) {
           const card = activePlayer.hand[Math.floor(ctx.rng() * activePlayer.hand.length)]!;
           (card as Card & { costModifier?: number }).costModifier = ((card as Card & { costModifier?: number }).costModifier ?? 0) + amount;
+        }
+      } else if (effect.target === "chosen_card_in_hand_friendly") {
+        // Let the player pick which card in hand to discount (e.g. Gas Refund).
+        // Reuses the discover picker in "reduce_cost" mode — the source card has
+        // already been removed from hand, so it can't target itself.
+        if (activePlayer.hand.length > 0) {
+          ctx.state.pendingDiscover = {
+            playerId: ctx.activePlayerId,
+            options: activePlayer.hand.map((c) => deepClone(c)),
+            sourceCardId: ctx.sourceCard.id,
+            mode: "reduce_cost",
+            costModifier: amount,
+            prompt: `Reduce a card's cost by ${Math.abs(amount)}`,
+          };
         }
       } else if (effect.target === "all_minions_friendly" || effect.target === "minion_friendly") {
         for (const card of activePlayer.hand) {
@@ -654,6 +701,15 @@ function applyDamageToTarget(
     const result = damageMinionSlot(target.slot, amount);
     if (!result.absorbed) {
       ctx.animations.push({ type: "spell_cast", data: { targetId: target.slot.instanceId, damage: amount } });
+      // "Whenever this takes damage and survives…" reactions (e.g. Wojak).
+      fireTakeDamageTriggers(
+        ctx.state,
+        target.slot,
+        target.playerId,
+        ctx.animations,
+        ctx.rng,
+        (ctx as EffectContext & { cardRegistry?: Map<string, Card> }).cardRegistry
+      );
     }
   }
 }

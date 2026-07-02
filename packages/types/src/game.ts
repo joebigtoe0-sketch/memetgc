@@ -115,8 +115,9 @@ export interface PendingDiscover {
    * - "pool" (default): add a fresh copy to hand (generic discover)
    * - "salvage": remove the chosen card from the burn pile and add it to hand
    * - "resurrect": remove the chosen minion from the burn pile and summon it
+   * - "reduce_cost": apply `costModifier` to the chosen card already in hand
    */
-  mode?: "pool" | "salvage" | "resurrect";
+  mode?: "pool" | "salvage" | "resurrect" | "reduce_cost";
   /** UI heading shown above the options. */
   prompt?: string;
   /** Cost modifier applied to the card added to hand (e.g. -3 cheaper, +1 costlier). */

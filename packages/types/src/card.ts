@@ -17,6 +17,7 @@ export type EffectTrigger =
   | "start_of_turn"
   | "end_of_turn"
   | "on_secret_trigger"
+  | "on_opponent_spell"
   | "passive"
   | "on_tap"
   | "on_equip";
@@ -37,7 +38,8 @@ export type EffectTarget =
   | "random_minion_friendly"
   | "chosen_any"
   | "all_characters"
-  | "random_card_in_hand_friendly";
+  | "random_card_in_hand_friendly"
+  | "chosen_card_in_hand_friendly";
 
 export type EffectAction =
   | "deal_damage"

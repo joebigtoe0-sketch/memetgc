@@ -14,16 +14,20 @@ import { useIsMobile } from "@/hooks/useViewport";
 
 interface FactionMastery { faction: string; level: number; }
 interface RecentMatch { opponent: string; won: boolean; mode: string; delta: number; endedAt: string | null; }
+interface ModeRecord { wins: number; losses: number; }
 interface Profile {
   username: string; walletAddress: string | null; fragments: number;
   rankTier: string; rankStars: number; rankPoints: number;
   seasonWins: number; seasonLosses: number; winStreak: number; level: number;
   games: number; cardsOwned: number; legendaries: number; packsOpened: number; questsDone: number;
+  modeStats?: { ranked: ModeRecord; casual: ModeRecord; practice: ModeRecord };
   factionMastery: FactionMastery[]; recentMatches: RecentMatch[];
 }
 
 const TIER_COLOR: Record<string, string> = { bronze: "#c8843c", silver: "#cfd6e0", gold: "#e7c768", platinum: "#7ad6ff", diamond: "#b58bff", degen: "#ff5fae" };
 const ROMAN = ["", "I", "II", "III", "IV", "V"];
+const RANK_TIERS = ["bronze", "silver", "gold", "platinum", "diamond", "degen"] as const;
+const TIER_FLOORS: Record<string, number> = { bronze: 0, silver: 500, gold: 1000, platinum: 1500, diamond: 2000, degen: 2500 };
 
 export default function ProfilePage() {
   const { token, hasUsername, username, walletAddress, logout } = useAuthStore();
@@ -37,8 +41,20 @@ export default function ProfilePage() {
   const tier = p?.rankTier ?? "bronze";
   const tc = TIER_COLOR[tier] ?? "#e7c768";
   const stars = p?.rankStars ?? 0;
-  const wins = p?.seasonWins ?? 0, losses = p?.seasonLosses ?? 0, games = wins + losses;
+  const ranked = p?.modeStats?.ranked ?? { wins: 0, losses: 0 };
+  const casual = p?.modeStats?.casual ?? { wins: 0, losses: 0 };
+  const wins = ranked.wins + casual.wins, losses = ranked.losses + casual.losses, games = wins + losses;
   const winrate = games > 0 ? Math.round((wins / games) * 100) : 0;
+  const rankedGames = ranked.wins + ranked.losses;
+  const casualGames = casual.wins + casual.losses;
+  // Progress toward the next division (each tier = 5 divisions of 100 pts).
+  const rankPoints = p?.rankPoints ?? 0;
+  const tierFloor = TIER_FLOORS[tier] ?? 0;
+  const nextTier = RANK_TIERS[Math.min(RANK_TIERS.length - 1, RANK_TIERS.indexOf(tier as typeof RANK_TIERS[number]) + 1)] ?? "degen";
+  const progressPct = Math.min(100, Math.max(0, Math.round((((rankPoints - tierFloor) % 100) + 100) % 100)));
+  const nextDivisionLabel = stars < 4
+    ? `${formatRankTier(tier)} ${ROMAN[5 - (stars + 1)] ?? ""}`
+    : `${formatRankTier(nextTier)} V`;
   const wallet = walletAddress ?? p?.walletAddress ?? null;
   const mains = (p?.factionMastery ?? []).slice().sort((a, b) => b.level - a.level)[0];
   const mainsFaction = mains?.faction ?? "bitcoin";
@@ -97,13 +113,30 @@ export default function ProfilePage() {
                 <div key={i} style={{ width: 15, height: 15, transform: "rotate(45deg)", borderRadius: 3, background: i < stars ? `linear-gradient(135deg,${tc},${tc}99)` : "rgba(255,255,255,.07)", boxShadow: i < stars ? `0 0 6px ${tc}88` : "none" }} />
               ))}
             </div>
+            <div style={{ marginTop: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", font: `600 9.5px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6", marginBottom: 6 }}>
+                <span>Progress to {nextDivisionLabel}</span><span>{progressPct}%</span>
+              </div>
+              <div style={{ height: 7, borderRadius: 4, background: "rgba(255,255,255,.06)", overflow: "hidden" }}>
+                <div style={{ width: `${progressPct}%`, height: "100%", borderRadius: 4, background: `linear-gradient(90deg,${tc},#f7c64a)`, boxShadow: `0 0 8px ${tc}88` }} />
+              </div>
+            </div>
             <div style={{ marginTop: "auto", paddingTop: 14, display: "flex", justifyContent: "space-between", font: `600 10px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6" }}>
               <span>Season high</span><span style={{ color: "#cdd4df" }}>{formatRankTier(tier).toUpperCase()}</span>
             </div>
           </div>
 
-          <Stat value={games} label="Games played" />
-          <Stat value={`${winrate}%`} label="Win rate" color="#19e08a" />
+          <Stat
+            value={`${ranked.wins}–${ranked.losses}`}
+            label={`Ranked${rankedGames ? ` · ${Math.round((ranked.wins / rankedGames) * 100)}%` : ""}`}
+            color="#e7c768"
+          />
+          <Stat
+            value={`${casual.wins}–${casual.losses}`}
+            label={`Casual${casualGames ? ` · ${Math.round((casual.wins / casualGames) * 100)}%` : ""}`}
+            color="#7ad6ff"
+          />
+          <Stat value={`${winrate}%`} label={`Win rate · ${games} games`} color="#19e08a" />
           <Stat value={p?.winStreak ?? 0} label="Current streak" color="#f7931a" />
           <Stat value={p?.cardsOwned ?? 0} label="Cards owned" color="#7ad6ff" />
           <Stat value={p?.legendaries ?? 0} label="Legendaries" color="#e7c768" />

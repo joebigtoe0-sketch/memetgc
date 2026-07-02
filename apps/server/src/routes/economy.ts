@@ -167,7 +167,7 @@ router.get("/profile", requireAuth, async (req: AuthRequest, res) => {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
 
-  const [collection, questsDone, recent, winStreak, cosmetics] = await Promise.all([
+  const [collection, questsDone, recent, winStreak, cosmetics, allMatches] = await Promise.all([
     prisma.collectionEntry.findMany({ where: { userId }, include: { card: true } }),
     prisma.dailyQuest.count({ where: { userId, claimedAt: { not: null } } }),
     prisma.match.findMany({
@@ -176,7 +176,24 @@ router.get("/profile", requireAuth, async (req: AuthRequest, res) => {
     }),
     computeWinStreak(userId),
     prisma.userCosmetic.findMany({ where: { userId }, select: { type: true, value: true } }),
+    prisma.match.findMany({
+      where: { OR: [{ player1Id: userId }, { player2Id: userId }], endedAt: { not: null } },
+      select: { mode: true, winnerId: true },
+    }),
   ]);
+
+  // Per-mode win/loss breakdown, derived from match history.
+  const modeStats = {
+    ranked: { wins: 0, losses: 0 },
+    casual: { wins: 0, losses: 0 },
+    practice: { wins: 0, losses: 0 },
+  };
+  for (const m of allMatches) {
+    const bucket = modeStats[m.mode as keyof typeof modeStats];
+    if (!bucket) continue;
+    if (m.winnerId === userId) bucket.wins++;
+    else bucket.losses++;
+  }
 
   const cardsOwned = collection.reduce((s, c) => s + c.quantity, 0);
   const legendaries = collection.filter((c) => c.card.rarity === "legendary").reduce((s, c) => s + c.quantity, 0);
@@ -217,6 +234,7 @@ router.get("/profile", requireAuth, async (req: AuthRequest, res) => {
     isMemepool: standing.isMemepool,
     seasonWins: wins,
     seasonLosses: losses,
+    modeStats,
     winStreak,
     level: Math.max(1, Math.floor(user.rankPoints / 100) + 1),
     games,

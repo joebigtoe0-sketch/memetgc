@@ -95,8 +95,15 @@ export default function Dashboard() {
   const streak = profile?.winStreak ?? 0;
   const rankPoints = profile?.rankPoints ?? 0;
   const tierFloor = TIER_FLOORS[tier] ?? 0;
-  const nextFloor = TIER_FLOORS[nextTier] ?? tierFloor + 500;
-  const progressPct = Math.min(100, Math.max(0, Math.round(((rankPoints - tierFloor) / Math.max(1, nextFloor - tierFloor)) * 100)));
+  // Each tier holds 5 divisions (V→I) of 100 ladder points each, so progress
+  // within a division doubles as a percentage. Show the path to the *next
+  // division* (e.g. Bronze V → Bronze IV) rather than to the next whole tier.
+  const POINTS_PER_DIVISION = 100;
+  const pointsIntoDivision = ((rankPoints - tierFloor) % POINTS_PER_DIVISION + POINTS_PER_DIVISION) % POINTS_PER_DIVISION;
+  const progressPct = Math.min(100, Math.max(0, Math.round(pointsIntoDivision)));
+  const nextDivisionLabel = stars < 4
+    ? `${formatRankTier(tier)} ${ROMAN[5 - (stars + 1)] ?? ""}`
+    : `${formatRankTier(nextTier)} V`;
 
   return (
     <div style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", background: "radial-gradient(140% 90% at 50% -8%,#141b2a 0%,#090c13 60%,#06080d 100%)", fontFamily: "var(--font-archivo,'Archivo',sans-serif)", overflow: "hidden" }}>
@@ -168,7 +175,7 @@ export default function Dashboard() {
 
             <div style={{ marginTop: 16 }}>
               <div style={{ display: "flex", justifyContent: "space-between", font: `600 9.5px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6", marginBottom: 6 }}>
-                <span>Progress to {formatRankTier(nextTier)}</span><span>{progressPct}%</span>
+                <span>Progress to {nextDivisionLabel}</span><span>{progressPct}%</span>
               </div>
               <div style={{ height: 7, borderRadius: 4, background: "rgba(255,255,255,.06)", overflow: "hidden" }}>
                 <div style={{ width: `${progressPct}%`, height: "100%", borderRadius: 4, background: `linear-gradient(90deg,${tierColor},#f7c64a)`, boxShadow: `0 0 8px ${tierColor}88` }} />

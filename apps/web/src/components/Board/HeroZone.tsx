@@ -175,7 +175,7 @@ export default function HeroZone({
                 {heroPowerName}
               </div>
               <div style={{ font: `700 10px var(--font-mono,'JetBrains Mono',monospace)`, color: "#7cc4ff", marginBottom: 8 }}>
-                {heroPowerCost} mana · once per game
+                {heroPowerCost} mana · once per round
               </div>
               <div style={{ font: `500 11px/1.45 var(--font-archivo,'Archivo',sans-serif)`, color: "#aeb6c4" }}>
                 {heroPowerDescription}
