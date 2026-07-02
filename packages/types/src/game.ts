@@ -37,6 +37,7 @@ export interface LocationSlot {
 
 export interface PlayerState {
   playerId: string;
+  playerName: string;
   heroId: string;
   heroName: string;
   heroFaction: Faction;
@@ -178,6 +179,7 @@ export interface ServerToClientEvents {
   "game:state_update": (state: SanitizedGameState) => void;
   "game:action_result": (result: { success: boolean; error?: string; animations?: AnimationHint[] }) => void;
   "game:game_over": (result: { winner: string; reason: string; fragments?: number }) => void;
+  "game:rank_update": (result: { delta: number; points: number; tier: string; stars: number }) => void;
   "game:discover": (options: { cards: Card[]; sourceCardId: string }) => void;
   "game:error": (message: string) => void;
   "match:found": (matchId: string) => void;
@@ -207,6 +209,7 @@ export interface SanitizedGameState {
 
 export interface OpponentView {
   playerId: string;
+  playerName: string;
   heroId: string;
   heroName: string;
   heroFaction: Faction;

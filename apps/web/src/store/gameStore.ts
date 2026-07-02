@@ -15,6 +15,7 @@ interface GameStore {
   pendingAnimations: AnimationHint[];
   lastActionError: string | null;
   matchReward: number | null;
+  rankUpdate: { delta: number; points: number; tier: string; stars: number } | null;
 
   // UI state
   selectedCardInstanceId: string | null;
@@ -30,6 +31,7 @@ interface GameStore {
   setAnimations: (animations: AnimationHint[]) => void;
   clearAnimations: () => void;
   setMatchReward: (fragments: number | null) => void;
+  setRankUpdate: (r: { delta: number; points: number; tier: string; stars: number } | null) => void;
   setActionError: (error: string | null) => void;
   selectCard: (instanceId: string | null) => void;
   selectAttacker: (instanceId: string | null) => void;
@@ -45,6 +47,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   pendingAnimations: [],
   lastActionError: null,
   matchReward: null,
+  rankUpdate: null,
   selectedCardInstanceId: null,
   selectedAttackerId: null,
   zoomedCard: null,
@@ -64,6 +67,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   setAnimations: (animations) => set({ pendingAnimations: animations }),
   clearAnimations: () => set({ pendingAnimations: [] }),
   setMatchReward: (matchReward) => set({ matchReward }),
+  setRankUpdate: (rankUpdate) => set({ rankUpdate }),
   setActionError: (error) => set({ lastActionError: error }),
 
   selectCard: (selectedCardInstanceId) =>
@@ -82,6 +86,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       pendingAnimations: [],
       lastActionError: null,
       matchReward: null,
+      rankUpdate: null,
       selectedCardInstanceId: null,
       selectedAttackerId: null,
       zoomedCard: null,

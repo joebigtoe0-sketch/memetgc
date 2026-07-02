@@ -7,6 +7,7 @@ import GameIcon from "@/components/UI/GameIcon";
 
 interface Props {
   heroName: string;
+  playerName?: string;
   faction: string;
   heroId?: string;
   hp: number;
@@ -27,6 +28,7 @@ interface Props {
 
 export default function HeroZone({
   heroName,
+  playerName,
   faction,
   heroId,
   hp,
@@ -112,6 +114,16 @@ export default function HeroZone({
           </div>
         )}
       </div>
+
+      {/* Player identity (name + avatar) */}
+      {playerName && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 9px 3px 3px", borderRadius: 20, background: "rgba(0,0,0,.35)", border: `1px solid ${fac}55` }}>
+          <div style={{ width: 20, height: 20, flexShrink: 0, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: `radial-gradient(circle at 38% 30%,${fac},color-mix(in srgb,${fac} 40%,#0d1017))`, font: `800 10px var(--font-cinzel,'Cinzel',serif)`, color: "#fff", textShadow: "0 1px 2px rgba(0,0,0,.5)" }}>
+            {(playerName[0] ?? "?").toUpperCase()}
+          </div>
+          <span style={{ font: `700 11px var(--font-archivo,'Archivo',sans-serif)`, color: "#e7ecf3", maxWidth: 120, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{playerName}</span>
+        </div>
+      )}
 
       {/* Hero name + faction */}
       <div style={{ textAlign: isEnemy ? "left" : "right" }}>

@@ -32,6 +32,7 @@ export function createSecretSlot(card: Card): SecretSlot {
 
 export function createPlayerState(
   playerId: string,
+  playerName: string,
   heroId: string,
   heroName: string,
   heroFaction: Faction,
@@ -70,6 +71,7 @@ export function createPlayerState(
 
   return {
     playerId,
+    playerName,
     heroId,
     heroName,
     heroFaction,
@@ -111,12 +113,12 @@ export function createPlayerState(
 
 export function createGameState(
   gameId: string,
-  player1: { id: string; heroId: string; heroName: string; heroFaction: Faction; heroPower: PlayerState["heroPower"]; deck: Card[] },
-  player2: { id: string; heroId: string; heroName: string; heroFaction: Faction; heroPower: PlayerState["heroPower"]; deck: Card[] },
+  player1: { id: string; playerName?: string; heroId: string; heroName: string; heroFaction: Faction; heroPower: PlayerState["heroPower"]; deck: Card[] },
+  player2: { id: string; playerName?: string; heroId: string; heroName: string; heroFaction: Faction; heroPower: PlayerState["heroPower"]; deck: Card[] },
   seed = Date.now()
 ): GameState {
-  const p1State = createPlayerState(player1.id, player1.heroId, player1.heroName, player1.heroFaction, player1.heroPower, player1.deck, true, seed);
-  const p2State = createPlayerState(player2.id, player2.heroId, player2.heroName, player2.heroFaction, player2.heroPower, player2.deck, false, seed);
+  const p1State = createPlayerState(player1.id, player1.playerName ?? "Player", player1.heroId, player1.heroName, player1.heroFaction, player1.heroPower, player1.deck, true, seed);
+  const p2State = createPlayerState(player2.id, player2.playerName ?? "Player", player2.heroId, player2.heroName, player2.heroFaction, player2.heroPower, player2.deck, false, seed);
 
   return {
     gameId,

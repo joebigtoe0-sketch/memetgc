@@ -28,7 +28,7 @@ interface DamageFloat { id: string; entityKey: string; amount: number; isHeal: b
 interface LogEntry { id: string; text: string; turn: number; }
 
 export default function GameBoard() {
-  const { gameState, isMyTurn, selectedCardInstanceId, selectedAttackerId, lastActionError, playerId, pendingAnimations, matchReward } = useGameStore();
+  const { gameState, isMyTurn, selectedCardInstanceId, selectedAttackerId, lastActionError, playerId, pendingAnimations, matchReward, rankUpdate } = useGameStore();
   const { selectCard, selectAttacker, setActionError, clearAnimations } = useGameStore();
   const [phase, setPhase] = useState<PhaseAction>("idle");
   const [zoomedCard, setZoomedCard] = useState<CardData | null>(null);
@@ -77,6 +77,7 @@ export default function GameBoard() {
   const [newCardIds, setNewCardIds] = useState<string[]>([]);
   const [coinFlip, setCoinFlip] = useState<{ result: "heads" | "tails"; id: string; mine: boolean } | null>(null);
   const [shuffleAnim, setShuffleAnim] = useState<string | null>(null);
+  const [spellCast, setSpellCast] = useState<{ card: CardData; mine: boolean; id: string } | null>(null);
   const prevHandIds = useRef<string[]>([]);
   const prevMinionHp = useRef<Record<string, number>>({});
   const prevHeroHp = useRef<Record<string, number>>({});
@@ -232,10 +233,19 @@ export default function GameBoard() {
           else addLog("Drew a card", gameState?.turnNumber ?? 0);
         } else addLog("Opponent drew a card", gameState?.turnNumber ?? 0);
       } else if (anim.type === "spell_cast") {
-        const d = anim.data as { memeBonus?: string; playerId?: string };
+        const d = anim.data as { memeBonus?: string; playerId?: string; card?: CardData; cardId?: string };
         if (d.memeBonus === "free_hero_power") {
           if (d.playerId === playerId) { addToast("🎲 Meme Bonus: free Hero Power!", "#ff5fae"); addLog("Meme bonus: free hero power this turn", gameState?.turnNumber ?? 0); }
           else addLog("Opponent's Meme bonus: free hero power", gameState?.turnNumber ?? 0);
+        }
+        // Show the spell card on the table briefly before it heads to the burn pile.
+        if (d.card && d.cardId !== "coin") {
+          const mine = d.playerId === playerId;
+          const id = `${Date.now()}-${Math.random()}`;
+          setSpellCast({ card: d.card, mine, id });
+          playSound("playCard", 0.85);
+          addLog(`${mine ? "You cast" : "Opponent cast"} ${d.card.name}`, gameState?.turnNumber ?? 0);
+          setTimeout(() => setSpellCast((s) => (s && s.id === id ? null : s)), 1600);
         }
       } else if (anim.type === "attack") {
         const d = anim.data as { attackerId?: string };
@@ -332,6 +342,25 @@ export default function GameBoard() {
             </span>
           </div>
         )}
+        {rankUpdate && (() => {
+          const TIER_COLOR: Record<string, string> = { bronze: "#c8843c", silver: "#cfd6e0", gold: "#e7c768", platinum: "#7ad6ff", diamond: "#b58bff", degen: "#ff5fae" };
+          const ROMAN = ["", "I", "II", "III", "IV", "V"];
+          const tc = TIER_COLOR[rankUpdate.tier] ?? "#e7c768";
+          const up = rankUpdate.delta >= 0;
+          return (
+            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 22px", borderRadius: 12, background: `color-mix(in srgb,${tc} 12%,transparent)`, border: `1px solid color-mix(in srgb,${tc} 40%,transparent)` }}>
+              <span style={{ font: `900 16px var(--font-cinzel,'Cinzel',serif)`, color: tc, textTransform: "uppercase", letterSpacing: ".5px" }}>
+                {rankUpdate.tier} {ROMAN[Math.max(1, 5 - rankUpdate.stars)] ?? ""}
+              </span>
+              <span style={{ font: `800 18px var(--font-mono,'JetBrains Mono',monospace)`, color: up ? "#19e08a" : "#ff6b6b" }}>
+                {up ? "+" : ""}{rankUpdate.delta} LP
+              </span>
+              <span style={{ font: `600 12px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6" }}>
+                {rankUpdate.points.toLocaleString()} pts
+              </span>
+            </div>
+          );
+        })()}
         <button onClick={() => { window.location.href = "/"; }} style={{ cursor: "pointer", border: "none", padding: "15px 44px", borderRadius: 12, font: `800 16px var(--font-cinzel,'Cinzel',serif)`, color: "#2a1a00", background: "linear-gradient(180deg,#ffe07a,#e0890f)", boxShadow: "0 8px 24px rgba(224,137,15,.4)" }}>
           Back to Menu
         </button>
@@ -489,7 +518,7 @@ export default function GameBoard() {
         <div style={{ width: 130, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", padding: "8px 4px 4px", gap: 8, flexShrink: 0 }}>
           <div style={{ position: "relative" }}>
             <HeroZone
-              heroName={opponentState.heroName} faction={opponentState.heroFaction} heroId={opponentState.heroId}
+              heroName={opponentState.heroName} playerName={opponentState.playerName} faction={opponentState.heroFaction} heroId={opponentState.heroId}
               hp={opponentState.hp} armor={opponentState.armor} isEnemy
               isValidTarget={(phase === "select_attack_target" && validTargets.includes("hero_" + opponentState.playerId)) || (phase === "select_play_target" && validPlayTargets.includes("hero_" + opponentState.playerId))}
               onHeroClick={() => handleHeroClick(true)}
@@ -625,7 +654,7 @@ export default function GameBoard() {
         <div style={{ width: 130, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "4px 4px 8px", gap: 8, flexShrink: 0 }}>
           <div style={{ position: "relative" }}>
             <HeroZone
-              heroName={myState.heroName} faction={myState.heroFaction} heroId={myState.heroId}
+              heroName={myState.heroName} playerName={myState.playerName} faction={myState.heroFaction} heroId={myState.heroId}
               hp={myState.hp} armor={myState.armor}
               heroPowerName={myState.heroPower.name}
               heroPowerDescription={myState.heroPower.description}
@@ -911,6 +940,17 @@ export default function GameBoard() {
       )}
 
       {/* Coin flip reveal */}
+      {spellCast && (
+        <div key={spellCast.id} style={{ position: "absolute", left: "50%", top: spellCast.mine ? "57%" : "41%", zIndex: 82, pointerEvents: "none", animation: "spellCastPop 1.6s ease-out forwards", filter: "drop-shadow(0 14px 34px rgba(0,0,0,.65))" }}>
+          <div style={{ position: "relative" }}>
+            <div style={{ position: "absolute", top: -24, left: "50%", transform: "translateX(-50%)", padding: "3px 12px", borderRadius: 20, background: "rgba(6,8,13,.85)", border: `1px solid ${spellCast.mine ? "rgba(127,232,189,.5)" : "rgba(255,154,138,.5)"}`, font: `800 9px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "1.5px", color: spellCast.mine ? "#7fe8bd" : "#ff9a8a", whiteSpace: "nowrap" }}>
+              {spellCast.mine ? "YOU CAST" : "OPPONENT CASTS"}
+            </div>
+            <CardComponent card={spellCast.card} size="md" />
+          </div>
+        </div>
+      )}
+
       {coinFlip && (
         <div style={{ position: "absolute", inset: 0, zIndex: 96, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 18, pointerEvents: "none", background: "radial-gradient(ellipse at center, rgba(4,6,12,.55), rgba(4,6,12,0) 60%)" }}>
           <div style={{ perspective: 800 }}>
@@ -1039,6 +1079,7 @@ export default function GameBoard() {
         @keyframes drawCardIn { 0%{opacity:0;transform:translateX(80px) translateY(-20px) scale(0.6) rotate(12deg);}60%{opacity:1;transform:translateX(-6px) translateY(4px) scale(1.04) rotate(-1deg);}100%{opacity:1;transform:translateX(0) translateY(0) scale(1) rotate(0deg);} }
         @keyframes floatUp { 0%{opacity:0;transform:translateY(0) scale(0.8);}15%{opacity:1;transform:translateY(-4px) scale(1.1);}80%{opacity:1;transform:translateY(-26px) scale(1);}100%{opacity:0;transform:translateY(-34px) scale(0.9);} }
         @keyframes shuffleToDeck { 0%{opacity:0;transform:translate(-50%,44px) scale(.8) rotate(-8deg);}20%{opacity:1;}70%{opacity:1;transform:translate(-50%,-40px) scale(1) rotate(6deg);}100%{opacity:0;transform:translate(-50%,-58px) scale(.7) rotate(0deg);} }
+        @keyframes spellCastPop { 0%{opacity:0;transform:translate(-50%,-50%) scale(.5) rotate(-6deg);}12%{opacity:1;transform:translate(-50%,-50%) scale(1.06) rotate(0deg);}20%{transform:translate(-50%,-50%) scale(1) rotate(0deg);}75%{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(0deg);}100%{opacity:0;transform:translate(-50%,-18%) scale(.72) rotate(3deg);} }
       `}</style>
     </div>
   );

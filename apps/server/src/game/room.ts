@@ -42,8 +42,8 @@ export function createRoom(
 ): GameRoom {
   const state = createGameState(
     gameId,
-    { id: p1.userId, heroId: p1.heroId, heroName: p1.heroName, heroFaction: p1.heroFaction, heroPower: p1.heroPower, deck: p1.deck },
-    { id: p2.userId, heroId: p2.heroId, heroName: p2.heroName, heroFaction: p2.heroFaction, heroPower: p2.heroPower, deck: p2.deck }
+    { id: p1.userId, playerName: p1.username, heroId: p1.heroId, heroName: p1.heroName, heroFaction: p1.heroFaction, heroPower: p1.heroPower, deck: p1.deck },
+    { id: p2.userId, playerName: p2.username, heroId: p2.heroId, heroName: p2.heroName, heroFaction: p2.heroFaction, heroPower: p2.heroPower, deck: p2.deck }
   );
 
   const room: GameRoom = {
@@ -322,7 +322,7 @@ function cleanupRoom(room: GameRoom, io: Server<ClientToServerEvents, ServerToCl
     });
   }
   // Persist season stats + daily-quest progress (fire-and-forget)
-  void recordMatchResults(room);
+  void recordMatchResults(room, io);
   rooms.delete(room.gameId);
 }
 

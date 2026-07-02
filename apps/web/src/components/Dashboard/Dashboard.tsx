@@ -22,6 +22,9 @@ const TIER_COLOR: Record<string, string> = {
   platinum: "#7ad6ff", diamond: "#b58bff", degen: "#ff5fae",
 };
 const ROMAN = ["", "I", "II", "III", "IV", "V"];
+// Fixed ladder-point floors per tier (mirrors server rank.ts). Used to show
+// accurate "progress to next tier" instead of a coarse per-division estimate.
+const TIER_FLOORS: Record<string, number> = { bronze: 0, silver: 500, gold: 1000, platinum: 1500, diamond: 2000, degen: 2500 };
 
 interface Profile {
   fragments: number; rankTier: string; rankStars: number; rankPoints: number;
@@ -90,7 +93,10 @@ export default function Dashboard() {
   const games = wins + losses;
   const winrate = games > 0 ? Math.round((wins / games) * 100) : 0;
   const streak = profile?.winStreak ?? 0;
-  const progressPct = Math.min(100, Math.round((stars / 5) * 100));
+  const rankPoints = profile?.rankPoints ?? 0;
+  const tierFloor = TIER_FLOORS[tier] ?? 0;
+  const nextFloor = TIER_FLOORS[nextTier] ?? tierFloor + 500;
+  const progressPct = Math.min(100, Math.max(0, Math.round(((rankPoints - tierFloor) / Math.max(1, nextFloor - tierFloor)) * 100)));
 
   return (
     <div style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", background: "radial-gradient(140% 90% at 50% -8%,#141b2a 0%,#090c13 60%,#06080d 100%)", fontFamily: "var(--font-archivo,'Archivo',sans-serif)", overflow: "hidden" }}>

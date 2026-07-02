@@ -378,7 +378,7 @@ function handlePlayCard(
       if (card.id === "coin") {
         activePlayer.tempMana = Math.min(1, activePlayer.tempMana + 1);
         activePlayer.hand.splice(cardIdx, 1); // already removed above
-        animations.push({ type: "spell_cast", data: { cardId: card.id } });
+        animations.push({ type: "spell_cast", data: { cardId: card.id, playerId: activePlayer.playerId, card } });
         break;
       }
 
@@ -389,7 +389,7 @@ function handlePlayCard(
 
       resolveEffects(card.effects ?? [], "on_play", ctx);
       activePlayer.burnPile.unshift(card);
-      animations.push({ type: "spell_cast", data: { cardId: card.id } });
+      animations.push({ type: "spell_cast", data: { cardId: card.id, playerId: activePlayer.playerId, card } });
       break;
     }
 
@@ -990,6 +990,7 @@ export function sanitizeState(state: GameState, playerId: string): SanitizedGame
 
   const opponentView: OpponentView = {
     playerId: opponentId,
+    playerName: opponentState.playerName,
     heroId: opponentState.heroId,
     heroName: opponentState.heroName,
     heroFaction: opponentState.heroFaction,

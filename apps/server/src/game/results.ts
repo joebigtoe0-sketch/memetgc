@@ -1,6 +1,7 @@
 import { prisma } from "@memetgc/db";
 import type { GameRoom } from "./room.js";
-import type { Card } from "@memetgc/types";
+import type { Server } from "socket.io";
+import type { Card, ServerToClientEvents, ClientToServerEvents } from "@memetgc/types";
 import {
   computeMatchFragments,
   computeEloDelta,
@@ -15,7 +16,10 @@ import { updateQuests } from "./dailyQuests.js";
  * Persist season stats, rank points, match fragments and daily-quest progress
  * for human players in a finished room. Fire-and-forget; never throws.
  */
-export async function recordMatchResults(room: GameRoom): Promise<void> {
+export async function recordMatchResults(
+  room: GameRoom,
+  io?: Server<ClientToServerEvents, ServerToClientEvents>
+): Promise<void> {
   try {
     const winnerId = room.state.winner ?? null;
     const humans = Object.values(room.players).filter((p) => !p.isAI);
@@ -103,6 +107,12 @@ export async function recordMatchResults(room: GameRoom): Promise<void> {
         updateData.rankTier = tier;
         updateData.rankStars = stars;
         updateData.seasonPeakPoints = Math.max(user.seasonPeakPoints, newPoints);
+
+        // Tell the player how their ladder points changed so the end-of-game
+        // screen can show it (ranked only — casual/practice never move rank).
+        if (io && player.socketId) {
+          io.to(player.socketId).emit("game:rank_update", { delta, points: newPoints, tier, stars });
+        }
       }
 
       if (matchFragments > 0) {

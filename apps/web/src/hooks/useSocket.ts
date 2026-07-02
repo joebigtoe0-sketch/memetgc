@@ -20,7 +20,7 @@ export function sendAction(action: GameAction): void {
 
 export function useSocket() {
   const { token, userId } = useAuthStore();
-  const { setConnected, setGameId, setGameState, setAnimations, setActionError, setPlayerId, setMatchReward } = useGameStore();
+  const { setConnected, setGameId, setGameState, setAnimations, setActionError, setPlayerId, setMatchReward, setRankUpdate } = useGameStore();
   const initializedRef = useRef(false);
 
   useEffect(() => {
@@ -62,6 +62,10 @@ export function useSocket() {
 
     socket.on("game:game_over", (result) => {
       setMatchReward(typeof result.fragments === "number" ? result.fragments : null);
+    });
+
+    socket.on("game:rank_update", (result) => {
+      setRankUpdate(result);
     });
 
     socket.on("game:error", (msg) => {
