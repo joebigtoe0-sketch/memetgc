@@ -21,7 +21,7 @@ import type { MinionSlot, Card } from "@memetgc/types";
 import type { CardData } from "../Card/CardComponent";
 
 const TURN_SECONDS = 30;
-type PhaseAction = "idle" | "select_play_target" | "select_attack_target";
+type PhaseAction = "idle" | "select_play_target" | "select_attack_target" | "select_hero_power_target";
 
 interface Toast { id: string; text: string; color: string; }
 interface DamageFloat { id: string; entityKey: string; amount: number; isHeal: boolean; }
@@ -348,6 +348,32 @@ export default function GameBoard() {
   }
   const validPlayTargets = getValidPlayTargets();
 
+  // Some hero powers (e.g. Charge Forward / Turbo) need the player to pick a
+  // minion. Detect that from the hero power's effect params.
+  function heroPowerTargeting(): { needs: boolean; side: "friendly" | "enemy" } {
+    const tgt = String((myState.heroPower.effect_params?.target as string) ?? "");
+    return { needs: tgt.includes("chosen"), side: tgt.includes("enemy") ? "enemy" : "friendly" };
+  }
+  function getValidHeroPowerTargets(): string[] {
+    if (phase !== "select_hero_power_target") return [];
+    const board = heroPowerTargeting().side === "enemy" ? opponentState.board : myState.board;
+    return board.filter((s): s is MinionSlot => s !== null).map((m) => m.instanceId);
+  }
+  const validHeroPowerTargets = getValidHeroPowerTargets();
+
+  function activateHeroPower() {
+    if (!canAct || myState.heroPowerUsed) return;
+    if (myState.mana + myState.tempMana < myState.heroPower.cost) return;
+    const { needs, side } = heroPowerTargeting();
+    if (needs) {
+      const board = side === "enemy" ? opponentState.board : myState.board;
+      if (!board.some((s) => s !== null)) { setActionError("No valid minion to target"); return; }
+      selectCard(null); selectAttacker(null); setPhase("select_hero_power_target");
+    } else {
+      sendAction({ type: "hero_power" });
+    }
+  }
+
   function doAttack(attacker: string, defender: string) {
     sendAction({ type: "attack", attackerInstanceId: attacker, defenderInstanceId: defender });
     setLungeId(attacker);
@@ -370,6 +396,15 @@ export default function GameBoard() {
       if (validPlayTargets.includes(instanceId)) {
         sendAction({ type: "play_card", cardInstanceId: selectedCardInstanceId!, targetInstanceId: instanceId });
         selectCard(null); setPhase("idle");
+      } else {
+        cancelTargeting();
+      }
+      return;
+    }
+    if (phase === "select_hero_power_target") {
+      if (validHeroPowerTargets.includes(instanceId)) {
+        sendAction({ type: "hero_power", targetInstanceId: instanceId });
+        setPhase("idle");
       } else {
         cancelTargeting();
       }
@@ -487,10 +522,11 @@ export default function GameBoard() {
               const slot = opponentState.board[i];
               const isValidTarget = slot
                 ? (phase === "select_attack_target" && validTargets.includes(slot.instanceId)) ||
-                  (phase === "select_play_target" && validPlayTargets.includes(slot.instanceId))
+                  (phase === "select_play_target" && validPlayTargets.includes(slot.instanceId)) ||
+                  (phase === "select_hero_power_target" && validHeroPowerTargets.includes(slot.instanceId))
                 : false;
               return (
-                <BoardSlot key={i} highlighted={isValidTarget} dimmed={(phase === "select_attack_target" || phase === "select_play_target") && !isValidTarget && !!slot}
+                <BoardSlot key={i} highlighted={isValidTarget} dimmed={(phase === "select_attack_target" || phase === "select_play_target" || phase === "select_hero_power_target") && !isValidTarget && !!slot}
                   onClick={!slot && phase !== "idle" ? cancelTargeting : undefined}>
                   <div style={{ position: "relative" }}>
                     {slot && (
@@ -544,6 +580,7 @@ export default function GameBoard() {
           <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", zIndex: 20, padding: "6px 16px", borderRadius: 20, background: "rgba(60,50,0,.95)", border: "1px solid #e0c040", color: "#ffe060", font: `700 10px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "1px", whiteSpace: "nowrap", boxShadow: "0 0 16px rgba(224,192,64,.3)" }}>
             {phase === "select_play_target" && "→ SELECT TARGET FOR SPELL"}
             {phase === "select_attack_target" && "→ SELECT ATTACK TARGET"}
+            {phase === "select_hero_power_target" && "→ SELECT MINION FOR HERO POWER"}
           </div>
         )}
 
@@ -575,7 +612,7 @@ export default function GameBoard() {
               hasWeapon={myState.hasWeapon} weaponAttack={myState.weaponAttack} weaponDurability={myState.weaponDurability}
               isValidTarget={phase === "select_play_target" && validPlayTargets.includes("hero_" + playerId)}
               onHeroClick={() => handleHeroClick(false)}
-              onHeroPowerClick={() => { if (canAct && !myState.heroPowerUsed) sendAction({ type: "hero_power" }); }}
+              onHeroPowerClick={activateHeroPower}
             />
             {/* Hero damage floaters */}
             {myFloats.filter((f) => f.entityKey === "my_hero").map((f) => (
@@ -636,18 +673,19 @@ export default function GameBoard() {
               const slot = myState.board[i];
               const isAttacking = slot?.instanceId === selectedAttackerId;
               const isPlayTarget = slot ? phase === "select_play_target" && validPlayTargets.includes(slot.instanceId) : false;
+              const isHpTarget = slot ? phase === "select_hero_power_target" && validHeroPowerTargets.includes(slot.instanceId) : false;
               return (
                 <BoardSlot
                   key={i}
-                  highlighted={isAttacking || isPlayTarget}
+                  highlighted={isAttacking || isPlayTarget || isHpTarget}
                   glowing={isAttacking}
-                  dimmed={phase === "select_play_target" && !!slot && !isPlayTarget}
+                  dimmed={((phase === "select_play_target" || phase === "select_hero_power_target") && !!slot && !isPlayTarget && !isHpTarget)}
                   onClick={!slot && phase !== "idle" ? cancelTargeting : undefined}
                 >
                   <div style={{ position: "relative" }}>
                     {slot && (
                       <MinionCard
-                        slot={slot} isSelected={isAttacking} isAttacking={isAttacking} isValidTarget={isPlayTarget}
+                        slot={slot} isSelected={isAttacking} isAttacking={isAttacking} isValidTarget={isPlayTarget || isHpTarget}
                         isLunging={lungeId === slot.instanceId}
                         isDamageFlash={damageFlashIds.has(slot.instanceId)}
                         onClick={() => handleMinionClick(slot.instanceId, false)}
