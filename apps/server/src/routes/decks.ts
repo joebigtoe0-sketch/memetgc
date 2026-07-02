@@ -33,6 +33,7 @@ router.get("/", requireAuth, async (req: AuthRequest, res) => {
       name: d.name,
       heroId: d.heroId,
       isStarter: d.isStarter,
+      faction: d.faction,
       factionBonusActive: d.factionBonusActive,
       cards: d.deckCards.map((dc) => ({ cardId: dc.cardId, quantity: dc.quantity })),
       cardCount: d.deckCards.reduce((sum, dc) => sum + dc.quantity, 0),

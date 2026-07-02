@@ -9,7 +9,7 @@ import type { CardData } from "@/components/Card/CardComponent";
 import { useAuthStore } from "@/store/authStore";
 import AuthModal from "@/components/Auth/AuthModal";
 import BottomNav from "@/components/Dashboard/BottomNav";
-import { factionColor, FACTIONS } from "@/lib/factions";
+import { factionColor, factionDisplayName, FACTIONS } from "@/lib/factions";
 import FactionIcon from "@/components/Faction/FactionIcon";
 import SellModal from "@/components/Market/SellModal";
 import MyListingsModal from "@/components/Market/MyListingsModal";
@@ -18,6 +18,7 @@ import { useIsMobile } from "@/hooks/useViewport";
 
 interface CollectionEntry { cardId: string; quantity: number; card: CardData; }
 interface Deck { id: string; name: string; heroId: string; isStarter?: boolean; faction?: string; factionBonusActive?: boolean; cardCount: number; cards: { cardId: string; quantity: number }[]; }
+interface Hero { id: string; name: string; faction: string; description: string; }
 
 const TYPES = ["", "minion", "spell", "weapon", "location", "hero"];
 const TYPE_LABEL: Record<string, string> = { "": "All", minion: "Minion", spell: "Spell", weapon: "Weapon", location: "Location", hero: "Hero" };
@@ -31,7 +32,9 @@ export default function CollectionPage() {
   const [collection, setCollection] = useState<CollectionEntry[]>([]);
   const [catalog, setCatalog] = useState<Map<string, CardData>>(new Map());
   const [decks, setDecks] = useState<Deck[]>([]);
+  const [heroes, setHeroes] = useState<Hero[]>([]);
   const [selectedDeck, setSelectedDeck] = useState<string>("");
+  const [showHeroPicker, setShowHeroPicker] = useState(false);
   const [loading, setLoading] = useState(true);
   const [zoom, setZoom] = useState<{ card: CardData; source: "grid" | "deck" } | null>(null);
   const [sellCard, setSellCard] = useState<CardData | null>(null);
@@ -51,9 +54,11 @@ export default function CollectionPage() {
       api.get<CollectionEntry[]>("/api/collection"),
       api.get<Deck[]>("/api/decks"),
       api.get<CardData[]>("/api/cards?collectible=false"),
-    ]).then(([col, dks, cards]) => {
+      api.get<Hero[]>("/api/heroes"),
+    ]).then(([col, dks, cards, heroList]) => {
       setCollection(col);
       setDecks(dks);
+      setHeroes(heroList);
       setCatalog(new Map(cards.map((c) => [c.id, c])));
       if (dks[0]) setSelectedDeck(dks[0].id);
       setLoading(false);
@@ -77,7 +82,9 @@ export default function CollectionPage() {
   const deckFull = (deck?.cardCount ?? 0) >= 30;
   const deckComplete = (deck?.cardCount ?? 0) === 30;
   const isStarter = !!deck?.isStarter;
-  const deckFac = deck ? factionColor(deck.faction ?? "degen") : "#9aa3b2";
+  const deckHero = heroes.find((h) => h.id === deck?.heroId);
+  const deckHeroFaction = deckHero?.faction ?? deck?.faction ?? "degen";
+  const deckFac = deck ? factionColor(deckHeroFaction) : "#9aa3b2";
 
   const copiesInDeck = (id: string) => deck?.cards.find((c) => c.cardId === id)?.quantity ?? 0;
   function canAdd(card: CardData): { ok: boolean; reason?: string } {
@@ -128,6 +135,15 @@ export default function CollectionPage() {
     if (!deck || !name || name === deck.name) return;
     try {
       const updated = await api.patch<Deck>(`/api/decks/${selectedDeck}`, { name });
+      applyDeck(updated);
+    } catch (e) { showToast((e as Error).message); }
+  }
+
+  async function changeHero(heroId: string) {
+    setShowHeroPicker(false);
+    if (!deck || isStarter || heroId === deck.heroId) return;
+    try {
+      const updated = await api.patch<Deck>(`/api/decks/${selectedDeck}`, { heroId });
       applyDeck(updated);
     } catch (e) { showToast((e as Error).message); }
   }
@@ -236,7 +252,18 @@ export default function CollectionPage() {
           )}
           <div style={{ padding: 16, borderBottom: "1px solid rgba(255,255,255,.06)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              {deck ? <FactionIcon faction={deck.faction ?? "degen"} size={30} /> : <span style={{ width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", color: "#888" }}>?</span>}
+              {deck ? (
+                <button
+                  title={isStarter ? "Starter decks can't change hero" : `Hero: ${deckHero?.name ?? "Choose hero"} — click to change`}
+                  onClick={() => { if (isStarter) { showToast("Starter decks can't change hero"); return; } setShowHeroPicker(true); }}
+                  style={{ position: "relative", width: 38, height: 38, flexShrink: 0, padding: 0, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: isStarter ? "not-allowed" : "pointer", background: "rgba(255,255,255,.04)", border: `1px solid ${deckFac}66`, boxShadow: `0 0 10px ${deckFac}33` }}
+                >
+                  <FactionIcon faction={deckHeroFaction} heroId={deck.heroId} size={30} />
+                  {!isStarter && (
+                    <span style={{ position: "absolute", bottom: -3, right: -3, width: 15, height: 15, borderRadius: "50%", background: deckFac, color: "#15101a", display: "flex", alignItems: "center", justifyContent: "center", font: `900 9px var(--font-archivo,'Archivo',sans-serif)`, border: "1.5px solid #12161f" }}>✎</span>
+                  )}
+                </button>
+              ) : <span style={{ width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", color: "#888" }}>?</span>}
               <div style={{ flex: 1, minWidth: 0 }}>
                 {renaming ? (
                   <input autoFocus value={renameValue} onChange={(e) => setRenameValue(e.target.value)} onBlur={commitRename} onKeyDown={(e) => { if (e.key === "Enter") commitRename(); if (e.key === "Escape") setRenaming(false); }} maxLength={50}
@@ -295,6 +322,37 @@ export default function CollectionPage() {
       )}
 
       {toast && <div style={{ position: "fixed", bottom: 84, left: "50%", transform: "translateX(-50%)", padding: "11px 20px", borderRadius: 11, background: "rgba(20,26,42,.95)", border: "1px solid rgba(247,147,26,.4)", color: "#ffce85", font: `700 12px var(--font-archivo,'Archivo',sans-serif)`, zIndex: 60, boxShadow: "0 10px 30px rgba(0,0,0,.5)" }}>{toast}</div>}
+
+      {showHeroPicker && deck && (
+        <div onClick={() => setShowHeroPicker(false)} style={{ position: "fixed", inset: 0, zIndex: 90, background: "rgba(4,6,12,.72)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 560, maxHeight: "80vh", overflowY: "auto", borderRadius: 16, background: "linear-gradient(150deg,#141a28,#0c0f18)", border: "1px solid rgba(255,255,255,.1)", boxShadow: "0 20px 60px rgba(0,0,0,.6)", padding: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <div>
+                <div style={{ font: `900 17px var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc" }}>Choose Default Hero</div>
+                <div style={{ font: `500 11px var(--font-archivo,'Archivo',sans-serif)`, color: "#8a93a6", marginTop: 3 }}>This hero is used by default when you play <b style={{ color: "#cdd4df" }}>{deck.name}</b>.</div>
+              </div>
+              <button onClick={() => setShowHeroPicker(false)} style={{ ...iconBtn, width: 30, height: 30 }}>✕</button>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: 10 }}>
+              {heroes.map((h) => {
+                const active = h.id === deck.heroId;
+                const fc = factionColor(h.faction);
+                return (
+                  <button key={h.id} onClick={() => changeHero(h.id)} title={h.description}
+                    style={{ cursor: "pointer", textAlign: "left", padding: 12, borderRadius: 12, display: "flex", alignItems: "center", gap: 10, background: active ? `linear-gradient(150deg,color-mix(in srgb,${fc} 20%,transparent),rgba(20,26,42,.5))` : "rgba(255,255,255,.03)", border: `1.5px solid ${active ? fc : "rgba(255,255,255,.08)"}`, boxShadow: active ? `0 0 16px ${fc}33` : "none" }}>
+                    <FactionIcon faction={h.faction} heroId={h.id} size={36} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ font: `800 13px var(--font-cinzel,'Cinzel',serif)`, color: "#f1f4f9", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{h.name}</div>
+                      <div style={{ font: `700 8px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "1px", color: fc, marginTop: 3 }}>{factionDisplayName(h.faction)}</div>
+                    </div>
+                    {active && <span style={{ color: fc, fontWeight: 800, fontSize: 13 }}>✓</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       <BottomNav active="collection" />
       <CardZoom
