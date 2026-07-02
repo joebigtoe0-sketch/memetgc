@@ -223,7 +223,7 @@ export default function Dashboard() {
               <span style={{ font: `800 13px var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc", letterSpacing: "1px" }}>DAILY QUESTS</span>
               <span style={{ font: `600 10px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6" }}>resets {resetIn}</span>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 14 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 14, flex: 1, minHeight: 0, overflowY: "auto" }}>
               {quests.map((q) => {
                 const pct = Math.min(100, Math.round((q.progress / q.target) * 100));
                 const claimable = q.completed && !q.claimedAt;

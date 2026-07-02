@@ -16,7 +16,24 @@ const TIER_REWARD: Record<QuestTier, number> = {
   high: QUEST_FRAGMENTS.high,
 };
 
-/** Pool of quest templates — five are picked per user per UTC day. */
+/**
+ * AI-eligible quest pool — these progress in ANY mode, including practice (vs
+ * AI). Three of these are picked each day so players can complete dailies solo.
+ */
+const AI_QUEST_POOL: QuestTemplate[] = [
+  { type: "play_any", description: "Play 2 games (any mode)", target: 2, tier: "low" },
+  { type: "win_any", description: "Win 1 game (any mode)", target: 1, tier: "low" },
+  { type: "play_any", description: "Play 4 games (any mode)", target: 4, tier: "medium" },
+  { type: "win_any", description: "Win 2 games (any mode)", target: 2, tier: "medium" },
+  { type: "destroy_minions_any", description: "Destroy 10 minions (any mode)", target: 10, tier: "medium" },
+  { type: "win_any", description: "Win 3 games (any mode)", target: 3, tier: "high" },
+  { type: "destroy_minions_any", description: "Destroy 20 minions (any mode)", target: 20, tier: "high" },
+];
+
+/**
+ * Competitive quest pool — only Casual/Ranked matches progress these. Five are
+ * picked each day.
+ */
 const QUEST_POOL: QuestTemplate[] = [
   { type: "play_games", description: "Play 2 games (Casual or Ranked)", target: 2, tier: "low" },
   { type: "play_casual", description: "Play 2 Casual games", target: 2, tier: "low" },
@@ -39,29 +56,42 @@ function dailyRng(userId: string, salt: number): number {
   return h;
 }
 
-function pickQuestsForUser(userId: string): QuestTemplate[] {
-  const usedTypes = new Set<string>();
+/** Deterministically pick one quest per tier from a pool, avoiding duplicates. */
+function pickFromPool(
+  userId: string,
+  pool: QuestTemplate[],
+  tierPlan: QuestTier[],
+  saltBase: number,
+  usedTypes: Set<string>,
+  usedDescriptions: Set<string>
+): QuestTemplate[] {
   const picked: QuestTemplate[] = [];
-  const tierPlan: QuestTier[] = ["low", "medium", "medium", "high", "high"];
-
   for (let i = 0; i < tierPlan.length; i++) {
     const tier = tierPlan[i]!;
-    const pool = QUEST_POOL.filter((q) => q.tier === tier);
-    const unique = pool.filter((q) => !usedTypes.has(q.type));
-    const alreadyPicked = new Set(picked.map((p) => p.description));
-    const source =
-      unique.length > 0
-        ? unique
-        : pool.filter((q) => !alreadyPicked.has(q.description));
+    const tierPool = pool.filter((q) => q.tier === tier);
+    let source = tierPool.filter((q) => !usedTypes.has(q.type));
+    if (source.length === 0) source = tierPool.filter((q) => !usedDescriptions.has(q.description));
+    if (source.length === 0) source = tierPool;
     if (source.length === 0) continue;
 
-    const idx = dailyRng(userId, i * 31 + 7) % source.length;
+    const idx = dailyRng(userId, saltBase + i * 31 + 7) % source.length;
     const quest = source[idx]!;
     usedTypes.add(quest.type);
+    usedDescriptions.add(quest.description);
     picked.push(quest);
   }
-
   return picked;
+}
+
+/** Eight quests per user per UTC day: 3 AI-completable + 5 competitive. */
+function pickQuestsForUser(userId: string): QuestTemplate[] {
+  const usedTypes = new Set<string>();
+  const usedDescriptions = new Set<string>();
+
+  const aiQuests = pickFromPool(userId, AI_QUEST_POOL, ["low", "medium", "high"], 0, usedTypes, usedDescriptions);
+  const competitiveQuests = pickFromPool(userId, QUEST_POOL, ["low", "medium", "medium", "high", "high"], 1000, usedTypes, usedDescriptions);
+
+  return [...aiQuests, ...competitiveQuests];
 }
 
 export async function generateDailyQuests(userId: string): Promise<void> {
@@ -93,6 +123,9 @@ export async function updateQuests(
   now: Date
 ): Promise<void> {
   const { isWinner, minionsDestroyed, mode } = opts;
+  // Competitive quests (play_games, win_games, destroy_minions) only count
+  // Casual/Ranked — practice must not advance them.
+  const isCompetitive = mode === "casual" || mode === "ranked";
   const quests = await prisma.dailyQuest.findMany({
     where: { userId, expiresAt: { gt: now }, claimedAt: null },
   });
@@ -100,14 +133,25 @@ export async function updateQuests(
   for (const q of quests) {
     let inc = 0;
     switch (q.type) {
-      case "play_games":
+      // ── AI-eligible: progress in any mode, including practice ──
+      case "play_any":
         inc = 1;
         break;
-      case "win_games":
+      case "win_any":
         if (isWinner) inc = 1;
         break;
-      case "destroy_minions":
+      case "destroy_minions_any":
         inc = minionsDestroyed;
+        break;
+      // ── Competitive-only ──
+      case "play_games":
+        if (isCompetitive) inc = 1;
+        break;
+      case "win_games":
+        if (isCompetitive && isWinner) inc = 1;
+        break;
+      case "destroy_minions":
+        if (isCompetitive) inc = minionsDestroyed;
         break;
       case "play_ranked":
         if (mode === "ranked") inc = 1;

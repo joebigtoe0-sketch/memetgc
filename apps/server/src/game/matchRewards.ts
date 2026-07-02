@@ -75,6 +75,15 @@ export function shouldTrackSeasonStats(mode: string, endReason: string | null, t
 }
 
 /**
+ * Quests may progress in any real match mode — including practice (vs AI) — so
+ * players can complete the AI-eligible daily quests. Early surrenders still
+ * grant nothing. Per-quest logic decides which quests a given mode advances.
+ */
+export function shouldTrackQuests(mode: string, endReason: string | null, turnNumber: number): boolean {
+  return (mode === "practice" || isQuestEligibleMode(mode)) && isMatchRewardEligible(endReason, turnNumber);
+}
+
+/**
  * Bonus ladder points for consecutive ranked wins, on top of the base Elo gain.
  * `streak` is the running win count *including* the current victory. The 2nd win
  * in a row adds +3, the 3rd +6, etc., capped at +15 (reached at a 6-win streak).

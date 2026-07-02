@@ -1247,5 +1247,5 @@ function ToggleSwitch({ checked, onChange }: { checked: boolean; onChange: (v: b
 }
 
 function slotToCardData(slot: MinionSlot): CardData {
-  return { ...slot.card, attack: slot.currentAttack, health: slot.currentHealth } as CardData;
+  return { ...slot.card, attack: slot.currentAttack + (slot.tempAttackBoost ?? 0), health: slot.currentHealth } as CardData;
 }

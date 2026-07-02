@@ -6,7 +6,7 @@ import {
   computeMatchFragments,
   computeEloDelta,
   winStreakBonus,
-  isQuestEligibleMode,
+  shouldTrackQuests,
   shouldTrackSeasonStats,
 } from "./matchRewards.js";
 import { tierFromPoints } from "./rank.js";
@@ -30,7 +30,7 @@ export async function recordMatchResults(
     const endReason = room.state.endReason ?? "hero_death";
     const turnNumber = room.state.turnNumber ?? 0;
     const trackStats = shouldTrackSeasonStats(room.mode, endReason, turnNumber);
-    const trackQuests = isQuestEligibleMode(room.mode) && trackStats;
+    const trackQuests = shouldTrackQuests(room.mode, endReason, turnNumber);
     const isRanked = room.mode === "ranked";
 
     // Snapshot both players' MMR up-front so each Elo calc uses pre-match ratings.

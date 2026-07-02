@@ -141,11 +141,16 @@ function resolveEffect(effect: CardEffect, ctx: EffectContext): void {
     case "buff_attack": {
       const amount = (params.amount as number) ?? 0;
       const setTo = params.set_to as number | undefined;
+      // "this_turn" buffs go into tempAttackBoost, which is cleared at the end of
+      // the owner's turn (see handleEndTurn). Anything else is a permanent buff.
+      const thisTurn = params.duration === "this_turn";
       const targets = resolveTargets(effect.target, ctx, activePlayer, opponent);
       for (const t of targets) {
         if (t.type === "minion") {
           if (setTo !== undefined) {
             t.slot.currentAttack = setTo;
+          } else if (thisTurn) {
+            t.slot.tempAttackBoost = (t.slot.tempAttackBoost ?? 0) + amount;
           } else {
             t.slot.currentAttack = Math.max(0, t.slot.currentAttack + amount);
           }
