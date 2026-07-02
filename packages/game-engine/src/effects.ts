@@ -502,6 +502,21 @@ function resolveEffect(effect: CardEffect, ctx: EffectContext): void {
     }
 
     case "copy_to_hand": {
+      const from = params.from as string | undefined;
+
+      // Rug Radar: reveal the opponent's hand and let the player copy one card.
+      if (from === "opponent_hand") {
+        if (opponent.hand.length === 0) break; // nothing to copy
+        ctx.state.pendingDiscover = {
+          playerId: ctx.activePlayerId,
+          options: opponent.hand.map((c) => deepClone(c)),
+          sourceCardId: ctx.sourceCard.id,
+          mode: "pool", // "pool" adds a fresh copy of the chosen card to hand
+          prompt: "Copy a card from your opponent's hand",
+        };
+        break;
+      }
+
       const targets = resolveTargets(effect.target, ctx, activePlayer, opponent);
       for (const t of targets) {
         if (t.type === "minion" && activePlayer.hand.length < 10) {
