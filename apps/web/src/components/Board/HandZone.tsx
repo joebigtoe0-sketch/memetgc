@@ -59,7 +59,7 @@ export default function HandZone({ hand, selectedInstanceId, currentMana, action
             style={{
               position: "absolute",
               left: "50%",
-              bottom: 0,
+              bottom: 26,
               transform: `translateX(calc(-50% + ${x}px)) translateY(${(isSelected ? y - 30 : y) + dragLift}px) rotate(${isDragging ? 0 : ang}deg)`,
               transformOrigin: "bottom center",
               zIndex: isDragging ? 60 : isSelected ? 50 : 10 + i,

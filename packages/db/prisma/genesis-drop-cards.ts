@@ -146,7 +146,7 @@ export const GENESIS_DROP_CARDS = [
     cost: 5,
     attack: 3,
     health: 4,
-    text: "Pump: Add 2 random Legendary cards to your hand. They cost (2) less.",
+    text: "Pump: Add a random Legendary card to your hand. It costs (2) less.",
     flavorText: '"@blknoiz06. The name moves markets."',
     keywordsJson: [{ id: "battlecry", display: "Pump" }],
     effectsJson: [
@@ -154,7 +154,7 @@ export const GENESIS_DROP_CARDS = [
         trigger: "on_play",
         target: "hero_friendly",
         action: "add_to_hand",
-        params: { filter: "rarity:legendary", random: true, count: 2, cost_reduction: 2 },
+        params: { filter: "rarity:legendary", random: true, count: 1, cost_reduction: 2 },
       },
     ],
     collectible: true,

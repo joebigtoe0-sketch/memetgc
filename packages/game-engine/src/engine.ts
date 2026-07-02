@@ -136,10 +136,12 @@ function handleAction(
 
     case "tap_location": {
       if (state.phase !== "main") return { success: false, error: "Not main phase" };
-      if (!activePlayer.locationCard) return { success: false, error: "No location on board" };
-      if (activePlayer.locationUsedThisTurn) return { success: false, error: "Location already used this turn" };
-      if (activePlayer.locationDurability <= 0) return { success: false, error: "Location has no durability" };
-      return handleTapLocation(state, animations, rng, cardRegistry);
+      const idx = action.index ?? 0;
+      const loc = activePlayer.locations[idx];
+      if (!loc) return { success: false, error: "No location on board" };
+      if (loc.usedThisTurn) return { success: false, error: "Location already used this turn" };
+      if (loc.durability <= 0) return { success: false, error: "Location has no durability" };
+      return handleTapLocation(state, idx, animations, rng, cardRegistry);
     }
 
     case "end_turn":
@@ -406,9 +408,8 @@ function handlePlayCard(
     }
 
     case "location": {
-      if (activePlayer.locationCard) return { success: false, error: "Already have a location" };
-      activePlayer.locationCard = card;
-      activePlayer.locationDurability = card.durability ?? 0;
+      if (activePlayer.locations.length >= 2) return { success: false, error: "Both location slots are full" };
+      activePlayer.locations.push({ card, durability: card.durability ?? 0, usedThisTurn: false });
       animations.push({ type: "play_card", data: { cardId: card.id, isLocation: true } });
       break;
     }
@@ -684,12 +685,15 @@ function handleHeroPower(
 
 function handleTapLocation(
   state: GameState,
+  index: number,
   animations: AnimationHint[],
   rng: () => number,
   cardRegistry?: Map<string, Card>
 ): { success: boolean; error?: string } {
   const activePlayer = state.players[state.activePlayerId]!;
-  const card = activePlayer.locationCard!;
+  const loc = activePlayer.locations[index];
+  if (!loc) return { success: false, error: "No location" };
+  const card = loc.card;
 
   const ctx: EffectContext = {
     state,
@@ -702,12 +706,12 @@ function handleTapLocation(
 
   resolveEffects(card.effects ?? [], "on_tap", ctx);
 
-  activePlayer.locationDurability -= 1;
-  activePlayer.locationUsedThisTurn = true;
+  loc.durability -= 1;
+  loc.usedThisTurn = true;
 
-  if (activePlayer.locationDurability <= 0) {
+  if (loc.durability <= 0) {
     activePlayer.burnPile.unshift(card);
-    activePlayer.locationCard = null;
+    activePlayer.locations.splice(index, 1);
   }
 
   return { success: true };
@@ -761,8 +765,8 @@ function handleEndTurn(
     // Tracked via flag — simplified here
   }
 
-  // Reset location
-  activePlayer.locationUsedThisTurn = false;
+  // Reset locations for this player (usable again on their next turn)
+  for (const loc of activePlayer.locations) loc.usedThisTurn = false;
 
   // Switch active player
   state.activePlayerId = opponentId;
@@ -989,8 +993,7 @@ export function sanitizeState(state: GameState, playerId: string): SanitizedGame
     weaponAttack: opponentState.weaponAttack,
     weaponDurability: opponentState.weaponDurability,
     heroHasAttacked: opponentState.heroHasAttacked,
-    locationCard: opponentState.locationCard,
-    locationDurability: opponentState.locationDurability,
+    locations: opponentState.locations,
     board: opponentState.board,
     handCount: opponentState.hand.length,
     deckCount: opponentState.deckCount,

@@ -198,10 +198,16 @@ function resolveEffect(effect: CardEffect, ctx: EffectContext): void {
         }
       } else if (random && filter) {
         const pool = getCardPool(filter, ctx);
-        if (pool.length > 0) {
+        const costMod =
+          (params.cost_reduction ? -(params.cost_reduction as number) : 0) +
+          ((params.cost_increase as number) ?? 0);
+        for (let i = 0; i < count; i++) {
+          if (pool.length === 0) break;
           const card = pool[Math.floor(ctx.rng() * pool.length)]!;
           if (activePlayer.hand.length < 10) {
-            activePlayer.hand.push({ ...deepClone(card), instanceId: nextInstanceId() } as Card & { instanceId: string });
+            const clone = { ...deepClone(card), instanceId: nextInstanceId() } as Card & { instanceId: string; costModifier?: number };
+            if (costMod) clone.costModifier = (clone.costModifier ?? 0) + costMod;
+            activePlayer.hand.push(clone);
           }
         }
       }

@@ -444,12 +444,13 @@ export default function GameBoard() {
               <FloatNumber key={f.id} amount={f.amount} isHeal={f.isHeal} />
             ))}
           </div>
-          {opponentState.locationCard && (() => {
-            const loc = opponentState.locationCard;
-            const total = loc.durability ?? opponentState.locationDurability;
-            const left = opponentState.locationDurability;
+          {opponentState.locations.map((slot, li) => {
+            const loc = slot.card;
+            const total = loc.durability ?? slot.durability;
+            const left = slot.durability;
             return (
               <div
+                key={li}
                 onMouseEnter={() => setZoomedCard(loc as unknown as CardData)}
                 onMouseLeave={() => setZoomedCard(null)}
                 title={loc.text ?? ""}
@@ -466,7 +467,7 @@ export default function GameBoard() {
                 </div>
               </div>
             );
-          })()}
+          })}
         </div>
 
         {/* Opponent center: face-down hand (top) + board (bottom) */}
@@ -587,14 +588,15 @@ export default function GameBoard() {
               {myState.weaponAttack}/{myState.weaponDurability}
             </div>
           )}
-          {myState.locationCard && (() => {
-            const loc = myState.locationCard;
-            const total = loc.durability ?? myState.locationDurability;
-            const left = myState.locationDurability;
-            const usable = canAct && !myState.locationUsedThisTurn && left > 0;
+          {myState.locations.map((slot, li) => {
+            const loc = slot.card;
+            const total = loc.durability ?? slot.durability;
+            const left = slot.durability;
+            const usable = canAct && !slot.usedThisTurn && left > 0;
             return (
               <div
-                onClick={() => { if (usable) { playSound("click", 0.6); sendAction({ type: "tap_location" }); } }}
+                key={li}
+                onClick={() => { if (usable) { playSound("click", 0.6); sendAction({ type: "tap_location", index: li }); } }}
                 onMouseEnter={() => setZoomedCard(loc as unknown as CardData)}
                 onMouseLeave={() => setZoomedCard(null)}
                 title={loc.text ?? ""}
@@ -615,11 +617,11 @@ export default function GameBoard() {
                   </div>
                 </div>
                 <div style={{ position: "absolute", top: 3, left: 4, font: `700 7px var(--font-mono,'JetBrains Mono',monospace)`, color: usable ? "#9df0b8" : "#9aa3b5", letterSpacing: 1, textShadow: "0 1px 3px #000" }}>
-                  {usable ? "TAP" : myState.locationUsedThisTurn ? "USED" : ""}
+                  {usable ? "TAP" : slot.usedThisTurn ? "USED" : ""}
                 </div>
               </div>
             );
-          })()}
+          })}
         </div>
 
         {/* Player center: board + hand */}

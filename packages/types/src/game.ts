@@ -29,6 +29,12 @@ export interface SecretSlot {
   card: Card;
 }
 
+export interface LocationSlot {
+  card: Card;
+  durability: number;
+  usedThisTurn: boolean;
+}
+
 export interface PlayerState {
   playerId: string;
   heroId: string;
@@ -48,9 +54,8 @@ export interface PlayerState {
   weaponAttack: number;
   weaponDurability: number;
   heroHasAttacked: boolean;
-  locationCard: Card | null;
-  locationDurability: number;
-  locationUsedThisTurn: boolean;
+  /** Up to 2 location cards, played to the board and tapped once per turn. */
+  locations: LocationSlot[];
   board: (MinionSlot | null)[];
   hand: Card[];
   deckPile: Card[];
@@ -147,7 +152,7 @@ export type GameAction =
   | { type: "surrender"; playerId?: string }
   | { type: "discover_choice"; cardId: string }
   | { type: "discard_to_ten"; discardInstanceIds: string[] }
-  | { type: "tap_location" };
+  | { type: "tap_location"; index?: number };
 
 export interface AnimationHint {
   type:
@@ -212,8 +217,7 @@ export interface OpponentView {
   weaponAttack: number;
   weaponDurability: number;
   heroHasAttacked: boolean;
-  locationCard: Card | null;
-  locationDurability: number;
+  locations: LocationSlot[];
   board: (MinionSlot | null)[];
   handCount: number;
   deckCount: number;
