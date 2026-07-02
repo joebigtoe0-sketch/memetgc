@@ -14,6 +14,7 @@ interface GameStore {
   gameState: SanitizedGameState | null;
   pendingAnimations: AnimationHint[];
   lastActionError: string | null;
+  matchReward: number | null;
 
   // UI state
   selectedCardInstanceId: string | null;
@@ -28,6 +29,7 @@ interface GameStore {
   setGameState: (state: SanitizedGameState) => void;
   setAnimations: (animations: AnimationHint[]) => void;
   clearAnimations: () => void;
+  setMatchReward: (fragments: number | null) => void;
   setActionError: (error: string | null) => void;
   selectCard: (instanceId: string | null) => void;
   selectAttacker: (instanceId: string | null) => void;
@@ -42,6 +44,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   gameState: null,
   pendingAnimations: [],
   lastActionError: null,
+  matchReward: null,
   selectedCardInstanceId: null,
   selectedAttackerId: null,
   zoomedCard: null,
@@ -60,6 +63,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   setAnimations: (animations) => set({ pendingAnimations: animations }),
   clearAnimations: () => set({ pendingAnimations: [] }),
+  setMatchReward: (matchReward) => set({ matchReward }),
   setActionError: (error) => set({ lastActionError: error }),
 
   selectCard: (selectedCardInstanceId) =>
@@ -77,6 +81,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       gameState: null,
       pendingAnimations: [],
       lastActionError: null,
+      matchReward: null,
       selectedCardInstanceId: null,
       selectedAttackerId: null,
       zoomedCard: null,

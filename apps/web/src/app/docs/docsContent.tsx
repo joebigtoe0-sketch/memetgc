@@ -182,8 +182,8 @@ export const DOC_GROUPS: DocGroup[] = [
             <H3>Recommended first steps</H3>
             <UL>
               <LI>
-                <Strong>Play a Practice game</Strong> vs the AI with a starter deck to learn the flow — no rewards, no
-                risk.
+                <Strong>Play a Practice game</Strong> vs the AI with a starter deck to learn the flow — low stakes, and
+                you still earn 2 fragments per win.
               </LI>
               <LI>
                 <Strong>Open your 5 packs</Strong> from the Packs screen to start building a collection.
@@ -449,14 +449,14 @@ export const DOC_GROUPS: DocGroup[] = [
             <Table
               head={["Mode", "Opponent", "Rewards", "Notes"]}
               rows={[
-                [<Strong key="p">Practice</Strong>, "AI", "None", "Learn decks risk-free. Does not progress quests."],
+                [<Strong key="p">Practice</Strong>, "AI", "2 frags per win", "Learn decks risk-free. Does not progress quests."],
                 [<Strong key="c">Casual</Strong>, "Real players", "Fragments", "No ladder impact. Great for testing decks."],
                 [<Strong key="r">Ranked</Strong>, "Real players", "Fragments + ladder points", "Requires a custom (non-starter) deck."],
               ]}
             />
             <Callout tone="warn">
-              <Strong>Daily quests and fragment rewards only count in Casual and Ranked.</Strong> Practice games against
-              the AI never grant fragments or quest progress.
+              <Strong>Daily quests only count in Casual and Ranked.</Strong> Practice games against the AI award a small
+              2-fragment win bonus but never progress daily quests or the ladder.
             </Callout>
           </>
         ),

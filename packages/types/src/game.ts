@@ -177,7 +177,7 @@ export interface AnimationHint {
 export interface ServerToClientEvents {
   "game:state_update": (state: SanitizedGameState) => void;
   "game:action_result": (result: { success: boolean; error?: string; animations?: AnimationHint[] }) => void;
-  "game:game_over": (result: { winner: string; reason: string }) => void;
+  "game:game_over": (result: { winner: string; reason: string; fragments?: number }) => void;
   "game:discover": (options: { cards: Card[]; sourceCardId: string }) => void;
   "game:error": (message: string) => void;
   "match:found": (matchId: string) => void;

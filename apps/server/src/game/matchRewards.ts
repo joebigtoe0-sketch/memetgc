@@ -5,6 +5,7 @@ export const QUEST_FRAGMENTS = { low: 15, medium: 30, high: 60 } as const;
 export const MATCH_FRAGMENTS = {
   ranked: { winner: 5, loser: 2 },
   casual: { winner: 2, loser: 0 },
+  practice: { winner: 2, loser: 0 },
 } as const;
 
 /** Minimum turns before a surrender awards the winner any fragments. */
@@ -21,8 +22,9 @@ export function isMatchRewardEligible(endReason: string | null, turnNumber: numb
 }
 
 /**
- * Fragments earned from a finished match. Practice and early surrenders yield 0.
- * Surrendering players never receive fragments.
+ * Fragments earned from a finished match, driven by MATCH_FRAGMENTS per mode
+ * (ranked, casual, practice). Early surrenders yield 0, and surrendering players
+ * never receive fragments. Unknown modes yield 0.
  */
 export function computeMatchFragments(opts: {
   mode: string;
@@ -34,18 +36,12 @@ export function computeMatchFragments(opts: {
 }): number {
   const { mode, isWinner, endReason, turnNumber, playerId, winnerId } = opts;
 
-  if (!isQuestEligibleMode(mode)) return 0;
+  const table = MATCH_FRAGMENTS[mode as keyof typeof MATCH_FRAGMENTS];
+  if (!table) return 0;
   if (!isMatchRewardEligible(endReason, turnNumber)) return 0;
-
   if (endReason === "surrender" && playerId !== winnerId) return 0;
 
-  if (mode === "ranked") {
-    return isWinner ? MATCH_FRAGMENTS.ranked.winner : MATCH_FRAGMENTS.ranked.loser;
-  }
-  if (mode === "casual") {
-    return isWinner ? MATCH_FRAGMENTS.casual.winner : MATCH_FRAGMENTS.casual.loser;
-  }
-  return 0;
+  return isWinner ? table.winner : table.loser;
 }
 
 /** Elo K-factor: bigger swings for newcomers, smaller for established/high players. */

@@ -28,7 +28,7 @@ interface DamageFloat { id: string; entityKey: string; amount: number; isHeal: b
 interface LogEntry { id: string; text: string; turn: number; }
 
 export default function GameBoard() {
-  const { gameState, isMyTurn, selectedCardInstanceId, selectedAttackerId, lastActionError, playerId, pendingAnimations } = useGameStore();
+  const { gameState, isMyTurn, selectedCardInstanceId, selectedAttackerId, lastActionError, playerId, pendingAnimations, matchReward } = useGameStore();
   const { selectCard, selectAttacker, setActionError, clearAnimations } = useGameStore();
   const [phase, setPhase] = useState<PhaseAction>("idle");
   const [zoomedCard, setZoomedCard] = useState<CardData | null>(null);
@@ -81,28 +81,30 @@ export default function GameBoard() {
   const prevMinionHp = useRef<Record<string, number>>({});
   const prevHeroHp = useRef<Record<string, number>>({});
   const turnTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const prevIsMyTurn = useRef(false);
+  const prevTurnKey = useRef("");
   const logEndRef = useRef<HTMLDivElement | null>(null);
   const endSoundPlayed = useRef(false);
 
-  // Turn timer + new-turn flash
+  // Turn timer + new-turn flash — counts down for whoever's turn it is.
   useEffect(() => {
     const inProgress = gameState?.status === "in_progress";
-    if (inProgress && isMyTurn && !prevIsMyTurn.current) {
+    const turnKey = inProgress ? `${gameState?.activePlayerId}:${gameState?.turnNumber}` : "";
+    if (inProgress && turnKey !== prevTurnKey.current) {
       setTurnSecondsLeft(TURN_SECONDS);
-      setShowNewTurn(true);
-      setTimeout(() => setShowNewTurn(false), 1800);
+      if (isMyTurn) {
+        setShowNewTurn(true);
+        setTimeout(() => setShowNewTurn(false), 1800);
+      }
     }
-    prevIsMyTurn.current = !!(inProgress && isMyTurn);
-    if (inProgress && isMyTurn) {
+    prevTurnKey.current = turnKey;
+    if (inProgress) {
       if (turnTimerRef.current) clearInterval(turnTimerRef.current);
       turnTimerRef.current = setInterval(() => setTurnSecondsLeft((s) => Math.max(0, s - 1)), 1000);
     } else {
       if (turnTimerRef.current) { clearInterval(turnTimerRef.current); turnTimerRef.current = null; }
-      if (!isMyTurn) setTurnSecondsLeft(TURN_SECONDS);
     }
     return () => { if (turnTimerRef.current) clearInterval(turnTimerRef.current); };
-  }, [isMyTurn, gameState?.status]);
+  }, [isMyTurn, gameState?.status, gameState?.activePlayerId, gameState?.turnNumber]);
 
   // Scroll log to bottom when new entries added
   useEffect(() => {
@@ -322,6 +324,14 @@ export default function GameBoard() {
         <div style={{ font: `600 11px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "3px", color: "#8a93a6" }}>
           {gameState.endReason === "surrender" ? "SURRENDER" : `TURN ${gameState.turnNumber}`}
         </div>
+        {matchReward !== null && (
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 22px", borderRadius: 12, background: matchReward > 0 ? "rgba(124,196,255,.12)" : "rgba(138,147,166,.1)", border: `1px solid ${matchReward > 0 ? "rgba(124,196,255,.35)" : "rgba(138,147,166,.25)"}` }}>
+            <GameIcon name="fragment" size={24} />
+            <span style={{ font: `800 18px var(--font-cinzel,'Cinzel',serif)`, color: matchReward > 0 ? "#7cc4ff" : "#8a93a6" }}>
+              {matchReward > 0 ? `+${matchReward} Fragments` : "No Fragments earned"}
+            </span>
+          </div>
+        )}
         <button onClick={() => { window.location.href = "/"; }} style={{ cursor: "pointer", border: "none", padding: "15px 44px", borderRadius: 12, font: `800 16px var(--font-cinzel,'Cinzel',serif)`, color: "#2a1a00", background: "linear-gradient(180deg,#ffe07a,#e0890f)", boxShadow: "0 8px 24px rgba(224,137,15,.4)" }}>
           Back to Menu
         </button>
@@ -459,7 +469,9 @@ export default function GameBoard() {
 
   const manaAvailable = myState.mana + myState.tempMana;
   const turnTimeRatio = turnSecondsLeft / TURN_SECONDS;
-  const turnBarColor = !isMyTurn ? "rgba(255,255,255,.12)" : turnTimeRatio > 0.5 ? "#2ee88a" : turnTimeRatio > 0.25 ? "#f0c040" : "#ff4444";
+  const turnBarColor = !isMyTurn
+    ? (turnTimeRatio > 0.25 ? "#ff8a5c" : "#ff4444")
+    : turnTimeRatio > 0.5 ? "#2ee88a" : turnTimeRatio > 0.25 ? "#f0c040" : "#ff4444";
 
   const myFloats = damageFloats.filter((f) => f.entityKey.startsWith("my_"));
   const oppFloats = damageFloats.filter((f) => f.entityKey.startsWith("opp_"));
@@ -571,9 +583,9 @@ export default function GameBoard() {
         {/* Timer bar — fills from left, drains toward right (End Turn side) */}
         <div style={{ position: "absolute", left: 140, right: 140, top: "50%", transform: "translateY(-50%)", height: 6, borderRadius: 4, background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.08)", overflow: "hidden", pointerEvents: "none" }}>
           <div style={{
-            height: "100%", width: isMyTurn ? `${turnTimeRatio * 100}%` : "0%",
+            height: "100%", width: `${turnTimeRatio * 100}%`,
             borderRadius: 3, background: turnBarColor,
-            boxShadow: isMyTurn ? `0 0 10px ${turnBarColor}88` : "none",
+            boxShadow: `0 0 10px ${turnBarColor}88`,
             marginLeft: "auto",  /* right-aligned — drains toward right/End Turn */
             transition: "width 1s linear, background 0.4s ease, box-shadow 0.4s ease",
           }} />
@@ -582,7 +594,7 @@ export default function GameBoard() {
         {/* Turn badge */}
         <div style={{ position: "absolute", left: 16, zIndex: 10, padding: "6px 14px", borderRadius: 9, background: isMyTurn ? "rgba(25,224,138,.1)" : "rgba(255,255,255,.04)", border: `1px solid ${isMyTurn ? "rgba(25,224,138,.35)" : "rgba(255,255,255,.1)"}`, display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
           <span style={{ font: `700 10px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "2px", color: isMyTurn ? "#7fe8bd" : "#c4ccd8" }}>{isMyTurn ? "YOUR TURN" : "ENEMY TURN"}</span>
-          {isMyTurn && <span style={{ font: `900 13px var(--font-mono,'JetBrains Mono',monospace)`, color: timerUrgent ? "#ff4444" : "#7fe8bd", animation: timerUrgent ? "urgentPulse 0.5s ease-in-out infinite" : "none" }}>{turnSecondsLeft}s</span>}
+          <span style={{ font: `900 13px var(--font-mono,'JetBrains Mono',monospace)`, color: turnSecondsLeft <= 5 ? "#ff4444" : isMyTurn ? "#7fe8bd" : "#c4ccd8", animation: turnSecondsLeft <= 5 ? "urgentPulse 0.5s ease-in-out infinite" : "none" }}>{turnSecondsLeft}s</span>
         </div>
 
         {/* Phase instruction */}

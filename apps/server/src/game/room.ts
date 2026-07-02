@@ -3,6 +3,7 @@ import type { GameState, GameAction, Card, PlayerState, AnimationHint } from "@m
 import type { Server } from "socket.io";
 import type { ServerToClientEvents, ClientToServerEvents } from "@memetgc/types";
 import { recordMatchResults } from "./results.js";
+import { computeMatchFragments } from "./matchRewards.js";
 
 export interface PlayerInfo {
   socketId: string | null;
@@ -301,10 +302,25 @@ function cleanupRoom(room: GameRoom, io: Server<ClientToServerEvents, ServerToCl
   clearTurnTimer(room);
   for (const h of room.mulliganTimerHandles.values()) clearTimeout(h);
   room.mulliganTimerHandles.clear();
-  io.to(room.gameId).emit("game:game_over", {
-    winner: room.state.winner ?? "",
-    reason: room.state.endReason ?? "hero_death",
-  });
+  const winnerId = room.state.winner ?? null;
+  const endReason = room.state.endReason ?? "hero_death";
+  const turnNumber = room.state.turnNumber ?? 0;
+  for (const player of Object.values(room.players)) {
+    if (!player.socketId || player.isAI) continue;
+    const fragments = computeMatchFragments({
+      mode: room.mode,
+      isWinner: winnerId === player.userId,
+      endReason,
+      turnNumber,
+      playerId: player.userId,
+      winnerId,
+    });
+    io.to(player.socketId).emit("game:game_over", {
+      winner: winnerId ?? "",
+      reason: endReason,
+      fragments,
+    });
+  }
   // Persist season stats + daily-quest progress (fire-and-forget)
   void recordMatchResults(room);
   rooms.delete(room.gameId);
