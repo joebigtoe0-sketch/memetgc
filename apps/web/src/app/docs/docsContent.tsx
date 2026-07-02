@@ -713,18 +713,24 @@ export const DOC_GROUPS: DocGroup[] = [
         body: (
           <>
             <P>
-              Daily quests reset every day (UTC) and reward <Strong>fragments only</Strong>. They progress in{" "}
-              <Strong>Casual and Ranked</Strong> games — Practice vs AI does not count.
+              Every day you get <Strong>5 daily quests</Strong> (reset at midnight UTC). Each one rewards{" "}
+              <Strong>fragments only</Strong> — 15, 30, or 60 frags depending on difficulty. They progress in{" "}
+              <Strong>Casual and Ranked</Strong> games only; Practice vs AI does not count.
             </P>
+            <P>Examples of quests you might see:</P>
             <Table
-              head={["Quest", "Reward"]}
+              head={["Quest type", "Reward"]}
               rows={[
-                ["Log in today", <><Frag>15</Frag> frags</>],
-                ["Win 3 games (Casual or Ranked)", <><Frag>30</Frag> frags</>],
-                ["Destroy 15 minions (Casual or Ranked)", <><Frag>60</Frag> frags</>],
+                ["Play 2–4 games", <><Frag>15–30</Frag> frags</>],
+                ["Win 2–3 games", <><Frag>30–60</Frag> frags</>],
+                ["Destroy 10–20 minions", <><Frag>30–60</Frag> frags</>],
+                ["Play or win Ranked / Casual matches", <><Frag>15–60</Frag> frags</>],
               ]}
             />
-            <P>Claim completed quests from the dashboard to collect the fragments.</P>
+            <P>
+              Your five quests are picked from a rotating pool each day, so they vary day to day. Claim completed
+              quests from the dashboard to collect fragments.
+            </P>
           </>
         ),
       },

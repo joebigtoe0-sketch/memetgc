@@ -6,6 +6,7 @@ import { getDegenBalance, isDegenConfigured } from "../lib/helius.js";
 import { getTokenBalance, MIN_PLAY_TOKENS } from "../lib/solana.js";
 import { tierFromPoints } from "../game/rank.js";
 import { getLadderStanding } from "../game/leaderboard.js";
+import { generateDailyQuests } from "../game/dailyQuests.js";
 
 const router: ReturnType<typeof Router> = Router();
 
@@ -129,7 +130,7 @@ router.post("/packs/open", requireAuth, async (req: AuthRequest, res) => {
       rarity: card.rarity, tribe: card.tribe ?? undefined, attack: card.attack ?? undefined,
       health: card.health ?? undefined, durability: card.durability ?? undefined,
       text: card.text ?? undefined, keywords: (card.keywordsJson as unknown[]) ?? [],
-      art_url: card.artUrl ?? `/card-art/${card.id}.png`,
+      art_url: card.artUrl ?? `/card-art/${card.id}.jpg`,
     };
   });
 
@@ -328,41 +329,6 @@ async function generatePackCards(
   }
 
   return cards;
-}
-
-import { QUEST_FRAGMENTS } from "../game/matchRewards.js";
-
-async function generateDailyQuests(userId: string): Promise<void> {
-  const tomorrow = new Date();
-  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
-  tomorrow.setUTCHours(0, 0, 0, 0);
-
-  const questTemplates = [
-    { type: "daily_login", description: "Log in today", target: 1, reward: { fragments: QUEST_FRAGMENTS.low } },
-    {
-      type: "win_games",
-      description: "Win 3 games (Casual or Ranked)",
-      target: 3,
-      reward: { fragments: QUEST_FRAGMENTS.medium },
-    },
-    {
-      type: "destroy_minions",
-      description: "Destroy 15 minions (Casual or Ranked)",
-      target: 15,
-      reward: { fragments: QUEST_FRAGMENTS.high },
-    },
-  ];
-
-  for (const q of questTemplates) {
-    await prisma.dailyQuest.create({
-      data: {
-        userId, type: q.type, description: q.description, target: q.target, rewardJson: q.reward,
-        expiresAt: tomorrow,
-        completed: q.type === "daily_login",
-        progress: q.type === "daily_login" ? 1 : 0,
-      },
-    });
-  }
 }
 
 export default router;

@@ -11,10 +11,26 @@ import { BRAND, clearAuthTokens, isAutoUsername } from "@/lib/brand";
 
 type Step = "connect" | "sign" | "username";
 
+function useOnlineCount() {
+  const [online, setOnline] = useState<number | null>(null);
+
+  useEffect(() => {
+    const load = () => {
+      api.get<{ online: number }>("/api/online").then((r) => setOnline(r.online)).catch(() => {});
+    };
+    load();
+    const id = setInterval(load, 20_000);
+    return () => clearInterval(id);
+  }, []);
+
+  return online;
+}
+
 export default function AuthModal() {
   const { publicKey, signMessage, connected, disconnect } = useWallet();
   const { setVisible } = useWalletModal();
   const { setAuth, setWallet, setHasUsername, token, hasUsername } = useAuthStore();
+  const playersOnline = useOnlineCount();
 
   const [step, setStep] = useState<Step>("connect");
   const [pendingToken, setPendingToken] = useState<string | null>(null);
@@ -25,12 +41,10 @@ export default function AuthModal() {
 
   const wallet = publicKey?.toBase58() ?? null;
 
-  // If we already hold a token but never picked a username, jump to that step.
   useEffect(() => {
     if (token && !hasUsername) setStep("username");
   }, [token, hasUsername]);
 
-  // Once a wallet connects, move to the sign step.
   useEffect(() => {
     if (connected && wallet && step === "connect" && !token) setStep("sign");
   }, [connected, wallet, step, token]);
@@ -55,7 +69,6 @@ export default function AuthModal() {
         setHasUsername(true);
         setAuth(res.token, res.userId, res.username);
       } else {
-        // Persist token for the /username call, but don't enter the app yet.
         if (typeof window !== "undefined") {
           localStorage.setItem(BRAND.authTokenKey, res.token);
           for (const key of BRAND.legacyAuthTokenKeys) {
@@ -104,14 +117,28 @@ export default function AuthModal() {
         position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
         background: "radial-gradient(140% 90% at 50% -8%,#141b2a 0%,#090c13 60%,#06080d 100%)",
         fontFamily: "var(--font-archivo,'Archivo',sans-serif)",
+        padding: "16px",
       }}
     >
       <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(120% 80% at 85% -10%,rgba(247,147,26,.08),transparent 55%),radial-gradient(100% 80% at 0% 110%,rgba(123,140,244,.08),transparent 55%)", pointerEvents: "none" }} />
 
-      <div style={{ position: "relative", width: "min(400px, calc(100% - 32px))", padding: "clamp(24px, 6vw, 34px)", borderRadius: 20, background: "linear-gradient(150deg,rgba(255,255,255,.05),rgba(14,18,28,.85))", border: "1px solid rgba(255,255,255,.1)", boxShadow: "0 24px 60px rgba(0,0,0,.5)" }}>
+      <div style={{ position: "relative", width: "min(420px, 100%)", padding: "clamp(26px, 6vw, 36px)", borderRadius: 22, background: "linear-gradient(155deg,rgba(255,255,255,.06),rgba(14,18,28,.9))", border: "1px solid rgba(255,255,255,.12)", boxShadow: "0 28px 70px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06)" }}>
+        {playersOnline !== null && (
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "7px 14px", borderRadius: 999, background: "rgba(25,224,138,.08)", border: "1px solid rgba(25,224,138,.28)" }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#19e08a", boxShadow: "0 0 10px rgba(25,224,138,.7)", animation: "authPulse 2s ease-in-out infinite" }} />
+              <span style={{ font: `700 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#9dffd0", letterSpacing: ".3px" }}>
+                {playersOnline.toLocaleString()} players online
+              </span>
+            </div>
+          </div>
+        )}
+
         <div style={{ textAlign: "center", marginBottom: 26 }}>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }}>
-            <Logo size={56} />
+            <div style={{ padding: 10, borderRadius: 18, background: "rgba(247,147,26,.08)", border: "1px solid rgba(247,147,26,.22)", boxShadow: "0 0 28px rgba(247,147,26,.12)" }}>
+              <Logo size={52} />
+            </div>
           </div>
           <h1 style={{ font: `900 26px var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc", letterSpacing: ".5px" }}>{BRAND.fullName}</h1>
           <p style={{ font: `600 11px var(--font-archivo,'Archivo',sans-serif)`, color: "#aeb6c4", letterSpacing: ".3px", marginTop: 8, fontStyle: "italic" }}>{BRAND.tagline}</p>
@@ -155,21 +182,30 @@ export default function AuthModal() {
           </>
         ) : (
           <>
-            <p style={{ font: `500 12px var(--font-archivo,'Archivo',sans-serif)`, color: "#aeb6c4", textAlign: "center", marginBottom: 20, lineHeight: 1.5 }}>
+            <p style={{ font: `500 12px var(--font-archivo,'Archivo',sans-serif)`, color: "#aeb6c4", textAlign: "center", marginBottom: 20, lineHeight: 1.55 }}>
               Connect your Solana wallet to play. Your wallet is your account — no email or password needed.
             </p>
             <button onClick={() => setVisible(true)} style={primaryBtn(false)}>
               Connect Wallet
             </button>
-            <p style={{ font: `500 10px var(--font-archivo,'Archivo',sans-serif)`, color: "#5a6478", textAlign: "center", marginTop: 16 }}>
-              New players get 3 starter decks + 5 booster packs.
-            </p>
-            <a href="/docs" style={{ display: "block", textAlign: "center", marginTop: 14, font: `700 12px var(--font-archivo,'Archivo',sans-serif)`, color: "#9aa3b4", textDecoration: "none" }}>
+            <div style={{ marginTop: 18, padding: "12px 14px", borderRadius: 12, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.07)", textAlign: "center" }}>
+              <p style={{ font: `600 11px var(--font-archivo,'Archivo',sans-serif)`, color: "#c2cbdb", lineHeight: 1.45 }}>
+                New players get <span style={{ color: "#e7c768" }}>3 starter decks</span> + <span style={{ color: "#e7c768" }}>5 booster packs</span>
+              </p>
+            </div>
+            <a href="/docs" style={{ display: "block", textAlign: "center", marginTop: 16, font: `700 12px var(--font-archivo,'Archivo',sans-serif)`, color: "#9aa3b4", textDecoration: "none" }}>
               New to the game? Read the guide →
             </a>
           </>
         )}
       </div>
+
+      <style>{`
+        @keyframes authPulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.65; transform: scale(0.92); }
+        }
+      `}</style>
     </div>
   );
 }

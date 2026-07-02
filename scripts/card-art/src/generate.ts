@@ -72,7 +72,7 @@ function ensureDirs(): void {
 }
 
 function publicArtUrl(cardId: string): string {
-  return `/card-art/${cardId}.png`;
+  return `/card-art/${cardId}.jpg`;
 }
 
 function resolveArtBrief(card: { id: string; artLabel?: string | null }): string | null {
@@ -275,7 +275,7 @@ async function run(): Promise<void> {
   let fail = 0;
 
   for (const card of pending) {
-    const outputPath = path.join(OUTPUT_DIR, `${card.id}.png`);
+    const outputPath = path.join(OUTPUT_DIR, `${card.id}.jpg`);
     const url = publicArtUrl(card.id);
 
     if (!shouldForceRegenerate(card.id, args, outputPath) && fs.existsSync(outputPath)) {

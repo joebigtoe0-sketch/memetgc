@@ -1013,7 +1013,7 @@ async function main() {
     const cardData = {
       ...card,
       artLabel: ART_LABELS[card.id] ?? (card as { artLabel?: string }).artLabel ?? null,
-      artUrl: `/card-art/${card.id}.png`,
+      artUrl: `/card-art/${card.id}.jpg`,
     };
     await prisma.card.upsert({
       where: { id: card.id },

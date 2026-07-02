@@ -199,7 +199,7 @@ export default function Dashboard() {
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14 }}>
             <ModeCard name="Practice" tag="FREE · VS AI" desc="Learn the ropes against bots. No rewards." badge="Open" badgeColor="#9aa3b2" onClick={() => router.push("/play?mode=practice")} />
             <ModeCard name="Casual" tag="FREE · VS PLAYERS" desc="No ladder stakes. Earn fragments per match." badge="Open" badgeColor="#7b8cf4" onClick={() => router.push("/play?mode=casual")} />
-            <ModeCard name="Ranked" tag={`HOLD 1,000 ${BRAND.ticker} · OWN DECK`} desc="Climb the ladder with your own deck. Earn fragments & season rewards." badge="Unlocked" badgeColor="#f7931a" highlight onClick={() => router.push("/play?mode=ranked")} />
+            <ModeCard name="Ranked" tag="LADDER · OWN DECK" desc="Climb the ladder with your own deck. Earn fragments & season rewards." badge="Unlocked" badgeColor="#f7931a" highlight onClick={() => router.push("/play?mode=ranked")} />
           </div>
         </div>
 
@@ -211,7 +211,7 @@ export default function Dashboard() {
               <span style={{ font: `600 10px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6" }}>resets {resetIn}</span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 14 }}>
-              {quests.filter((q) => q.type !== "daily_login").map((q) => {
+              {quests.map((q) => {
                 const pct = Math.min(100, Math.round((q.progress / q.target) * 100));
                 const claimable = q.completed && !q.claimedAt;
                 const claimed = !!q.claimedAt;
@@ -238,7 +238,7 @@ export default function Dashboard() {
                   </div>
                 );
               })}
-              {quests.filter((q) => q.type !== "daily_login").length === 0 && (
+              {quests.length === 0 && (
                 <div style={{ font: `500 11px var(--font-archivo,'Archivo',sans-serif)`, color: "#6a7488", textAlign: "center", padding: "16px 0" }}>No active quests.</div>
               )}
             </div>

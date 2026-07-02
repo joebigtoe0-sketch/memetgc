@@ -9,6 +9,7 @@ import {
 } from "./matchRewards.js";
 import { tierFromPoints } from "./rank.js";
 import { getActiveSeasonId } from "./season.js";
+import { updateQuests } from "./dailyQuests.js";
 
 /**
  * Persist season stats, rank points, match fragments and daily-quest progress
@@ -113,7 +114,7 @@ export async function recordMatchResults(room: GameRoom): Promise<void> {
       }
 
       if (trackQuests) {
-        await updateQuests(userId, isWinner, minionsDestroyed, now);
+        await updateQuests(userId, { isWinner, minionsDestroyed, mode: room.mode }, now);
       }
     }
 
@@ -135,25 +136,6 @@ export async function recordMatchResults(room: GameRoom): Promise<void> {
     }
   } catch {
     // Never let stats recording break game cleanup
-  }
-}
-
-async function updateQuests(userId: string, isWinner: boolean, minionsDestroyed: number, now: Date): Promise<void> {
-  const quests = await prisma.dailyQuest.findMany({
-    where: { userId, expiresAt: { gt: now }, claimedAt: null },
-  });
-
-  for (const q of quests) {
-    let inc = 0;
-    if (q.type === "win_games" && isWinner) inc = 1;
-    else if (q.type === "destroy_minions") inc = minionsDestroyed;
-    if (inc <= 0) continue;
-
-    const progress = Math.min(q.target, q.progress + inc);
-    await prisma.dailyQuest.update({
-      where: { id: q.id },
-      data: { progress, completed: progress >= q.target },
-    });
   }
 }
 

@@ -8,6 +8,7 @@ import type { Card, Keyword, CardEffect, HeroPower, Faction } from "@memetgc/typ
 import { randomUUID } from "crypto";
 import { sanitizeState } from "@memetgc/game-engine";
 import { getTokenBalance, MIN_PLAY_TOKENS } from "../lib/solana.js";
+import { trackUserOnline, trackUserOffline } from "./online.js";
 
 // In-memory card registry (loaded from DB on startup)
 let cardRegistry: Map<string, Card> = new Map();
@@ -35,7 +36,7 @@ export async function loadCardRegistry(): Promise<void> {
         keywords: (c.keywordsJson as unknown as Keyword[]) ?? [],
         effects: (c.effectsJson as unknown as CardEffect[]) ?? [],
         hero_power: (c.heroPowerJson as unknown as HeroPower) ?? undefined,
-        art_url: c.artUrl ?? `/card-art/${c.id}.png`,
+        art_url: c.artUrl ?? `/card-art/${c.id}.jpg`,
         collectible: c.collectible,
         craftable: c.craftable,
         dust_value: c.dustValue,
@@ -179,6 +180,7 @@ export function registerSocketHandlers(
       if (payload) {
         authenticatedUserId = payload.userId;
         authenticatedUsername = payload.username;
+        trackUserOnline(payload.userId);
       }
     }
 
@@ -377,6 +379,7 @@ export function registerSocketHandlers(
 
     socket.on("disconnect", () => {
       removeBySocketId(socket.id);
+      if (authenticatedUserId) trackUserOffline(authenticatedUserId);
 
       // If player was in a game, they forfeit
       if (authenticatedUserId) {

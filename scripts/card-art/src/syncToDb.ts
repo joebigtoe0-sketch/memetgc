@@ -8,14 +8,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "../../..");
 const ART_DIR = path.join(REPO_ROOT, "apps/web/public/card-art");
 
-/** Push local /card-art/*.png URLs into the database art_url column. */
+/** Push local /card-art/*.jpg URLs into the database art_url column. */
 async function run(): Promise<void> {
-  const files = fs.readdirSync(ART_DIR).filter((f) => f.endsWith(".png"));
+  const files = fs.readdirSync(ART_DIR).filter((f) => f.endsWith(".jpg"));
   console.log(`Syncing ${files.length} art URLs to database...\n`);
   let updated = 0;
   for (const file of files) {
-    const id = file.replace(/\.png$/, "");
-    const url = `/card-art/${id}.png`;
+    const id = file.replace(/\.jpg$/, "");
+    const url = `/card-art/${id}.jpg`;
     await prisma.card.updateMany({ where: { id }, data: { artUrl: url } });
     updated++;
     console.log(`  ${id} → ${url}`);

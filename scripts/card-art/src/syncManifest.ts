@@ -8,16 +8,16 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "../../..");
 const ART_DIR = path.join(REPO_ROOT, "apps/web/public/card-art");
 
-/** Rebuild manifest.json from on-disk PNGs and sync art_url into the database. */
+/** Rebuild manifest.json from on-disk JPGs and sync art_url into the database. */
 async function run(): Promise<void> {
-  const files = fs.readdirSync(ART_DIR).filter((f) => f.endsWith(".png")).sort();
+  const files = fs.readdirSync(ART_DIR).filter((f) => f.endsWith(".jpg")).sort();
   const manifest: Record<string, string> = {};
 
-  console.log(`Found ${files.length} card art PNGs.\n`);
+  console.log(`Found ${files.length} card art JPGs.\n`);
 
   for (const file of files) {
-    const id = file.replace(/\.png$/, "");
-    const url = `/card-art/${id}.png`;
+    const id = file.replace(/\.jpg$/, "");
+    const url = `/card-art/${id}.jpg`;
     manifest[id] = url;
     await prisma.card.updateMany({ where: { id }, data: { artUrl: url } });
     console.log(`  ${id}`);

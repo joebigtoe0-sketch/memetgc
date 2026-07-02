@@ -73,7 +73,7 @@ async function collectImageUrls(): Promise<string[]> {
     if (res.ok) {
       const manifest = (await res.json()) as Record<string, string>;
       const ids = Object.keys(manifest);
-      urls.push(...ids.map((id) => `/card-art/${id}.png`));
+      urls.push(...Object.values(manifest));
       preloadCardArt(ids);
     }
   } catch {

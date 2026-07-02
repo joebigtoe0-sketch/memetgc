@@ -1,7 +1,7 @@
 /**
  * Card art preloader.
  *
- * Card art is served as static PNGs from `/card-art/{id}.png`. Without preloading,
+ * Card art is served as static JPGs from `/card-art/{id}.jpg`. Without preloading,
  * every <img> mounts and fetches lazily, which makes art appear to "load again and
  * again" as cards enter the hand/board. We keep the decoded images alive in a module
  * cache so the browser serves them instantly on subsequent renders.

@@ -14,6 +14,7 @@ import economyRouter from "./routes/economy.js";
 import marketRouter, { startMarketSweeper } from "./routes/market.js";
 import leaderboardRouter from "./routes/leaderboard.js";
 import seasonRouter from "./routes/season.js";
+import onlineRouter from "./routes/online.js";
 import { registerSocketHandlers, loadCardRegistry, startMatchmakingTicker } from "./game/socket.js";
 
 const PORT = parseInt(process.env.PORT ?? "3001", 10);
@@ -50,6 +51,7 @@ app.use("/api/economy", economyRouter);
 app.use("/api/market", marketRouter);
 app.use("/api/leaderboard", leaderboardRouter);
 app.use("/api/season", seasonRouter);
+app.use("/api/online", onlineRouter);
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
