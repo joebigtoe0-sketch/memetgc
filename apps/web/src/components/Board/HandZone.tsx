@@ -51,6 +51,10 @@ export default function HandZone({ hand, selectedInstanceId, currentMana, action
         const isDragging = dragId === instId;
         const dragLift = isDragging ? Math.min(0, dragDy) : 0;
         const willPlay = isDragging && dragDy <= -PLAY_DRAG_THRESHOLD && canPlay;
+        // Scale lives on the OUTER wrapper so the clickable/hover hitbox shrinks
+        // to the visible card size (CSS transforms scale hit-testing, but do not
+        // change an inner element's layout box — which is what made the hitbox huge).
+        const baseScale = willPlay ? CARD_SCALE * 1.08 : CARD_SCALE;
 
         return (
           <div
@@ -60,7 +64,7 @@ export default function HandZone({ hand, selectedInstanceId, currentMana, action
               position: "absolute",
               left: "50%",
               bottom: 26,
-              transform: `translateX(calc(-50% + ${x}px)) translateY(${(isSelected ? y - 30 : y) + dragLift}px) rotate(${isDragging ? 0 : ang}deg)`,
+              transform: `translateX(calc(-50% + ${x}px)) translateY(${(isSelected ? y - 30 : y) + dragLift}px) rotate(${isDragging ? 0 : ang}deg) scale(${baseScale})`,
               transformOrigin: "bottom center",
               zIndex: isDragging ? 60 : isSelected ? 50 : 10 + i,
               pointerEvents: "auto",
@@ -122,7 +126,6 @@ export default function HandZone({ hand, selectedInstanceId, currentMana, action
           >
             <div
               style={{
-                transform: `scale(${willPlay ? CARD_SCALE * 1.08 : CARD_SCALE})`,
                 transformOrigin: "bottom center",
                 filter: canPlay
                   ? (isSelected || willPlay ? "brightness(1.2)" : "none")
@@ -132,11 +135,11 @@ export default function HandZone({ hand, selectedInstanceId, currentMana, action
               }}
               onMouseEnter={(e) => {
                 if (isMobile) return;
-                if (canPlay) (e.currentTarget as HTMLDivElement).style.transform = `scale(${CARD_SCALE}) translateY(-18px)`;
+                if (canPlay) (e.currentTarget as HTMLDivElement).style.transform = `translateY(-18px)`;
               }}
               onMouseLeave={(e) => {
                 if (isMobile) return;
-                (e.currentTarget as HTMLDivElement).style.transform = `scale(${CARD_SCALE}) translateY(0)`;
+                (e.currentTarget as HTMLDivElement).style.transform = `translateY(0)`;
               }}
             >
               <CardComponent
@@ -151,9 +154,9 @@ export default function HandZone({ hand, selectedInstanceId, currentMana, action
       })}
       <style>{`
         @keyframes drawCardIn {
-          0%   { opacity: 0; transform: scale(0.4) translateY(30px); filter: brightness(1.8); }
-          60%  { opacity: 1; transform: scale(${CARD_SCALE * 1.08}) translateY(-6px); filter: brightness(1.2); }
-          100% { opacity: 1; transform: scale(${CARD_SCALE}) translateY(0); filter: none; }
+          0%   { opacity: 0; transform: scale(0.8) translateY(30px); filter: brightness(1.8); }
+          60%  { opacity: 1; transform: scale(1.08) translateY(-6px); filter: brightness(1.2); }
+          100% { opacity: 1; transform: scale(1) translateY(0); filter: none; }
         }
       `}</style>
     </div>

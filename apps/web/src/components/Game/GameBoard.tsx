@@ -477,7 +477,7 @@ export default function GameBoard() {
         <div style={{ width: 130, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", padding: "8px 4px 4px", gap: 8, flexShrink: 0 }}>
           <div style={{ position: "relative" }}>
             <HeroZone
-              heroName={opponentState.heroName} faction={opponentState.heroFaction}
+              heroName={opponentState.heroName} faction={opponentState.heroFaction} heroId={opponentState.heroId}
               hp={opponentState.hp} armor={opponentState.armor} isEnemy
               isValidTarget={(phase === "select_attack_target" && validTargets.includes("hero_" + opponentState.playerId)) || (phase === "select_play_target" && validPlayTargets.includes("hero_" + opponentState.playerId))}
               onHeroClick={() => handleHeroClick(true)}
@@ -613,7 +613,7 @@ export default function GameBoard() {
         <div style={{ width: 130, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "4px 4px 8px", gap: 8, flexShrink: 0 }}>
           <div style={{ position: "relative" }}>
             <HeroZone
-              heroName={myState.heroName} faction={myState.heroFaction}
+              heroName={myState.heroName} faction={myState.heroFaction} heroId={myState.heroId}
               hp={myState.hp} armor={myState.armor}
               heroPowerName={myState.heroPower.name}
               heroPowerDescription={myState.heroPower.description}

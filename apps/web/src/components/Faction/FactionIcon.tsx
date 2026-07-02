@@ -1,22 +1,24 @@
 "use client";
 
 import React from "react";
-import { factionColor, factionImageUrl } from "@/lib/factions";
+import { factionColor, factionImageUrl, heroPortraitUrl } from "@/lib/factions";
 
 interface Props {
   faction: string;
   size?: number;
   /** Soft glow around the transparent PNG silhouette */
   glow?: boolean;
+  /** When set, a hero-specific portrait (e.g. Satoshi/Ansem) overrides the faction icon. */
+  heroId?: string;
   style?: React.CSSProperties;
 }
 
-export default function FactionIcon({ faction, size = 48, glow = false, style }: Props) {
+export default function FactionIcon({ faction, size = 48, glow = false, heroId, style }: Props) {
   const color = factionColor(faction);
 
   return (
     <img
-      src={factionImageUrl(faction)}
+      src={heroId !== undefined ? heroPortraitUrl(heroId, faction) : factionImageUrl(faction)}
       alt=""
       loading="eager"
       draggable={false}

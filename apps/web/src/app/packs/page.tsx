@@ -199,9 +199,9 @@ function rarityLabel(r: string): string {
   return ({ common: "Solid", rare: "Rare", epic: "Epic", legendary: "Legendary" } as Record<string, string>)[r] ?? "Nice";
 }
 
-function CardBackFace({ small, mobile }: { small?: boolean; mobile?: boolean }) {
-  // Matches the revealed CardComponent size: sm (130×190) on mobile, md (195×285) otherwise.
-  const w = mobile ? 130 : small ? 195 : 260, h = mobile ? 190 : small ? 285 : 380;
+function CardBackFace({ mobile }: { mobile?: boolean }) {
+  // Must match the revealed CardComponent size exactly: sm (130×190) on mobile, md (195×285) otherwise.
+  const w = mobile ? 130 : 195, h = mobile ? 190 : 285;
   return (
     <img
       src={CARD_BACK_DEFAULT}

@@ -8,6 +8,7 @@ import GameIcon from "@/components/UI/GameIcon";
 interface Props {
   heroName: string;
   faction: string;
+  heroId?: string;
   hp: number;
   armor: number;
   heroPowerName?: string;
@@ -27,6 +28,7 @@ interface Props {
 export default function HeroZone({
   heroName,
   faction,
+  heroId,
   hp,
   armor,
   heroPowerName,
@@ -76,7 +78,7 @@ export default function HeroZone({
           transition: "transform 0.15s",
         }}
       >
-        <FactionIcon faction={faction} size={portraitSize} />
+        <FactionIcon faction={faction} heroId={heroId} size={portraitSize} />
 
         {/* HP bubble (bottom-right of portrait) */}
         <div style={{

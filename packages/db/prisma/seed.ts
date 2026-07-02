@@ -129,6 +129,7 @@ export const CARDS = [
     attack: 1,
     health: 1,
     text: "",
+    artUrl: "/card-art/bitcoin_token.jpg",
     collectible: false,
     craftable: false,
     dustValue: 0,
