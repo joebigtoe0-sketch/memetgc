@@ -16,6 +16,7 @@ interface GameStore {
   lastActionError: string | null;
   matchReward: number | null;
   rankUpdate: { delta: number; points: number; tier: string; stars: number; streakBonus?: number; streak?: number } | null;
+  opponentDisconnected: boolean;
 
   // UI state
   selectedCardInstanceId: string | null;
@@ -32,6 +33,7 @@ interface GameStore {
   clearAnimations: () => void;
   setMatchReward: (fragments: number | null) => void;
   setRankUpdate: (r: { delta: number; points: number; tier: string; stars: number; streakBonus?: number; streak?: number } | null) => void;
+  setOpponentDisconnected: (v: boolean) => void;
   setActionError: (error: string | null) => void;
   selectCard: (instanceId: string | null) => void;
   selectAttacker: (instanceId: string | null) => void;
@@ -48,6 +50,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   lastActionError: null,
   matchReward: null,
   rankUpdate: null,
+  opponentDisconnected: false,
   selectedCardInstanceId: null,
   selectedAttackerId: null,
   zoomedCard: null,
@@ -68,6 +71,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   clearAnimations: () => set({ pendingAnimations: [] }),
   setMatchReward: (matchReward) => set({ matchReward }),
   setRankUpdate: (rankUpdate) => set({ rankUpdate }),
+  setOpponentDisconnected: (opponentDisconnected) => set({ opponentDisconnected }),
   setActionError: (error) => set({ lastActionError: error }),
 
   selectCard: (selectedCardInstanceId) =>
@@ -87,6 +91,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       lastActionError: null,
       matchReward: null,
       rankUpdate: null,
+      opponentDisconnected: false,
       selectedCardInstanceId: null,
       selectedAttackerId: null,
       zoomedCard: null,

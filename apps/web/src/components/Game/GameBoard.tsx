@@ -28,7 +28,7 @@ interface DamageFloat { id: string; entityKey: string; amount: number; isHeal: b
 interface LogEntry { id: string; text: string; turn: number; }
 
 export default function GameBoard() {
-  const { gameState, isMyTurn, selectedCardInstanceId, selectedAttackerId, lastActionError, playerId, pendingAnimations, matchReward, rankUpdate } = useGameStore();
+  const { gameState, isMyTurn, selectedCardInstanceId, selectedAttackerId, lastActionError, playerId, pendingAnimations, matchReward, rankUpdate, opponentDisconnected } = useGameStore();
   const { selectCard, selectAttacker, setActionError, clearAnimations } = useGameStore();
   const [phase, setPhase] = useState<PhaseAction>("idle");
   const [zoomedCard, setZoomedCard] = useState<CardData | null>(null);
@@ -879,6 +879,13 @@ export default function GameBoard() {
         </div>
       )}
 
+      {/* Opponent disconnected notice */}
+      {opponentDisconnected && gameState.status === "in_progress" && (
+        <div style={{ position: "absolute", top: 44, left: "50%", transform: "translateX(-50%)", zIndex: 80, padding: "8px 18px", borderRadius: 10, background: "rgba(90,60,0,.95)", border: "1px solid #e0b13a", color: "#ffdd88", font: `600 12px var(--font-archivo,'Archivo',sans-serif)`, whiteSpace: "nowrap", boxShadow: "0 4px 18px rgba(0,0,0,.4)" }}>
+          Opponent disconnected — they forfeit soon if they don&apos;t return. Play on!
+        </div>
+      )}
+
       {/* NEW TURN flash */}
       {showNewTurn && (
         <div style={{ position: "absolute", inset: 0, zIndex: 70, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
@@ -1039,22 +1046,12 @@ export default function GameBoard() {
               />
               <SettingsRow
                 label="Surrender"
-                description="Forfeit the current match"
+                description="Forfeit the current match — the only way to leave a game"
                 action={
                   <button
                     onClick={() => { setShowSettings(false); setShowSurrenderConfirm(true); }}
                     style={{ cursor: "pointer", padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(255,80,80,.4)", background: "rgba(180,30,30,.25)", color: "#ff8888", font: `700 11px var(--font-cinzel,'Cinzel',serif)` }}
                   >Surrender</button>
-                }
-              />
-              <SettingsRow
-                label="Exit to Menu"
-                description="Leave the match screen"
-                action={
-                  <button
-                    onClick={() => { window.location.href = "/"; }}
-                    style={{ cursor: "pointer", padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,.12)", background: "rgba(255,255,255,.05)", color: "#c4ccd8", font: `700 11px var(--font-cinzel,'Cinzel',serif)` }}
-                  >Exit</button>
                 }
               />
             </div>

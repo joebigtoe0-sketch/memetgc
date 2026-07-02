@@ -26,6 +26,15 @@ export function isSolanaConfigured(): boolean {
   return Boolean((HELIUS_API_KEY || RPC_BASE.includes("api-key")) && DEGEN_MINT);
 }
 
+/** Non-secret config booleans for the /health diagnostics endpoint. */
+export function getSolanaConfigStatus(): { rpc: boolean; mint: boolean; treasury: boolean } {
+  return {
+    rpc: Boolean(HELIUS_API_KEY || RPC_BASE.includes("api-key")),
+    mint: Boolean(DEGEN_MINT),
+    treasury: Boolean(TREASURY_WALLET),
+  };
+}
+
 function rpcUrl(): string {
   if (HELIUS_API_KEY.startsWith("http")) return HELIUS_API_KEY;
   if (RPC_BASE.includes("api-key")) return RPC_BASE;
@@ -33,17 +42,27 @@ function rpcUrl(): string {
 }
 
 async function rpc<T>(method: string, params: unknown[]): Promise<T | null> {
-  if (!isSolanaConfigured()) return null;
+  if (!isSolanaConfigured()) {
+    console.warn(`[solana] rpc(${method}) skipped — Solana not configured (HELIUS_API_KEY / DEGEN_MINT missing)`);
+    return null;
+  }
   try {
     const res = await fetch(rpcUrl(), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ jsonrpc: "2.0", id: method, method, params }),
     });
-    if (!res.ok) return null;
-    const json = (await res.json()) as { result?: T };
+    if (!res.ok) {
+      console.warn(`[solana] rpc(${method}) HTTP ${res.status} ${res.statusText}`);
+      return null;
+    }
+    const json = (await res.json()) as { result?: T; error?: { code?: number; message?: string } };
+    if (json.error) {
+      console.warn(`[solana] rpc(${method}) RPC error ${json.error.code}: ${json.error.message}`);
+    }
     return json.result ?? null;
-  } catch {
+  } catch (err) {
+    console.warn(`[solana] rpc(${method}) fetch failed:`, err instanceof Error ? err.message : err);
     return null;
   }
 }
@@ -126,8 +145,15 @@ export async function verifyPurchaseTx(signature: string, args: VerifyArgs): Pro
     signature,
     { encoding: "jsonParsed", commitment: "confirmed", maxSupportedTransactionVersion: 0 },
   ]);
-  if (!tx || !tx.meta) return false;
-  if (tx.meta.err != null) return false;
+  if (!tx || !tx.meta) {
+    // Most common transient case: the tx isn't queryable by the RPC yet.
+    console.warn(`[solana] verify ${signature.slice(0, 8)}… not found on RPC yet (retryable)`);
+    return false;
+  }
+  if (tx.meta.err != null) {
+    console.warn(`[solana] verify ${signature.slice(0, 8)}… on-chain tx FAILED:`, JSON.stringify(tx.meta.err));
+    return false;
+  }
 
   // Buyer must be a signer (fee payer is accountKeys[0])
   const keys = tx.transaction?.message?.accountKeys ?? [];
@@ -142,7 +168,10 @@ export async function verifyPurchaseTx(signature: string, args: VerifyArgs): Pro
     }
   });
   const buyerIsSigner = signerSet.has(args.buyer) || feePayer === args.buyer;
-  if (!buyerIsSigner) return false;
+  if (!buyerIsSigner) {
+    console.warn(`[solana] verify ${signature.slice(0, 8)}… buyer ${args.buyer.slice(0, 8)}… is not a signer`);
+    return false;
+  }
 
   // Compute per-owner delta for the mint via pre/post token balances.
   const pre = tx.meta.preTokenBalances ?? [];
@@ -163,9 +192,23 @@ export async function verifyPurchaseTx(signature: string, args: VerifyArgs): Pro
   const sellerDelta = deltaFor(args.sellerWallet);
   const treasuryDelta = deltaFor(args.treasury);
 
-  if (sellerDelta < args.sellerBaseUnits) return false;
-  if (treasuryDelta < args.feeBaseUnits) return false;
+  if (sellerDelta < args.sellerBaseUnits) {
+    console.warn(
+      `[solana] verify ${signature.slice(0, 8)}… seller delta ${sellerDelta} < expected ${args.sellerBaseUnits} ` +
+      `(seller=${args.sellerWallet.slice(0, 8)}…, mint=${DEGEN_MINT.slice(0, 8)}…). ` +
+      `Check DEGEN_MINT matches the traded token and seller wallet is correct.`
+    );
+    return false;
+  }
+  if (treasuryDelta < args.feeBaseUnits) {
+    console.warn(
+      `[solana] verify ${signature.slice(0, 8)}… treasury delta ${treasuryDelta} < expected ${args.feeBaseUnits} ` +
+      `(treasury=${args.treasury.slice(0, 8)}…). Check TREASURY_WALLET is set to the fee-collecting wallet.`
+    );
+    return false;
+  }
 
+  console.log(`[solana] verify ${signature.slice(0, 8)}… OK (seller +${sellerDelta}, treasury +${treasuryDelta})`);
   return true;
 }
 

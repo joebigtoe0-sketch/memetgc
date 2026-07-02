@@ -382,6 +382,8 @@ function cleanupRoom(room: GameRoom, io: Server<ClientToServerEvents, ServerToCl
   clearTurnTimer(room);
   for (const h of room.mulliganTimerHandles.values()) clearTimeout(h);
   room.mulliganTimerHandles.clear();
+  for (const h of room.disconnectTimers.values()) clearTimeout(h);
+  room.disconnectTimers.clear();
   const winnerId = room.state.winner ?? null;
   const endReason = room.state.endReason ?? "hero_death";
   const turnNumber = room.state.turnNumber ?? 0;
@@ -424,6 +426,7 @@ export function deleteRoom(gameId: string): void {
   if (room) {
     clearTurnTimer(room);
     for (const h of room.mulliganTimerHandles.values()) clearTimeout(h);
+    for (const h of room.disconnectTimers.values()) clearTimeout(h);
   }
   rooms.delete(gameId);
 }

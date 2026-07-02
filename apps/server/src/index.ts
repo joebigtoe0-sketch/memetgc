@@ -16,9 +16,10 @@ import leaderboardRouter from "./routes/leaderboard.js";
 import seasonRouter from "./routes/season.js";
 import onlineRouter from "./routes/online.js";
 import { registerSocketHandlers, loadCardRegistry, startMatchmakingTicker, getCardRegistrySize } from "./game/socket.js";
+import { getSolanaConfigStatus } from "./lib/solana.js";
 
 // Bump this string whenever you want to confirm a fresh deploy is live via /health.
-const BUILD_TAG = "2026-07-02-locations-cardfx";
+const BUILD_TAG = "2026-07-02-market-disconnect-fixes";
 const STARTED_AT = new Date().toISOString();
 
 const PORT = parseInt(process.env.PORT ?? "3001", 10);
@@ -63,6 +64,7 @@ app.get("/health", (_req, res) => {
     build: BUILD_TAG,
     startedAt: STARTED_AT,
     cards: getCardRegistrySize(),
+    market: getSolanaConfigStatus(),
     timestamp: new Date().toISOString(),
   });
 });

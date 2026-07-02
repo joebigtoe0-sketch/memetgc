@@ -3,7 +3,7 @@ import type { ServerToClientEvents, ClientToServerEvents, GameAction } from "@me
 import { verifyToken } from "../middleware/auth.js";
 import { prisma } from "@memetgc/db";
 import { joinQueue, leaveQueue, tryMatchmake, removeBySocketId, getQueueSize, type QueueEntry } from "../matchmaking/queue.js";
-import { createRoom, getRoom, getRoomByUserId, handlePlayerAction, initMulligan, type PlayerInfo } from "./room.js";
+import { createRoom, getRoom, getRoomByUserId, handlePlayerAction, handlePlayerDisconnect, handlePlayerReconnect, initMulligan, type PlayerInfo } from "./room.js";
 import type { Card, Keyword, CardEffect, HeroPower, Faction } from "@memetgc/types";
 import { randomUUID } from "crypto";
 import { sanitizeState } from "@memetgc/game-engine";
@@ -214,6 +214,8 @@ export function registerSocketHandlers(
         socket.emit("match:found", existingRoom.gameId);
         const sanitized = sanitizeState(existingRoom.state, authenticatedUserId);
         socket.emit("game:state_update", sanitized);
+        // Cancel any pending forfeit and resume the game for this player.
+        handlePlayerReconnect(existingRoom, authenticatedUserId, io);
       }
     }
 
@@ -403,20 +405,18 @@ export function registerSocketHandlers(
       removeBySocketId(socket.id);
       if (authenticatedUserId) trackUserOffline(authenticatedUserId);
 
-      // If player was in a game, they forfeit
+      // If the player was in a live game, start the disconnect grace/forfeit
+      // flow rather than ending it instantly. The socketId guard prevents a
+      // stale disconnect (from a socket the player already replaced by
+      // reconnecting) from wrongly forfeiting the match.
       if (authenticatedUserId) {
         const room = getRoomByUserId(authenticatedUserId);
-        if (room && room.state.status === "in_progress") {
-          const opponentId = Object.keys(room.players).find((id) => id !== authenticatedUserId);
-          if (opponentId) {
-            const opponentInfo = room.players[opponentId];
-            if (opponentInfo?.socketId) {
-              io.to(opponentInfo.socketId).emit("game:game_over", {
-                winner: opponentId,
-                reason: "opponent_disconnected",
-              });
-            }
-          }
+        if (
+          room &&
+          (room.state.status === "in_progress" || room.state.status === "mulligan") &&
+          room.players[authenticatedUserId]?.socketId === socket.id
+        ) {
+          handlePlayerDisconnect(room, authenticatedUserId, io);
         }
       }
     });

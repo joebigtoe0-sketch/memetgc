@@ -182,6 +182,7 @@ export interface ServerToClientEvents {
   "game:game_over": (result: { winner: string; reason: string; fragments?: number }) => void;
   "game:rank_update": (result: { delta: number; points: number; tier: string; stars: number; streakBonus?: number; streak?: number }) => void;
   "game:discover": (options: { cards: Card[]; sourceCardId: string }) => void;
+  "game:opponent_status": (status: { connected: boolean; graceMs?: number }) => void;
   "game:error": (message: string) => void;
   "match:found": (matchId: string) => void;
   "queue:status": (status: { queueSize: number; estimatedWait: number }) => void;

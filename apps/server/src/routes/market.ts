@@ -9,9 +9,15 @@ import {
   getMintDecimals,
   verifyPurchaseTx,
   toBaseUnits,
+  isSolanaConfigured,
   TREASURY_WALLET,
   MINT_ADDRESS,
 } from "../lib/solana.js";
+
+/** True only if on-chain payments can actually be processed. */
+function paymentsConfigured(): boolean {
+  return isSolanaConfigured() && Boolean(TREASURY_WALLET) && Boolean(MINT_ADDRESS);
+}
 
 const router: ReturnType<typeof Router> = Router();
 
@@ -238,6 +244,11 @@ const ReserveSchema = z.object({
 });
 
 router.post("/reserve", requireAuth, async (req: AuthRequest, res) => {
+  if (!paymentsConfigured()) {
+    console.error("[market/reserve] blocked — payments not configured (check HELIUS_API_KEY, DEGEN_MINT, TREASURY_WALLET)");
+    res.status(503).json({ error: "Marketplace payments are not configured. Try again later." });
+    return;
+  }
   const parsed = ReserveSchema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid request" }); return; }
   const { kind, cardId, packType } = parsed.data;
@@ -369,6 +380,8 @@ router.post("/confirm", requireAuth, async (req: AuthRequest, res) => {
 
   if (!ok) {
     // Not yet confirmed on-chain (or invalid). Client should retry a few times.
+    // verifyPurchaseTx logs the specific reason (tx not found / failed / amount mismatch).
+    console.warn(`[market/confirm] pending for listing ${listingId} sig ${signature.slice(0, 8)}… (see [solana] logs above)`);
     res.status(409).json({ error: "Transaction not confirmed yet", pending: true });
     return;
   }
