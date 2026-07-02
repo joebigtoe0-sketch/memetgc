@@ -10,6 +10,11 @@ const ART_DIR = path.join(REPO_ROOT, "apps/web/public/card-art");
 
 dotenv.config({ path: path.join(REPO_ROOT, "packages/db/.env") });
 
+/** Card ids whose on-disk JPG basename differs from the card id. */
+const ART_FILE_ALIASES: Record<string, string> = {
+  coin: "gas_token",
+};
+
 /** Rebuild manifest.json from on-disk JPGs and sync art_url into the database. */
 async function run(): Promise<void> {
   const files = fs.readdirSync(ART_DIR).filter((f) => f.endsWith(".jpg")).sort();
@@ -19,7 +24,15 @@ async function run(): Promise<void> {
 
   for (const file of files) {
     const id = file.replace(/\.jpg$/, "");
-    manifest[id] = `/card-art/${id}.jpg`;
+    manifest[id] = `/card-art/${file}`;
+  }
+
+  // Map card ids to aliased art files (e.g. coin → gas_token.jpg).
+  for (const [cardId, fileBase] of Object.entries(ART_FILE_ALIASES)) {
+    const file = `${fileBase}.jpg`;
+    if (files.includes(file)) {
+      manifest[cardId] = `/card-art/${file}`;
+    }
   }
 
   const manifestPath = path.join(ART_DIR, "manifest.json");
@@ -28,11 +41,12 @@ async function run(): Promise<void> {
 
   let synced = 0;
   try {
-    for (const id of Object.keys(manifest)) {
-      const url = manifest[id]!;
-      await prisma.card.updateMany({ where: { id }, data: { artUrl: url } });
-      synced++;
-      console.log(`  ${id}`);
+    for (const [id, url] of Object.entries(manifest)) {
+      const result = await prisma.card.updateMany({ where: { id }, data: { artUrl: url } });
+      if (result.count > 0) {
+        synced++;
+        console.log(`  ${id} → ${url}`);
+      }
     }
     console.log(`\nSynced ${synced} art_url values to the database.`);
   } catch (e) {

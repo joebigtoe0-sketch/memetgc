@@ -130,7 +130,7 @@ router.post("/packs/open", requireAuth, async (req: AuthRequest, res) => {
       rarity: card.rarity, tribe: card.tribe ?? undefined, attack: card.attack ?? undefined,
       health: card.health ?? undefined, durability: card.durability ?? undefined,
       text: card.text ?? undefined, keywords: (card.keywordsJson as unknown[]) ?? [],
-      art_url: card.artUrl ?? `/card-art/${card.id}.jpg`,
+      art_url: card.artUrl ?? (card.id === "coin" ? "/card-art/gas_token.jpg" : `/card-art/${card.id}.jpg`),
     };
   });
 

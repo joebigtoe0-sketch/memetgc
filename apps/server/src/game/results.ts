@@ -163,10 +163,14 @@ export async function recordMatchResults(
   }
 }
 
-/** Current consecutive-win streak from match history. */
+/** Current consecutive ranked win streak from match history. */
 export async function computeWinStreak(userId: string): Promise<number> {
   const matches = await prisma.match.findMany({
-    where: { OR: [{ player1Id: userId }, { player2Id: userId }], endedAt: { not: null } },
+    where: {
+      OR: [{ player1Id: userId }, { player2Id: userId }],
+      endedAt: { not: null },
+      mode: "ranked",
+    },
     orderBy: { endedAt: "desc" },
     take: 30,
   });

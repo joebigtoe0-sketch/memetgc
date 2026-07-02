@@ -29,6 +29,7 @@ const TIER_FLOORS: Record<string, number> = { bronze: 0, silver: 500, gold: 1000
 interface Profile {
   fragments: number; rankTier: string; rankStars: number; rankPoints: number;
   seasonWins: number; seasonLosses: number; winStreak?: number;
+  modeStats?: { ranked: { wins: number; losses: number }; casual: { wins: number; losses: number }; practice: { wins: number; losses: number } };
   ladderPosition?: number | null; isMemepool?: boolean;
 }
 interface Quest {
@@ -88,10 +89,10 @@ export default function Dashboard() {
   const tierColor = TIER_COLOR[tier] ?? "#e7c768";
   const stars = profile?.rankStars ?? 0;
   const nextTier = RANK_TIERS[Math.min(RANK_TIERS.length - 1, RANK_TIERS.indexOf(tier as typeof RANK_TIERS[number]) + 1)] ?? "platinum";
-  const wins = profile?.seasonWins ?? 0;
-  const losses = profile?.seasonLosses ?? 0;
-  const games = wins + losses;
-  const winrate = games > 0 ? Math.round((wins / games) * 100) : 0;
+  const rankedWins = profile?.modeStats?.ranked.wins ?? 0;
+  const rankedLosses = profile?.modeStats?.ranked.losses ?? 0;
+  const rankedGames = rankedWins + rankedLosses;
+  const winrate = rankedGames > 0 ? Math.round((rankedWins / rankedGames) * 100) : 0;
   const streak = profile?.winStreak ?? 0;
   const rankPoints = profile?.rankPoints ?? 0;
   const tierFloor = TIER_FLOORS[tier] ?? 0;
@@ -152,7 +153,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <div style={{ font: `800 16px var(--font-cinzel,'Cinzel',serif)`, color: "#f1f4f9" }}>{username ?? "Player"}</div>
-                <div style={{ font: `600 10px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6", marginTop: 3 }}>{games} games played</div>
+                <div style={{ font: `600 10px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6", marginTop: 3 }}>{rankedGames} ranked games</div>
               </div>
             </div>
 
@@ -186,11 +187,11 @@ export default function Dashboard() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             <Panel style={{ padding: 16 }}>
               <div style={{ font: `900 24px/1 var(--font-mono,'JetBrains Mono',monospace)`, color: "#19e08a" }}>{winrate}%</div>
-              <div style={{ font: `600 9px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6", letterSpacing: "1px", marginTop: 6 }}>WIN RATE</div>
+              <div style={{ font: `600 9px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6", letterSpacing: "1px", marginTop: 6 }}>RANKED WIN RATE</div>
             </Panel>
             <Panel style={{ padding: 16 }}>
               <div style={{ font: `900 24px/1 var(--font-mono,'JetBrains Mono',monospace)`, color: "#f3e8cc" }}>{streak}</div>
-              <div style={{ font: `600 9px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6", letterSpacing: "1px", marginTop: 6 }}>WIN STREAK</div>
+              <div style={{ font: `600 9px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6", letterSpacing: "1px", marginTop: 6 }}>RANKED STREAK</div>
             </Panel>
           </div>
         </div>

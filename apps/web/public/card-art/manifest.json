@@ -21,9 +21,9 @@
   "bitcoin_stack_sats": "/card-art/bitcoin_stack_sats.jpg",
   "bitcoin_the_genesis_block": "/card-art/bitcoin_the_genesis_block.jpg",
   "bitcoin_the_halving": "/card-art/bitcoin_the_halving.jpg",
-  "coin": "/card-art/gas_token.jpg",
+  "bitcoin_token": "/card-art/bitcoin_token.jpg",
   "card_hero_satoshi": "/card-art/card_hero_satoshi.jpg",
-  "degen_asnem_black_bull": "/card-art/degen_asnem_black_bull.jpg",
+  "degen_ansem_black_bull": "/card-art/degen_ansem_black_bull.jpg",
   "degen_blknoiz06": "/card-art/degen_blknoiz06.jpg",
   "degen_burn_pile_raider": "/card-art/degen_burn_pile_raider.jpg",
   "degen_concentration_risk": "/card-art/degen_concentration_risk.jpg",
@@ -48,6 +48,7 @@
   "ethereum_smart_contract": "/card-art/ethereum_smart_contract.jpg",
   "ethereum_the_exchange": "/card-art/ethereum_the_exchange.jpg",
   "ethereum_the_merge": "/card-art/ethereum_the_merge.jpg",
+  "gas_token": "/card-art/gas_token.jpg",
   "meme_100x_bet": "/card-art/meme_100x_bet.jpg",
   "meme_chaos_protocol": "/card-art/meme_chaos_protocol.jpg",
   "meme_copycat_token": "/card-art/meme_copycat_token.jpg",
@@ -94,5 +95,6 @@
   "stable_the_fed": "/card-art/stable_the_fed.jpg",
   "stable_treasury_reserve": "/card-art/stable_treasury_reserve.jpg",
   "stable_whale_pod": "/card-art/stable_whale_pod.jpg",
-  "stable_yield_farmer": "/card-art/stable_yield_farmer.jpg"
+  "stable_yield_farmer": "/card-art/stable_yield_farmer.jpg",
+  "coin": "/card-art/gas_token.jpg"
 }
