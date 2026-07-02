@@ -16,7 +16,11 @@ import {
 const router: ReturnType<typeof Router> = Router();
 
 const FEE_RATE = 0.05;
-const RESERVE_MS = 30_000;
+// The buyer's confirm flow (wallet confirm + on-chain indexing + up to
+// 20×3s of backend polling) can take well over a minute, so the hold must
+// comfortably outlast it — otherwise the reservation expires mid-confirm and
+// the sweeper reverts the listing to `active`, breaking a paid purchase.
+const RESERVE_MS = 120_000;
 const CANCEL_COOLDOWN_MS = 30_000;
 
 /** Canonical message a seller signs to authorize a listing. Must match the frontend. */
@@ -322,12 +326,22 @@ router.post("/confirm", requireAuth, async (req: AuthRequest, res) => {
 
   const listing = await prisma.marketListing.findUnique({ where: { id: listingId } });
   if (!listing) { res.status(404).json({ error: "Listing not found" }); return; }
-  if (listing.status === "sold") { res.json({ status: "sold" }); return; }
-  if (listing.status !== "reserved" && listing.status !== "cancelling") {
-    res.status(409).json({ error: "Listing is not reserved" });
+  if (listing.status === "sold") {
+    // Idempotent: our own completed purchase re-confirms as sold; someone else's
+    // is a lost race (buyer should not have paid — they were shown as reserved).
+    if (!listing.buyerId || listing.buyerId === buyer.id) { res.json({ status: "sold" }); return; }
+    res.status(409).json({ error: "Listing already sold" });
     return;
   }
-  if (listing.reservedById !== buyer.id) { res.status(403).json({ error: "Not your reservation" }); return; }
+  if (listing.status === "cancelled") { res.status(409).json({ error: "Listing was cancelled" }); return; }
+  // A different buyer currently holds it — not ours to complete.
+  if (listing.reservedById && listing.reservedById !== buyer.id) {
+    res.status(403).json({ error: "Not your reservation" });
+    return;
+  }
+  // Otherwise the listing is reserved by us, in cancel flow, or its hold expired
+  // back to `active` (reservedById cleared). We still verify the on-chain payment
+  // below and settle it — an expired hold must not void a completed purchase.
 
   // Block signature reuse.
   const existing = await prisma.marketListing.findUnique({ where: { txSignature: signature } });
@@ -361,12 +375,14 @@ router.post("/confirm", requireAuth, async (req: AuthRequest, res) => {
 
   try {
     await prisma.$transaction(async (tx) => {
-      // Atomically flip reserved -> sold; guards against double-processing.
+      // Atomically flip -> sold; guards against double-processing. Accepts an
+      // expired hold (`active` with no other buyer) so a verified payment still
+      // settles, but never steals a listing another buyer has since reserved.
       const flipped = await tx.marketListing.updateMany({
         where: {
           id: listing.id,
-          status: { in: ["reserved", "cancelling"] },
-          reservedById: buyer.id,
+          status: { in: ["reserved", "cancelling", "active"] },
+          OR: [{ reservedById: buyer.id }, { reservedById: null }],
         },
         data: {
           status: "sold",
