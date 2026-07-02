@@ -62,6 +62,7 @@ export function createPlayerState(
       rarity: "common",
       cost: 0,
       text: "Gain 1 Gas this turn only.",
+      art_url: "/card-art/gas_token.jpg",
       collectible: false,
       craftable: false,
       dust_value: 0,

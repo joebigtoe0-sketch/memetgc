@@ -83,29 +83,51 @@ export default function GameBoard() {
   const prevHeroHp = useRef<Record<string, number>>({});
   const turnTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const prevTurnKey = useRef("");
+  const autoEndTurnRef = useRef("");
   const logEndRef = useRef<HTMLDivElement | null>(null);
   const endSoundPlayed = useRef(false);
 
-  // Turn timer + new-turn flash — counts down for whoever's turn it is.
+  // Turn timer — synced to the server deadline when available.
   useEffect(() => {
     const inProgress = gameState?.status === "in_progress";
     const turnKey = inProgress ? `${gameState?.activePlayerId}:${gameState?.turnNumber}` : "";
     if (inProgress && turnKey !== prevTurnKey.current) {
       setTurnSecondsLeft(TURN_SECONDS);
+      autoEndTurnRef.current = "";
       if (isMyTurn) {
         setShowNewTurn(true);
         setTimeout(() => setShowNewTurn(false), 1800);
       }
     }
     prevTurnKey.current = turnKey;
-    if (inProgress) {
-      if (turnTimerRef.current) clearInterval(turnTimerRef.current);
-      turnTimerRef.current = setInterval(() => setTurnSecondsLeft((s) => Math.max(0, s - 1)), 1000);
-    } else {
+
+    if (!inProgress) {
       if (turnTimerRef.current) { clearInterval(turnTimerRef.current); turnTimerRef.current = null; }
+      return;
     }
+
+    const tick = () => {
+      const endsAt = gameState?.turnTimerEndsAt;
+      if (endsAt != null) {
+        setTurnSecondsLeft(Math.max(0, Math.ceil((endsAt - Date.now()) / 1000)));
+      } else {
+        setTurnSecondsLeft((s) => Math.max(0, s - 1));
+      }
+    };
+    tick();
+    if (turnTimerRef.current) clearInterval(turnTimerRef.current);
+    turnTimerRef.current = setInterval(tick, 250);
     return () => { if (turnTimerRef.current) clearInterval(turnTimerRef.current); };
-  }, [isMyTurn, gameState?.status, gameState?.activePlayerId, gameState?.turnNumber]);
+  }, [isMyTurn, gameState?.status, gameState?.activePlayerId, gameState?.turnNumber, gameState?.turnTimerEndsAt]);
+
+  // Backup: if the server deadline passes on our turn, auto-pass.
+  useEffect(() => {
+    if (gameState?.status !== "in_progress" || !isMyTurn || turnSecondsLeft > 0) return;
+    const turnKey = `${gameState.activePlayerId}:${gameState.turnNumber}`;
+    if (autoEndTurnRef.current === turnKey) return;
+    autoEndTurnRef.current = turnKey;
+    sendAction({ type: "end_turn" });
+  }, [gameState?.status, gameState?.activePlayerId, gameState?.turnNumber, isMyTurn, turnSecondsLeft]);
 
   // Scroll log to bottom when new entries added
   useEffect(() => {

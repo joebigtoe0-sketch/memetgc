@@ -542,7 +542,7 @@ export const DEFAULT_SET_EXPANSION_CARDS = [
     flavorText: "Impossible. Until it happened.",
     keywordsJson: [],
     effectsJson: [
-      { trigger: "on_play", target: "all_minions", action: "destroy", params: { filter: "attack_gte:4" } },
+      { trigger: "on_play", target: "all_minions", action: "destroy", params: { condition: "attack_gte", value: 4 } },
       { trigger: "on_play", target: "hero_friendly", action: "draw_cards", params: { count_per_destroyed: 1 } },
     ],
     collectible: true,

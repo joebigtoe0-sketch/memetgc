@@ -94,9 +94,19 @@ function handleAction(
   const opponentId = getOpponentId(state);
   const opponent = state.players[opponentId]!;
 
-  // While a discover/resurrect pick is pending, the owner must resolve it first.
-  if (state.pendingDiscover && action.type !== "discover_choice" && action.type !== "surrender") {
+  // While a discover/resurrect pick is pending, the owner must resolve it first —
+  // except ending the turn, which cancels the unresolved pick.
+  if (
+    state.pendingDiscover &&
+    action.type !== "discover_choice" &&
+    action.type !== "surrender" &&
+    action.type !== "end_turn"
+  ) {
     return { success: false, error: "Choose a card first" };
+  }
+
+  if (action.type === "end_turn" && state.pendingDiscover?.playerId === state.activePlayerId) {
+    state.pendingDiscover = null;
   }
 
   switch (action.type) {

@@ -146,6 +146,7 @@ export const CARDS = [
     rarity: "common",
     cost: 0,
     text: "Gain 1 Gas this turn only.",
+    artUrl: "/card-art/gas_token.jpg",
     collectible: false,
     craftable: false,
     dustValue: 0,

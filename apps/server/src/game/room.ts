@@ -24,6 +24,7 @@ export interface GameRoom {
   mode: string;
   cardRegistry: Map<string, Card>;
   turnTimerHandle: ReturnType<typeof setTimeout> | null;
+  turnTimerEndsAt: number | null;
   mulliganTimerHandles: Map<string, ReturnType<typeof setTimeout>>;
   disconnectTimers: Map<string, ReturnType<typeof setTimeout>>;
   lastActionAt: number;
@@ -56,6 +57,7 @@ export function createRoom(
     players: { [p1.userId]: p1, [p2.userId]: p2 },
     mode, cardRegistry,
     turnTimerHandle: null,
+    turnTimerEndsAt: null,
     mulliganTimerHandles: new Map(),
     disconnectTimers: new Map(),
     lastActionAt: Date.now(),
@@ -85,8 +87,8 @@ export function initMulligan(
 
   // If game is already in_progress after AI mulligan, start turn timer
   if (room.state.status === "in_progress") {
-    broadcastState(room, io, []);
     scheduleActiveTurnTimer(room, io);
+    broadcastState(room, io, []);
     return;
   }
 
@@ -102,8 +104,8 @@ export function initMulligan(
         const mulliganResult = applyAction(room.state, { type: "mulligan", keepInstanceIds: [] }, room.cardRegistry);
         if (mulliganResult.success) {
           room.state = mulliganResult.newState;
-          broadcastState(room, io, []);
           scheduleActiveTurnTimer(room, io);
+          broadcastState(room, io, []);
         }
       }, MULLIGAN_TIME_LIMIT_MS);
       room.mulliganTimerHandles.set(userId, handle);
@@ -152,13 +154,14 @@ export function handlePlayerAction(
     // A rejected action must never leave the active player's turn without a
     // running timer — otherwise a single bad client action freezes the game.
     scheduleActiveTurnTimer(room, io);
+    broadcastState(room, io, []);
     return;
   }
 
   room.state = result.newState;
-  broadcastState(room, io, result.animations);
 
   if (room.state.status === "finished") {
+    broadcastState(room, io, result.animations);
     cleanupRoom(room, io);
     return;
   }
@@ -166,8 +169,11 @@ export function handlePlayerAction(
   // After mulligan, check if game started and trigger AI turn / turn timer
   if (room.state.status === "in_progress") {
     triggerAIOrTimer(room, io);
+    broadcastState(room, io, result.animations);
     return;
   }
+
+  broadcastState(room, io, result.animations);
 
   // Still in mulligan — if remaining mulligans needed are only AI, handle them
   if (room.state.status === "mulligan") {
@@ -211,18 +217,35 @@ function scheduleActiveTurnTimer(room: GameRoom, io: Server<ClientToServerEvents
   const activeInfo = room.players[room.state.activePlayerId];
   if (!activeInfo || activeInfo.isAI) return;
 
+  const activePlayerId = activeInfo.userId;
+  room.turnTimerEndsAt = Date.now() + TURN_TIME_LIMIT_MS;
   room.turnTimerHandle = setTimeout(() => {
-    if (room.state.status !== "in_progress") return;
-    if (room.state.activePlayerId !== activeInfo.userId) return;
-    // Auto-end turn
-    const result = applyAction(room.state, { type: "end_turn" }, room.cardRegistry);
-    if (result.success) {
-      room.state = result.newState;
-      broadcastState(room, io, []);
-      if (room.state.status === "finished") { cleanupRoom(room, io); return; }
-      triggerAIOrTimer(room, io);
-    }
+    autoEndTurnOnTimeout(room, io, activePlayerId);
   }, TURN_TIME_LIMIT_MS);
+}
+
+function autoEndTurnOnTimeout(
+  room: GameRoom,
+  io: Server<ClientToServerEvents, ServerToClientEvents>,
+  expectedPlayerId: string
+): void {
+  room.turnTimerHandle = null;
+  room.turnTimerEndsAt = null;
+  if (room.state.status !== "in_progress") return;
+  if (room.state.activePlayerId !== expectedPlayerId) return;
+
+  const result = applyAction(room.state, { type: "end_turn" }, room.cardRegistry);
+  if (result.success) {
+    room.state = result.newState;
+    broadcastState(room, io, []);
+    if (room.state.status === "finished") { cleanupRoom(room, io); return; }
+    triggerAIOrTimer(room, io);
+    return;
+  }
+
+  // Never leave the game without a running timer after a timeout attempt.
+  scheduleActiveTurnTimer(room, io);
+  broadcastState(room, io, []);
 }
 
 function clearTurnTimer(room: GameRoom): void {
@@ -230,7 +253,17 @@ function clearTurnTimer(room: GameRoom): void {
     clearTimeout(room.turnTimerHandle);
     room.turnTimerHandle = null;
   }
+  room.turnTimerEndsAt = null;
 }
+
+function buildSanitizedState(room: GameRoom, playerId: string) {
+  return {
+    ...sanitizeState(room.state, playerId),
+    turnTimerEndsAt: room.turnTimerEndsAt,
+  };
+}
+
+export { buildSanitizedState };
 
 /**
  * A player's socket dropped. Instead of instantly ending the game (which breaks
@@ -264,6 +297,7 @@ export function handlePlayerDisconnect(
   // auto-pass so the opponent isn't frozen waiting on a client that's gone.
   if (room.state.status === "in_progress" && room.state.activePlayerId === userId) {
     scheduleActiveTurnTimer(room, io);
+    broadcastState(room, io, []);
   }
 
   const existing = room.disconnectTimers.get(userId);
@@ -300,6 +334,7 @@ export function handlePlayerReconnect(
   // If it's the reconnecting player's turn, make sure a timer is running again.
   if (room.state.status === "in_progress" && room.state.activePlayerId === userId) {
     scheduleActiveTurnTimer(room, io);
+    broadcastState(room, io, []);
   }
 }
 
@@ -336,6 +371,7 @@ function stepAITurn(
   // Turn already handed back to the human (e.g. AI ended turn last step)
   if (room.state.activePlayerId !== aiPlayerId) {
     scheduleActiveTurnTimer(room, io);
+    broadcastState(room, io, []);
     return;
   }
 
@@ -355,15 +391,20 @@ function stepAITurn(
   }
 
   room.state = result.newState;
-  broadcastState(room, io, result.animations);
 
-  if (room.state.status === "finished") { cleanupRoom(room, io); return; }
-
-  if (action.type === "end_turn") {
-    // handleEndTurn already switched the active player back to the human
-    scheduleActiveTurnTimer(room, io);
+  if (room.state.status === "finished") {
+    broadcastState(room, io, result.animations);
+    cleanupRoom(room, io);
     return;
   }
+
+  if (action.type === "end_turn") {
+    scheduleActiveTurnTimer(room, io);
+  }
+
+  broadcastState(room, io, result.animations);
+
+  if (action.type === "end_turn") return;
 
   setTimeout(() => stepAITurn(room, io, aiPlayerId, iterations + 1), AI_ACTION_DELAY_MS);
 }
@@ -372,10 +413,14 @@ function finishAITurn(room: GameRoom, io: Server<ClientToServerEvents, ServerToC
   const endResult = applyAction(room.state, { type: "end_turn" }, room.cardRegistry);
   if (endResult.success) {
     room.state = endResult.newState;
-    broadcastState(room, io, endResult.animations);
   }
-  if (room.state.status === "finished") { cleanupRoom(room, io); return; }
+  if (room.state.status === "finished") {
+    if (endResult.success) broadcastState(room, io, endResult.animations);
+    cleanupRoom(room, io);
+    return;
+  }
   scheduleActiveTurnTimer(room, io);
+  broadcastState(room, io, endResult.success ? endResult.animations : []);
 }
 
 function cleanupRoom(room: GameRoom, io: Server<ClientToServerEvents, ServerToClientEvents>): void {
@@ -415,7 +460,7 @@ function broadcastState(
 ): void {
   for (const [playerId, playerInfo] of Object.entries(room.players)) {
     if (!playerInfo.socketId || playerInfo.isAI) continue;
-    const sanitized = sanitizeState(room.state, playerId);
+    const sanitized = buildSanitizedState(room, playerId);
     io.to(playerInfo.socketId).emit("game:state_update", sanitized);
     io.to(playerInfo.socketId).emit("game:action_result", { success: true, animations });
   }

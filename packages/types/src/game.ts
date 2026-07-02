@@ -207,6 +207,8 @@ export interface SanitizedGameState {
   endReason: string | null;
   pendingTargetAction: PendingAction | null;
   pendingDiscover: PendingDiscover | null;
+  /** Unix ms when the active player's turn auto-ends; null if no timer is running. */
+  turnTimerEndsAt: number | null;
 }
 
 export interface OpponentView {

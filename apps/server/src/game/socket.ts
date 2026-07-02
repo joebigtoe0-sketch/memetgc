@@ -3,10 +3,9 @@ import type { ServerToClientEvents, ClientToServerEvents, GameAction } from "@me
 import { verifyToken } from "../middleware/auth.js";
 import { prisma } from "@memetgc/db";
 import { joinQueue, leaveQueue, tryMatchmake, removeBySocketId, getQueueSize, type QueueEntry } from "../matchmaking/queue.js";
-import { createRoom, getRoom, getRoomByUserId, handlePlayerAction, handlePlayerDisconnect, handlePlayerReconnect, initMulligan, type PlayerInfo } from "./room.js";
+import { createRoom, getRoom, getRoomByUserId, handlePlayerAction, handlePlayerDisconnect, handlePlayerReconnect, initMulligan, buildSanitizedState, type PlayerInfo } from "./room.js";
 import type { Card, Keyword, CardEffect, HeroPower, Faction } from "@memetgc/types";
 import { randomUUID } from "crypto";
-import { sanitizeState } from "@memetgc/game-engine";
 import { getTokenBalance, MIN_PLAY_TOKENS } from "../lib/solana.js";
 import { trackUserOnline, trackUserOffline } from "./online.js";
 
@@ -212,10 +211,10 @@ export function registerSocketHandlers(
         existingRoom.players[authenticatedUserId]!.socketId = socket.id;
         socket.join(existingRoom.gameId);
         socket.emit("match:found", existingRoom.gameId);
-        const sanitized = sanitizeState(existingRoom.state, authenticatedUserId);
-        socket.emit("game:state_update", sanitized);
-        // Cancel any pending forfeit and resume the game for this player.
+        // Cancel any pending forfeit, restart turn timer, and resync state.
         handlePlayerReconnect(existingRoom, authenticatedUserId, io);
+        const sanitized = buildSanitizedState(existingRoom, authenticatedUserId);
+        socket.emit("game:state_update", sanitized);
       }
     }
 

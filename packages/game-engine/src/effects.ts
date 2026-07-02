@@ -112,6 +112,11 @@ function resolveEffect(effect: CardEffect, ctx: EffectContext): void {
   const targetCondition = params.condition as string | undefined;
   const targetValue = params.value as number | undefined;
 
+  /** Some cards encode minion stat gates as filter strings (e.g. "attack_gte:4"). */
+  const minionStatFilter = parseMinionStatFilter(params.filter as string | undefined);
+  const destroyCondition = targetCondition ?? minionStatFilter.condition;
+  const destroyValue = targetValue ?? minionStatFilter.value;
+
   switch (effect.action) {
     case "deal_damage": {
       const amount = (params.amount as number) ?? 0;
@@ -186,7 +191,7 @@ function resolveEffect(effect: CardEffect, ctx: EffectContext): void {
 
     case "destroy": {
       const targets = resolveTargets(effect.target, ctx, activePlayer, opponent)
-        .filter((t) => t.type !== "minion" || minionPassesTargetCondition(t.slot, targetCondition, targetValue));
+        .filter((t) => t.type !== "minion" || minionPassesTargetCondition(t.slot, destroyCondition, destroyValue));
       for (const t of targets) {
         if (t.type === "minion" && !isMinionImmuneToDestroy(t.slot)) {
           t.slot.currentHealth = 0;
@@ -814,4 +819,18 @@ function matchesFilter(card: Card, filter: string): boolean {
       default: return true;
     }
   });
+}
+
+/** Parse board-minion stat filters like "attack_gte:4" used on destroy/damage effects. */
+function parseMinionStatFilter(filter?: string): { condition?: string; value?: number } {
+  if (!filter) return {};
+  const part = filter.split(",")[0]?.trim();
+  const colon = part?.indexOf(":") ?? -1;
+  if (colon <= 0) return {};
+  const key = part!.slice(0, colon).trim();
+  const num = Number(part!.slice(colon + 1).trim());
+  if (!["attack_gte", "attack_lte", "attack_eq", "health_gte", "health_lte"].includes(key)) {
+    return {};
+  }
+  return { condition: key, value: Number.isFinite(num) ? num : undefined };
 }
