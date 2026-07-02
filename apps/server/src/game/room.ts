@@ -25,11 +25,16 @@ export interface GameRoom {
   cardRegistry: Map<string, Card>;
   turnTimerHandle: ReturnType<typeof setTimeout> | null;
   mulliganTimerHandles: Map<string, ReturnType<typeof setTimeout>>;
+  disconnectTimers: Map<string, ReturnType<typeof setTimeout>>;
   lastActionAt: number;
 }
 
 const TURN_TIME_LIMIT_MS = 30_000;
 const MULLIGAN_TIME_LIMIT_MS = 30_000;
+// Grace period after a player disconnects before they forfeit the match. Long
+// enough to survive a page refresh / brief network blip + socket reconnect, but
+// short enough that the remaining player isn't stuck waiting on a rage-quitter.
+const DISCONNECT_GRACE_MS = 45_000;
 
 const rooms = new Map<string, GameRoom>();
 
@@ -52,6 +57,7 @@ export function createRoom(
     mode, cardRegistry,
     turnTimerHandle: null,
     mulliganTimerHandles: new Map(),
+    disconnectTimers: new Map(),
     lastActionAt: Date.now(),
   };
 
@@ -143,6 +149,9 @@ export function handlePlayerAction(
     if (player?.socketId) {
       io.to(player.socketId).emit("game:action_result", { success: false, error: result.error });
     }
+    // A rejected action must never leave the active player's turn without a
+    // running timer — otherwise a single bad client action freezes the game.
+    scheduleActiveTurnTimer(room, io);
     return;
   }
 
@@ -220,6 +229,77 @@ function clearTurnTimer(room: GameRoom): void {
   if (room.turnTimerHandle) {
     clearTimeout(room.turnTimerHandle);
     room.turnTimerHandle = null;
+  }
+}
+
+/**
+ * A player's socket dropped. Instead of instantly ending the game (which breaks
+ * on refreshes / brief blips and awards no rank points), we:
+ *   1. keep the game moving — if it's their turn, the auto-end timer spends it,
+ *      so the remaining player can keep playing toward a real win, and
+ *   2. start a grace timer; if they don't reconnect in time they forfeit and
+ *      the opponent wins through the normal end-of-game path (points + fragments).
+ */
+export function handlePlayerDisconnect(
+  room: GameRoom,
+  userId: string,
+  io: Server<ClientToServerEvents, ServerToClientEvents>
+): void {
+  if (room.state.status === "finished") return;
+  const player = room.players[userId];
+  if (!player || player.isAI) return;
+
+  player.socketId = null; // stop broadcasting to the dead socket
+  const opponentId = Object.keys(room.players).find((id) => id !== userId);
+
+  // Tell the still-connected opponent so their UI can show a "waiting" hint.
+  if (opponentId) {
+    const opp = room.players[opponentId];
+    if (opp?.socketId) {
+      io.to(opp.socketId).emit("game:opponent_status", { connected: false, graceMs: DISCONNECT_GRACE_MS });
+    }
+  }
+
+  // If the game is live and it's the departed player's turn, ensure their turns
+  // auto-pass so the opponent isn't frozen waiting on a client that's gone.
+  if (room.state.status === "in_progress" && room.state.activePlayerId === userId) {
+    scheduleActiveTurnTimer(room, io);
+  }
+
+  const existing = room.disconnectTimers.get(userId);
+  if (existing) clearTimeout(existing);
+  const handle = setTimeout(() => {
+    const r = getRoom(room.gameId);
+    if (!r || r.state.status === "finished") return;
+    if (r.players[userId]?.socketId) return; // reconnected in time
+    if (!opponentId) return;
+    r.state.status = "finished";
+    r.state.winner = opponentId;
+    r.state.endReason = "opponent_disconnected";
+    broadcastState(r, io, []);
+    cleanupRoom(r, io);
+  }, DISCONNECT_GRACE_MS);
+  room.disconnectTimers.set(userId, handle);
+}
+
+/** A player's socket came back before the grace timer fired — cancel the forfeit. */
+export function handlePlayerReconnect(
+  room: GameRoom,
+  userId: string,
+  io: Server<ClientToServerEvents, ServerToClientEvents>
+): void {
+  const handle = room.disconnectTimers.get(userId);
+  if (handle) { clearTimeout(handle); room.disconnectTimers.delete(userId); }
+
+  const opponentId = Object.keys(room.players).find((id) => id !== userId);
+  if (opponentId) {
+    const opp = room.players[opponentId];
+    if (opp?.socketId) io.to(opp.socketId).emit("game:opponent_status", { connected: true });
+  }
+
+  // If it's the reconnecting player's turn, make sure a timer is running again.
+  if (room.state.status === "in_progress" && room.state.activePlayerId === userId) {
+    scheduleActiveTurnTimer(room, io);
   }
 }
 
