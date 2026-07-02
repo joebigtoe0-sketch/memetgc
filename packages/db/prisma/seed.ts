@@ -314,8 +314,8 @@ export const CARDS = [
     flavorText: "Airgapped and unbothered.",
     keywordsJson: [],
     effectsJson: [
-      { trigger: "on_play", target: "chosen_minion", action: "give_divine_shield", params: {} },
-      { trigger: "on_play", target: "chosen_minion", action: "buff_health", params: { amount: 3 } },
+      { trigger: "on_play", target: "minion_friendly", action: "give_divine_shield", params: {} },
+      { trigger: "on_play", target: "minion_friendly", action: "buff_health", params: { amount: 3 } },
     ],
     collectible: true,
     craftable: true,
@@ -363,7 +363,7 @@ export const CARDS = [
     text: "Set an enemy minion's Attack to 1.",
     flavorText: "Supply cut. Impact doubled.",
     keywordsJson: [],
-    effectsJson: [{ trigger: "on_play", target: "chosen_minion", action: "buff_attack", params: { set_to: 1 } }],
+    effectsJson: [{ trigger: "on_play", target: "minion_enemy", action: "buff_attack", params: { set_to: 1 } }],
     collectible: true,
     craftable: true,
     dustValue: 20,
@@ -584,7 +584,7 @@ export const CARDS = [
     effectsJson: [
       {
         trigger: "on_play",
-        target: "chosen_minion",
+        target: "minion_friendly",
         action: "buff_attack_health",
         params: { amount: 3, volatility: 3 },
       },
@@ -631,7 +631,7 @@ export const CARDS = [
     text: "Give a friendly minion +2 Attack.",
     flavorText: "We are so back.",
     keywordsJson: [],
-    effectsJson: [{ trigger: "on_play", target: "chosen_minion", action: "buff_attack", params: { amount: 2 } }],
+    effectsJson: [{ trigger: "on_play", target: "minion_friendly", action: "buff_attack", params: { amount: 2 } }],
     collectible: true,
     craftable: true,
     dustValue: 5,

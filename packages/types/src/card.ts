@@ -13,6 +13,7 @@ export type EffectTrigger =
   | "on_death"
   | "on_attack"
   | "on_take_damage"
+  | "on_friendly_minion_death"
   | "start_of_turn"
   | "end_of_turn"
   | "on_secret_trigger"
@@ -57,7 +58,12 @@ export type EffectAction =
   | "return_to_hand"
   | "shuffle_into_deck"
   | "copy_to_hand"
-  | "immune_to";
+  | "immune_to"
+  | "resurrect"
+  | "peek"
+  | "add_to_burn_pile"
+  | "freeze"
+  | "redistribute_board";
 
 export interface CardEffect {
   trigger: EffectTrigger;

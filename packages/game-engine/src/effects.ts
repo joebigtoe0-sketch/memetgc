@@ -209,13 +209,28 @@ function resolveEffect(effect: CardEffect, ctx: EffectContext): void {
     }
 
     case "summon_minion": {
-      const cardId = params.card_id as string;
-      const template = getCardById(cardId, ctx);
+      const registry = (ctx as EffectContext & { cardRegistry?: Map<string, Card> }).cardRegistry;
+      const randomCost = params.random_cost as number | undefined;
+      let template: Card | null = null;
+
+      if (randomCost !== undefined && registry) {
+        const pool = Array.from(registry.values()).filter(
+          (c) => c.type === "minion" && c.collectible && c.cost === randomCost
+        );
+        if (pool.length > 0) template = pool[Math.floor(ctx.rng() * pool.length)]!;
+      }
+      if (!template) {
+        const cardId = params.card_id as string | undefined;
+        if (cardId) template = getCardById(cardId, ctx);
+      }
+
       if (template) {
         const emptyIdx = activePlayer.board.findIndex((s) => s === null);
         if (emptyIdx !== -1) {
           const slot = createMinionSlot(template);
           slot.summoningSickness = true;
+          const kw = params.give_keyword as string | undefined;
+          if (kw) applyKeywordToSlot(slot, kw); // e.g. "charge" (Ape In) clears summoning sickness
           activePlayer.board[emptyIdx] = slot;
           ctx.animations.push({ type: "play_card", data: { cardId: template.id, boardIndex: emptyIdx } });
         }
@@ -291,18 +306,140 @@ function resolveEffect(effect: CardEffect, ctx: EffectContext): void {
       const filter = params.filter as string | undefined;
       const count = (params.count as number) ?? 1;
 
-      if (from === "burn_pile" && filter) {
-        const matches = activePlayer.burnPile.filter((c) => matchesFilter(c, filter));
+      if (from === "burn_pile") {
+        // Burn pile is ordered newest-first (index 0 = top), so this list is
+        // already "top-first" for position:"top".
+        let matches = activePlayer.burnPile.filter((c) => !filter || matchesFilter(c, filter));
+        if (params.sort === "cost_desc") matches = [...matches].sort((a, b) => b.cost - a.cost);
+        const copy = params.copy === true; // copy: leave the original in the burn pile
+        const costMod =
+          (params.cost_reduction ? -(params.cost_reduction as number) : 0) +
+          ((params.cost_increase as number) ?? 0);
         for (let i = 0; i < Math.min(count, matches.length); i++) {
           const card = matches[i]!;
-          const idx = activePlayer.burnPile.indexOf(card);
-          if (idx !== -1) {
-            activePlayer.burnPile.splice(idx, 1);
-            if (activePlayer.hand.length < 10) {
-              activePlayer.hand.push({ ...deepClone(card), instanceId: nextInstanceId() } as Card & { instanceId: string });
-            }
+          if (!copy) {
+            const idx = activePlayer.burnPile.indexOf(card);
+            if (idx !== -1) activePlayer.burnPile.splice(idx, 1);
+          }
+          if (activePlayer.hand.length < 10) {
+            const clone = { ...deepClone(card), instanceId: nextInstanceId() } as Card & { instanceId: string; costModifier?: number };
+            if (costMod) clone.costModifier = (clone.costModifier ?? 0) + costMod;
+            activePlayer.hand.push(clone);
           }
         }
+      }
+      break;
+    }
+
+    case "resurrect": {
+      if ((params.from as string) !== "burn_pile") break;
+      const filter = params.filter as string | undefined;
+      const wantsDiedThisTurn = !!filter && filter.includes("died_this_turn");
+      const pool = activePlayer.burnPile.filter(
+        (c) =>
+          c.type === "minion" &&
+          (!filter || matchesFilter(c, filter)) &&
+          (!wantsDiedThisTurn || (c as Card & { diedOnTurn?: number }).diedOnTurn === ctx.state.turnNumber)
+      );
+      if (pool.length === 0) break;
+
+      const buff: ResurrectBuff = {
+        buffAttack: params.buff_attack as number | undefined,
+        buffHealth: params.buff_health as number | undefined,
+        giveDivineShield: params.give_divine_shield as boolean | undefined,
+        restoreStats: params.restore_stats as boolean | undefined,
+      };
+
+      // A "chosen" resurrect (from hand, not random) lets the player pick from the
+      // burn pile via the discover picker. Everything else resurrects at random.
+      const needsPick = effect.target === "chosen_minion" && !params.random;
+      if (needsPick) {
+        ctx.state.pendingDiscover = {
+          playerId: ctx.activePlayerId,
+          options: pool.map((c) => deepClone(c)),
+          sourceCardId: ctx.sourceCard.id,
+          mode: "resurrect",
+          prompt: "Choose a minion to bring back",
+          resurrect: buff,
+        };
+      } else {
+        const chosen = pool[Math.floor(ctx.rng() * pool.length)]!;
+        const idx = activePlayer.burnPile.indexOf(chosen);
+        if (idx !== -1) activePlayer.burnPile.splice(idx, 1);
+        summonResurrectedMinion(activePlayer, chosen, buff, ctx.animations);
+      }
+      break;
+    }
+
+    case "peek": {
+      const from = (params.from as string) ?? "deck";
+      const source = from === "burn_pile" ? activePlayer.burnPile : activePlayer.deckPile;
+      const top = source[0];
+      if (top) {
+        ctx.animations.push({
+          type: "peek",
+          data: { cardId: top.id, cardName: top.name, from, playerId: ctx.activePlayerId },
+        });
+      }
+      break;
+    }
+
+    case "add_to_burn_pile": {
+      if (params.copy_self) {
+        activePlayer.burnPile.unshift(deepClone(ctx.sourceCard));
+      }
+      break;
+    }
+
+    case "transform": {
+      const atk = params.attack as number | undefined;
+      const hp = params.health as number | undefined;
+      const strip = params.strip_keywords as boolean | undefined;
+      const targets = resolveTargets(effect.target, ctx, activePlayer, opponent);
+      for (const t of targets) {
+        if (t.type !== "minion") continue;
+        if (atk !== undefined) { t.slot.currentAttack = atk; t.slot.tempAttackBoost = 0; }
+        if (hp !== undefined) { t.slot.maxHealth = hp; t.slot.currentHealth = hp; }
+        if (strip) {
+          t.slot.hasTaunt = false;
+          t.slot.hasDivineShield = false;
+          t.slot.hasCharge = false;
+          t.slot.hasLifesteal = false;
+          t.slot.isSilenced = true;
+        }
+      }
+      break;
+    }
+
+    case "freeze": {
+      const duration = (params.duration as number) ?? 1;
+      const targets = resolveTargets(effect.target, ctx, activePlayer, opponent);
+      for (const t of targets) {
+        if (t.type === "minion") {
+          t.slot.frozen = true;
+          t.slot.frozenTurns = duration;
+        }
+      }
+      break;
+    }
+
+    case "redistribute_board": {
+      const all: MinionSlot[] = [
+        ...activePlayer.board.filter((s): s is MinionSlot => s !== null),
+        ...opponent.board.filter((s): s is MinionSlot => s !== null),
+      ];
+      activePlayer.board = Array(7).fill(null);
+      opponent.board = Array(7).fill(null);
+      for (let i = all.length - 1; i > 0; i--) {
+        const j = Math.floor(ctx.rng() * (i + 1));
+        [all[i], all[j]] = [all[j]!, all[i]!];
+      }
+      for (const m of all) {
+        const sides = [activePlayer, opponent].filter((p) => p.board.some((s) => s === null));
+        if (sides.length === 0) break;
+        const side = sides[Math.floor(ctx.rng() * sides.length)]!;
+        const idx = side.board.findIndex((s) => s === null);
+        side.board[idx] = m;
       }
       break;
     }
@@ -320,11 +457,55 @@ function resolveEffect(effect: CardEffect, ctx: EffectContext): void {
     }
 
     case "shuffle_into_deck": {
-      // Not fully implemented — just track in deck count
-      activePlayer.deckCount += 1;
+      const from = params.from as string | undefined;
+      const count = (params.count as number) ?? 1;
+      if (from === "burn_pile") {
+        for (let i = 0; i < count; i++) {
+          if (activePlayer.burnPile.length === 0) break;
+          const card = activePlayer.burnPile.shift()!;
+          const insertIdx = Math.floor(ctx.rng() * (activePlayer.deckPile.length + 1));
+          activePlayer.deckPile.splice(insertIdx, 0, { ...deepClone(card), instanceId: nextInstanceId() } as Card & { instanceId: string });
+          activePlayer.deckCount = activePlayer.deckPile.length;
+        }
+      } else {
+        activePlayer.deckCount += 1;
+      }
       break;
     }
   }
+}
+
+export interface ResurrectBuff {
+  buffAttack?: number;
+  buffHealth?: number;
+  giveDivineShield?: boolean;
+  restoreStats?: boolean;
+}
+
+/**
+ * Summon a minion card onto a player's board (from the burn pile), applying any
+ * resurrect buffs. Returns false if the board is full. Exported so the discover
+ * resolver in the engine can reuse it when a player picks a minion to revive.
+ */
+export function summonResurrectedMinion(
+  player: PlayerState,
+  card: Card,
+  buff: ResurrectBuff,
+  animations: AnimationHint[]
+): boolean {
+  const emptyIdx = player.board.findIndex((s) => s === null);
+  if (emptyIdx === -1) return false;
+  const slot = createMinionSlot(card);
+  slot.summoningSickness = true;
+  if (buff.buffAttack) slot.currentAttack += buff.buffAttack;
+  if (buff.buffHealth) {
+    slot.maxHealth += buff.buffHealth;
+    slot.currentHealth += buff.buffHealth;
+  }
+  if (buff.giveDivineShield) slot.hasDivineShield = true;
+  player.board[emptyIdx] = slot;
+  animations.push({ type: "play_card", data: { cardId: card.id, boardIndex: emptyIdx, resurrected: true } });
+  return true;
 }
 
 // ---- Helpers ----

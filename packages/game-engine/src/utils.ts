@@ -149,7 +149,9 @@ export function getPlayCardTargets(
   enemyHeroId: string
 ): PlayCardTargeting {
   const effects = card.effects ?? [];
-  const targeted = effects.find((e) => USER_PICK_TARGETS.has(e.target));
+  // `resurrect` picks from the burn pile via the discover flow, not a board target,
+  // so it must not be treated as needing an on-board target here.
+  const targeted = effects.find((e) => USER_PICK_TARGETS.has(e.target) && e.action !== "resurrect");
   if (!targeted) return { needsTarget: false, validIds: [] };
 
   const condition = targeted.params?.condition as string | undefined;

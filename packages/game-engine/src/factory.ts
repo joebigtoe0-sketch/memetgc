@@ -18,6 +18,8 @@ export function createMinionSlot(card: Card): MinionSlot {
     isSilenced: false,
     costModifier: 0,
     tempAttackBoost: 0,
+    frozen: false,
+    frozenTurns: 0,
   };
 }
 

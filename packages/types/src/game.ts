@@ -19,6 +19,9 @@ export interface MinionSlot {
   isSilenced: boolean;
   costModifier: number;
   tempAttackBoost: number;
+  /** Frozen minions cannot attack. Thaws after `frozenTurns` of the owner's turns. */
+  frozen?: boolean;
+  frozenTurns?: number;
 }
 
 export interface SecretSlot {
@@ -99,6 +102,25 @@ export interface PendingDiscover {
   playerId: string;
   options: Card[];
   sourceCardId: string;
+  /**
+   * How the chosen card is applied:
+   * - "pool" (default): add a fresh copy to hand (generic discover)
+   * - "salvage": remove the chosen card from the burn pile and add it to hand
+   * - "resurrect": remove the chosen minion from the burn pile and summon it
+   */
+  mode?: "pool" | "salvage" | "resurrect";
+  /** UI heading shown above the options. */
+  prompt?: string;
+  /** Cost modifier applied to the card added to hand (e.g. -3 cheaper, +1 costlier). */
+  costModifier?: number;
+  /** Post-summon buffs when mode === "resurrect". */
+  resurrect?: {
+    buffAttack?: number;
+    buffHealth?: number;
+    giveDivineShield?: boolean;
+    giveMoonShot?: boolean;
+    restoreStats?: boolean;
+  };
 }
 
 export interface VestingEffect {
@@ -137,6 +159,8 @@ export interface AnimationHint {
     | "armor_gain"
     | "draw"
     | "discover"
+    | "peek"
+    | "coin_flip"
     | "secret_trigger"
     | "game_over";
   data: Record<string, unknown>;

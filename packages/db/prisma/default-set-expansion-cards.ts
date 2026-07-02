@@ -603,7 +603,7 @@ export const DEFAULT_SET_EXPANSION_CARDS = [
     flavorText: "Had to get in. Had to.",
     keywordsJson: [],
     effectsJson: [
-      { trigger: "on_play", target: "chosen_minion", action: "buff_attack", params: { amount: 3, duration: "this_turn" } },
+      { trigger: "on_play", target: "minion_friendly", action: "buff_attack", params: { amount: 3, duration: "this_turn" } },
       { trigger: "end_of_turn", target: "chosen_minion", action: "deal_damage", params: { amount: 2, target: "self" } },
     ],
     collectible: true,

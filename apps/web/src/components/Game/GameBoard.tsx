@@ -75,6 +75,7 @@ export default function GameBoard() {
   const [boardBg, setBoardBg] = useState<string>(getDefaultBoardBackground);
   // Draw animation
   const [newCardIds, setNewCardIds] = useState<string[]>([]);
+  const [coinFlip, setCoinFlip] = useState<{ result: "heads" | "tails"; id: string; mine: boolean } | null>(null);
   const prevHandIds = useRef<string[]>([]);
   const prevMinionHp = useRef<Record<string, number>>({});
   const prevHeroHp = useRef<Record<string, number>>({});
@@ -249,6 +250,21 @@ export default function GameBoard() {
         addLog(`Minion destroyed (${d.cardId ?? "?"})`, gameState?.turnNumber ?? 0);
       } else if (anim.type === "heal") {
         addToast("💚 Healed", "#66ee88");
+      } else if (anim.type === "peek") {
+        const d = anim.data as { cardName?: string; playerId?: string; from?: string };
+        if (d.playerId === playerId) {
+          const src = d.from === "burn_pile" ? "burn pile" : "deck";
+          addToast(`👁 Top of ${src}: ${d.cardName ?? "?"}`, "#c9b48a");
+          addLog(`Peeked ${src}: ${d.cardName ?? "?"}`, gameState?.turnNumber ?? 0);
+        }
+      } else if (anim.type === "coin_flip") {
+        const d = anim.data as { result?: "heads" | "tails"; playerId?: string };
+        const result = d.result === "tails" ? "tails" : "heads";
+        const id = `${Date.now()}-${Math.random()}`;
+        setCoinFlip({ result, id, mine: d.playerId === playerId });
+        playSound("click", 0.6);
+        addLog(`Coin flip: ${result.toUpperCase()}`, gameState?.turnNumber ?? 0);
+        setTimeout(() => setCoinFlip((c) => (c && c.id === id ? null : c)), 1300);
       } else if (anim.type === "play_card") {
         const d = anim.data as { cardId?: string };
         playSound("playCard", 0.85);
@@ -428,6 +444,29 @@ export default function GameBoard() {
               <FloatNumber key={f.id} amount={f.amount} isHeal={f.isHeal} />
             ))}
           </div>
+          {opponentState.locationCard && (() => {
+            const loc = opponentState.locationCard;
+            const total = loc.durability ?? opponentState.locationDurability;
+            const left = opponentState.locationDurability;
+            return (
+              <div
+                onMouseEnter={() => setZoomedCard(loc as unknown as CardData)}
+                onMouseLeave={() => setZoomedCard(null)}
+                title={loc.text ?? ""}
+                style={{ width: 96, borderRadius: 9, overflow: "hidden", position: "relative", background: "#0b1120", border: "1px solid rgba(255,255,255,.12)" }}
+              >
+                <div style={{ height: 54, backgroundImage: `url(/card-art/${loc.id}.jpg)`, backgroundSize: "cover", backgroundPosition: "center top", opacity: 0.7 }} />
+                <div style={{ padding: "3px 5px 4px" }}>
+                  <div style={{ font: `700 8px var(--font-cinzel,'Cinzel',serif)`, color: "#cfe8d6", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "center" }}>{loc.name}</div>
+                  <div style={{ display: "flex", gap: 3, justifyContent: "center", marginTop: 3 }}>
+                    {Array.from({ length: total }).map((_, i) => (
+                      <span key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: i < left ? "#5ee08c" : "rgba(255,255,255,.15)" }} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Opponent center: face-down hand (top) + board (bottom) */}
@@ -548,6 +587,39 @@ export default function GameBoard() {
               {myState.weaponAttack}/{myState.weaponDurability}
             </div>
           )}
+          {myState.locationCard && (() => {
+            const loc = myState.locationCard;
+            const total = loc.durability ?? myState.locationDurability;
+            const left = myState.locationDurability;
+            const usable = canAct && !myState.locationUsedThisTurn && left > 0;
+            return (
+              <div
+                onClick={() => { if (usable) { playSound("click", 0.6); sendAction({ type: "tap_location" }); } }}
+                onMouseEnter={() => setZoomedCard(loc as unknown as CardData)}
+                onMouseLeave={() => setZoomedCard(null)}
+                title={loc.text ?? ""}
+                style={{
+                  width: 96, borderRadius: 9, overflow: "hidden", position: "relative", marginTop: 2,
+                  cursor: usable ? "pointer" : "default", background: "#0b1120",
+                  border: usable ? "1px solid rgba(120,230,150,.75)" : "1px solid rgba(255,255,255,.12)",
+                  boxShadow: usable ? "0 0 12px rgba(90,220,140,.5)" : "none",
+                }}
+              >
+                <div style={{ height: 54, backgroundImage: `url(/card-art/${loc.id}.jpg)`, backgroundSize: "cover", backgroundPosition: "center top", opacity: usable ? 1 : 0.55 }} />
+                <div style={{ padding: "3px 5px 4px" }}>
+                  <div style={{ font: `700 8px var(--font-cinzel,'Cinzel',serif)`, color: "#cfe8d6", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "center" }}>{loc.name}</div>
+                  <div style={{ display: "flex", gap: 3, justifyContent: "center", marginTop: 3 }}>
+                    {Array.from({ length: total }).map((_, i) => (
+                      <span key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: i < left ? "#5ee08c" : "rgba(255,255,255,.15)", boxShadow: i < left ? "0 0 5px rgba(90,220,140,.8)" : "none" }} />
+                    ))}
+                  </div>
+                </div>
+                <div style={{ position: "absolute", top: 3, left: 4, font: `700 7px var(--font-mono,'JetBrains Mono',monospace)`, color: usable ? "#9df0b8" : "#9aa3b5", letterSpacing: 1, textShadow: "0 1px 3px #000" }}>
+                  {usable ? "TAP" : myState.locationUsedThisTurn ? "USED" : ""}
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Player center: board + hand */}
@@ -751,6 +823,66 @@ export default function GameBoard() {
                   </div>
                 ));
               })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Coin flip reveal */}
+      {coinFlip && (
+        <div style={{ position: "absolute", inset: 0, zIndex: 96, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 18, pointerEvents: "none", background: "radial-gradient(ellipse at center, rgba(4,6,12,.55), rgba(4,6,12,0) 60%)" }}>
+          <div style={{ perspective: 800 }}>
+            <div
+              key={coinFlip.id}
+              style={{
+                position: "relative",
+                width: 132,
+                height: 132,
+                transformStyle: "preserve-3d",
+                animation: `${coinFlip.result === "tails" ? "coinSpinTails" : "coinSpinHeads"} 1.05s cubic-bezier(0.25,0.9,0.3,1) forwards`,
+              }}
+            >
+              {/* Heads face */}
+              <div style={{ position: "absolute", inset: 0, borderRadius: "50%", backfaceVisibility: "hidden", display: "flex", alignItems: "center", justifyContent: "center", background: "radial-gradient(circle at 35% 30%, #f6e3a1, #d9a83a 55%, #9c6f1e)", boxShadow: "0 0 26px rgba(231,199,104,.7), inset 0 0 0 5px rgba(255,255,255,.25)", color: "#5a3d0a", font: `900 22px var(--font-cinzel,'Cinzel',serif)`, letterSpacing: 1 }}>
+                ₿
+              </div>
+              {/* Tails face */}
+              <div style={{ position: "absolute", inset: 0, borderRadius: "50%", backfaceVisibility: "hidden", transform: "rotateY(180deg)", display: "flex", alignItems: "center", justifyContent: "center", background: "radial-gradient(circle at 35% 30%, #d7deea, #93a2bd 55%, #5a688a)", boxShadow: "0 0 26px rgba(160,190,230,.7), inset 0 0 0 5px rgba(255,255,255,.25)", color: "#2b3550", font: `900 30px var(--font-cinzel,'Cinzel',serif)` }}>
+                ✦
+              </div>
+            </div>
+          </div>
+          <div style={{ font: `900 24px var(--font-cinzel,'Cinzel',serif)`, color: coinFlip.result === "tails" ? "#bcd0f0" : "#f3d98a", textShadow: "0 2px 18px rgba(0,0,0,.8)", opacity: 0, animation: "coinLabelIn .3s ease .8s forwards", letterSpacing: 3 }}>
+            {coinFlip.result.toUpperCase()}
+          </div>
+          <style>{`
+            @keyframes coinSpinHeads { 0%{transform:rotateY(0deg) scale(.55);opacity:0} 18%{opacity:1} 100%{transform:rotateY(1440deg) scale(1);opacity:1} }
+            @keyframes coinSpinTails { 0%{transform:rotateY(0deg) scale(.55);opacity:0} 18%{opacity:1} 100%{transform:rotateY(1620deg) scale(1);opacity:1} }
+            @keyframes coinLabelIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+          `}</style>
+        </div>
+      )}
+
+      {/* Discover / resurrect picker */}
+      {gameState.pendingDiscover && gameState.pendingDiscover.playerId === playerId && (
+        <div style={{ position: "absolute", inset: 0, zIndex: 94, background: "rgba(4,6,12,.9)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20, maxWidth: "100%" }}>
+            <div style={{ font: `800 18px var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc", textAlign: "center", textShadow: "0 0 20px rgba(231,199,104,.4)" }}>
+              {gameState.pendingDiscover.prompt ?? "Choose a card"}
+            </div>
+            <div style={{ display: "flex", gap: 16, flexWrap: "wrap", justifyContent: "center", maxWidth: 900, maxHeight: "70vh", overflowY: "auto", padding: 8 }}>
+              {gameState.pendingDiscover.options.map((card, i) => (
+                <div
+                  key={`${card.id}-${i}`}
+                  onClick={() => { playSound("playCard", 0.7); sendAction({ type: "discover_choice", cardId: card.id }); }}
+                  onMouseEnter={() => playSound("cardHover", 0.4)}
+                  style={{ cursor: "pointer", transition: "transform 0.15s ease", transform: "scale(1)" }}
+                  onMouseOver={(e) => (e.currentTarget.style.transform = "scale(1.06)")}
+                  onMouseOut={(e) => (e.currentTarget.style.transform = "scale(1)")}
+                >
+                  <CardComponent card={card as CardData} size="md" glowing />
+                </div>
+              ))}
             </div>
           </div>
         </div>

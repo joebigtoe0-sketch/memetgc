@@ -171,6 +171,13 @@ export default function MinionCard({ slot, isEnemy, isSelected, isValidTarget, i
         <div style={{ position: "absolute", inset: 0, borderRadius: 11, background: "rgba(0,0,0,0.25)", zIndex: 2, pointerEvents: "none" }} />
       )}
 
+      {/* Frozen overlay */}
+      {slot.frozen && (
+        <div style={{ position: "absolute", inset: 0, borderRadius: 11, background: "linear-gradient(160deg,rgba(140,196,255,.32),rgba(60,120,200,.22))", boxShadow: "inset 0 0 0 2px rgba(180,220,255,.7), inset 0 0 14px rgba(150,200,255,.6)", zIndex: 3, pointerEvents: "none" }}>
+          <span style={{ position: "absolute", top: 3, right: 4, fontSize: 13 }}>❄️</span>
+        </div>
+      )}
+
       <style>{`
         @keyframes bmTaunt {
           0%, 100% { box-shadow: 0 0 0 2px rgba(231,199,104,.9), 0 0 14px rgba(231,199,104,.55); }

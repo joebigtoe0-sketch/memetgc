@@ -123,7 +123,7 @@ export default function HandZone({ hand, selectedInstanceId, currentMana, action
             <div
               style={{
                 transform: `scale(${willPlay ? CARD_SCALE * 1.08 : CARD_SCALE})`,
-                transformOrigin: "top center",
+                transformOrigin: "bottom center",
                 filter: canPlay
                   ? (isSelected || willPlay ? "brightness(1.2)" : "none")
                   : "brightness(0.45) saturate(0.3)",

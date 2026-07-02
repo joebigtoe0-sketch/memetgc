@@ -16,7 +16,7 @@ import {
   resolveHeroAttacksMinion,
   resolveHeroAttacksHero,
 } from "./combat.js";
-import { resolveEffects, drawCard, fireHealTriggers, type EffectContext } from "./effects.js";
+import { resolveEffects, drawCard, fireHealTriggers, summonResurrectedMinion, type EffectContext } from "./effects.js";
 import { applyVolatility } from "./utils.js";
 
 export interface ActionResult {
@@ -93,6 +93,11 @@ function handleAction(
   const activePlayer = state.players[state.activePlayerId]!;
   const opponentId = getOpponentId(state);
   const opponent = state.players[opponentId]!;
+
+  // While a discover/resurrect pick is pending, the owner must resolve it first.
+  if (state.pendingDiscover && action.type !== "discover_choice" && action.type !== "surrender") {
+    return { success: false, error: "Choose a card first" };
+  }
 
   switch (action.type) {
     case "surrender": {
@@ -210,13 +215,31 @@ function handleDiscoverChoice(
 ): { success: boolean; error?: string } {
   if (!state.pendingDiscover) return { success: false, error: "No active discover" };
 
-  const player = state.players[state.pendingDiscover.playerId]!;
-  const chosen = state.pendingDiscover.options.find((c) => c.id === action.cardId);
+  const pending = state.pendingDiscover;
+  const player = state.players[pending.playerId]!;
+  const chosen = pending.options.find((c) => c.id === action.cardId);
   if (!chosen) return { success: false, error: "Invalid discover choice" };
 
-  if (player.hand.length < 10) {
-    player.hand.push({ ...deepClone(chosen), instanceId: nextInstanceId() } as Card & { instanceId: string });
+  const mode = pending.mode ?? "pool";
+
+  if (mode === "resurrect") {
+    // Pull the chosen minion out of the burn pile and summon it with any buffs.
+    const idx = player.burnPile.findIndex((c) => c.id === action.cardId && c.type === "minion");
+    const card = idx !== -1 ? player.burnPile.splice(idx, 1)[0]! : deepClone(chosen);
+    summonResurrectedMinion(player, card, pending.resurrect ?? {}, animations);
+  } else {
+    // "salvage" removes the chosen card from the burn pile; "pool" adds a fresh copy.
+    if (mode === "salvage") {
+      const idx = player.burnPile.findIndex((c) => c.id === action.cardId);
+      if (idx !== -1) player.burnPile.splice(idx, 1);
+    }
+    if (player.hand.length < 10) {
+      const clone = { ...deepClone(chosen), instanceId: nextInstanceId() } as Card & { instanceId: string; costModifier?: number };
+      if (pending.costModifier) clone.costModifier = (clone.costModifier ?? 0) + pending.costModifier;
+      player.hand.push(clone);
+    }
   }
+
   state.pendingDiscover = null;
   animations.push({ type: "discover", data: { cardId: action.cardId } });
 
@@ -282,6 +305,18 @@ function handlePlayCard(
     cardRegistry,
     coinFlip: rng() < 0.5 ? "heads" : "tails",
   } as EffectContext & { cardRegistry?: Map<string, Card> };
+
+  // "Flip a coin" cards emit a coin animation so the client can play a flip
+  // reveal before the outcome is shown.
+  const hasCoinFlip = (card.effects ?? []).some(
+    (e) => e.params?.condition === "coin_heads" || e.params?.condition === "coin_tails"
+  );
+  if (hasCoinFlip) {
+    animations.push({
+      type: "coin_flip",
+      data: { result: ctx.coinFlip, playerId: state.activePlayerId, cardId: card.id },
+    });
+  }
 
   switch (card.type) {
     case "minion": {
@@ -379,8 +414,12 @@ function handlePlayCard(
     }
 
     case "hero": {
-      // Hero card played mid-game
+      // Hero card played mid-game — replaces the player's hero identity (portrait,
+      // name, faction) and hero power, grants armor, and keeps current HP.
       activePlayer.armor += card.armor ?? 0;
+      activePlayer.heroId = card.id;
+      activePlayer.heroName = card.name;
+      activePlayer.heroFaction = card.faction;
       if (card.hero_power) {
         activePlayer.heroPower = card.hero_power;
         activePlayer.heroPowerUsed = false;
@@ -441,6 +480,7 @@ function handleAttack(
     const attackerSlot = findMinionOnBoard(action.attackerInstanceId, activePlayer.board);
     if (!attackerSlot) return { success: false, error: "Attacker not found" };
     if (attackerSlot.hasAttacked) return { success: false, error: "Minion already attacked this turn" };
+    if (attackerSlot.frozen) return { success: false, error: "Minion is frozen" };
     if (attackerSlot.summoningSickness && !attackerSlot.hasCharge) return { success: false, error: "Summoning sickness" };
 
     // Validate taunt targeting
@@ -596,6 +636,47 @@ function handleHeroPower(
       }
       break;
     }
+    case "discover": {
+      const from = hp.effect_params.from as string | undefined;
+      const count = (hp.effect_params.count as number) ?? 3;
+      if (from === "burn_pile") {
+        // "Salvage": look at the top N of your burn pile and add one to hand.
+        const options = activePlayer.burnPile.slice(0, count);
+        if (options.length > 0) {
+          state.pendingDiscover = {
+            playerId: state.activePlayerId,
+            options: options.map((c) => deepClone(c)),
+            sourceCardId: hp.id,
+            mode: "salvage",
+            prompt: "Salvage a card from your burn pile",
+          };
+        }
+      } else {
+        const filter = hp.effect_params.filter as string | undefined;
+        if (filter && cardRegistry) {
+          const pool = Array.from(cardRegistry.values()).filter((c) => {
+            const parts = filter.split(",");
+            return parts.every((p) => {
+              const [k, v] = p.split(":");
+              if (k?.trim() === "type") return c.type === v?.trim();
+              if (k?.trim() === "faction") return c.faction === v?.trim();
+              if (k?.trim() === "rarity") return c.rarity === v?.trim();
+              return true;
+            }) && c.collectible;
+          });
+          const shuffled = [...pool].sort(() => rng() - 0.5).slice(0, 3);
+          if (shuffled.length > 0) {
+            state.pendingDiscover = {
+              playerId: state.activePlayerId,
+              options: shuffled.map((c) => deepClone(c)),
+              sourceCardId: hp.id,
+              mode: "pool",
+            };
+          }
+        }
+      }
+      break;
+    }
   }
 
   return { success: true };
@@ -726,6 +807,14 @@ function startTurn(state: GameState, animations: AnimationHint[], rng: () => num
     if (slot) {
       slot.summoningSickness = false;
       slot.hasAttacked = false;
+      // Thaw frozen minions: they miss their controller's turns until the counter runs out.
+      if (slot.frozen) {
+        slot.frozenTurns = (slot.frozenTurns ?? 1) - 1;
+        if (slot.frozenTurns <= 0) {
+          slot.frozen = false;
+          slot.frozenTurns = 0;
+        }
+      }
     }
   }
 
@@ -800,8 +889,10 @@ function processDeaths(
   }
 
   // Process deathrattles in play order
-  for (const { slot, playerId, boardIdx } of deadMinions) {
+  for (const { slot, playerId } of deadMinions) {
     const player = state.players[playerId]!;
+    // Tag the card with the turn it died so "died this turn" resurrects can find it.
+    (slot.card as Card & { diedOnTurn?: number }).diedOnTurn = state.turnNumber;
     player.burnPile.unshift(slot.card);
 
     animations.push({ type: "death", data: { instanceId: slot.instanceId, cardId: slot.card.id } });
@@ -816,6 +907,21 @@ function processDeaths(
         cardRegistry,
       } as EffectContext & { cardRegistry?: Map<string, Card> };
       resolveEffects(slot.card.effects ?? [], "on_death", ctx);
+    }
+
+    // Fire "whenever a friendly minion dies" for that player's surviving minions.
+    for (const survivor of player.board) {
+      if (!survivor || survivor.isSilenced) continue;
+      const ctx: EffectContext = {
+        state,
+        activePlayerId: playerId,
+        sourceCard: survivor.card,
+        targetInstanceId: survivor.instanceId,
+        animations,
+        rng,
+        cardRegistry,
+      } as EffectContext & { cardRegistry?: Map<string, Card> };
+      resolveEffects(survivor.card.effects ?? [], "on_friendly_minion_death", ctx);
     }
   }
 
@@ -913,6 +1019,12 @@ export function getAIAction(state: GameState, aiPlayerId: string): GameAction {
   const player = state.players[aiPlayerId]!;
   const opponentId = Object.keys(state.players).find((id) => id !== aiPlayerId)!;
   const opponent = state.players[opponentId]!;
+
+  // Resolve a pending discover/resurrect pick before anything else.
+  if (state.pendingDiscover && state.pendingDiscover.playerId === aiPlayerId) {
+    const opt = state.pendingDiscover.options[0];
+    if (opt) return { type: "discover_choice", cardId: opt.id };
+  }
 
   // Try playing cards
   const playableCards = player.hand.filter((c) => {
