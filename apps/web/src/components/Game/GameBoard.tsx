@@ -479,7 +479,7 @@ export default function GameBoard() {
               <FloatNumber key={f.id} amount={f.amount} isHeal={f.isHeal} />
             ))}
           </div>
-          {opponentState.locations.map((slot, li) => {
+          {(opponentState.locations ?? []).map((slot, li) => {
             const loc = slot.card;
             const total = loc.durability ?? slot.durability;
             const left = slot.durability;
@@ -625,7 +625,7 @@ export default function GameBoard() {
               {myState.weaponAttack}/{myState.weaponDurability}
             </div>
           )}
-          {myState.locations.map((slot, li) => {
+          {(myState.locations ?? []).map((slot, li) => {
             const loc = slot.card;
             const total = loc.durability ?? slot.durability;
             const left = slot.durability;
