@@ -92,6 +92,7 @@ export function createPlayerState(
     hand: hand.map((c) => ({ ...c, instanceId: nextInstanceId() } as Card & { instanceId: string })) as Card[],
     deckPile: shuffledDeck.map((c) => ({ ...c, instanceId: nextInstanceId() } as Card & { instanceId: string })) as Card[],
     deckCount: shuffledDeck.length,
+    topDeckRevealed: false,
     burnPile: [],
     secrets: [],
     factionBonus,

@@ -15,7 +15,11 @@ import marketRouter, { startMarketSweeper } from "./routes/market.js";
 import leaderboardRouter from "./routes/leaderboard.js";
 import seasonRouter from "./routes/season.js";
 import onlineRouter from "./routes/online.js";
-import { registerSocketHandlers, loadCardRegistry, startMatchmakingTicker } from "./game/socket.js";
+import { registerSocketHandlers, loadCardRegistry, startMatchmakingTicker, getCardRegistrySize } from "./game/socket.js";
+
+// Bump this string whenever you want to confirm a fresh deploy is live via /health.
+const BUILD_TAG = "2026-07-02-locations-cardfx";
+const STARTED_AT = new Date().toISOString();
 
 const PORT = parseInt(process.env.PORT ?? "3001", 10);
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN ?? "*";
@@ -54,7 +58,13 @@ app.use("/api/season", seasonRouter);
 app.use("/api/online", onlineRouter);
 
 app.get("/health", (_req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
+  res.json({
+    status: "ok",
+    build: BUILD_TAG,
+    startedAt: STARTED_AT,
+    cards: getCardRegistrySize(),
+    timestamp: new Date().toISOString(),
+  });
 });
 
 registerSocketHandlers(io);

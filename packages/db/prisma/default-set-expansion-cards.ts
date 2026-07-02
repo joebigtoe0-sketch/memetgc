@@ -96,7 +96,7 @@ export const DEFAULT_SET_EXPANSION_CARDS = [
     cost: 6,
     attack: 5,
     health: 6,
-    text: "Pump: Add a copy of every Token minion in your burn pile to your hand.",
+    text: "Pump: Return all minions from your burn pile to your hand. They cost (1) more.",
     flavorText: "It all started here.",
     keywordsJson: [{ id: "battlecry", display: "Pump" }],
     effectsJson: [
@@ -104,7 +104,7 @@ export const DEFAULT_SET_EXPANSION_CARDS = [
         trigger: "on_play",
         target: "hero_friendly",
         action: "return_to_hand",
-        params: { from: "burn_pile", filter: "type:minion,tribe:Token", count: 99, copy: true },
+        params: { from: "burn_pile", filter: "type:minion", count: 99, copy: false, cost_increase: 1 },
       },
     ],
     collectible: true,

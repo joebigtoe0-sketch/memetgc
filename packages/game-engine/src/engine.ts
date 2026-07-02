@@ -539,6 +539,16 @@ function handleHeroPower(
     return { success: false, error: "Not enough Gas for Hero Power" };
   }
 
+  // Guard: a burn-pile discover (e.g. Salvage) with an empty burn pile would
+  // silently do nothing — reject it so the power/mana isn't wasted.
+  if (
+    activePlayer.heroPower.effect_type === "discover" &&
+    (activePlayer.heroPower.effect_params?.from as string | undefined) === "burn_pile" &&
+    activePlayer.burnPile.length === 0
+  ) {
+    return { success: false, error: "Your burn pile is empty" };
+  }
+
   // Deduct mana
   if (activePlayer.tempMana >= cost) {
     activePlayer.tempMana -= cost;

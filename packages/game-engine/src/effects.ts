@@ -381,10 +381,14 @@ function resolveEffect(effect: CardEffect, ctx: EffectContext): void {
       const from = (params.from as string) ?? "deck";
       const source = from === "burn_pile" ? activePlayer.burnPile : activePlayer.deckPile;
       const top = source[0];
+      // reveal: keep the top deck card face-up to its owner until it is drawn.
+      if (params.reveal === true && from === "deck") {
+        activePlayer.topDeckRevealed = true;
+      }
       if (top) {
         ctx.animations.push({
           type: "peek",
-          data: { cardId: top.id, cardName: top.name, from, playerId: ctx.activePlayerId },
+          data: { cardId: top.id, cardName: top.name, from, playerId: ctx.activePlayerId, reveal: params.reveal === true },
         });
       }
       break;
@@ -472,6 +476,10 @@ function resolveEffect(effect: CardEffect, ctx: EffectContext): void {
           const insertIdx = Math.floor(ctx.rng() * (activePlayer.deckPile.length + 1));
           activePlayer.deckPile.splice(insertIdx, 0, { ...deepClone(card), instanceId: nextInstanceId() } as Card & { instanceId: string });
           activePlayer.deckCount = activePlayer.deckPile.length;
+          ctx.animations.push({
+            type: "shuffle_to_deck",
+            data: { cardId: card.id, playerId: ctx.activePlayerId },
+          });
         }
       } else {
         activePlayer.deckCount += 1;
@@ -687,6 +695,8 @@ export function drawCard(player: PlayerState, animations: AnimationHint[]): void
   }
   const card = player.deckPile.shift()!;
   player.deckCount = player.deckPile.length;
+  // The revealed top card (if any) has now been drawn; stop revealing.
+  player.topDeckRevealed = false;
   if (player.hand.length < 10) {
     player.hand.push(card);
     animations.push({ type: "draw", data: { playerId: player.playerId, cardId: card.id } });
@@ -723,6 +733,7 @@ function matchesFilter(card: Card, filter: string): boolean {
       case "type": return card.type === val.trim();
       case "faction": return card.faction === val.trim();
       case "rarity": return card.rarity === val.trim();
+      case "tribe": return (card.tribe ?? "").toLowerCase() === val.trim().toLowerCase();
       case "keyword": return card.keywords?.some((k) => k.id === val.trim()) ?? false;
       default: return true;
     }

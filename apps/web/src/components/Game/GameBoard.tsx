@@ -76,6 +76,7 @@ export default function GameBoard() {
   // Draw animation
   const [newCardIds, setNewCardIds] = useState<string[]>([]);
   const [coinFlip, setCoinFlip] = useState<{ result: "heads" | "tails"; id: string; mine: boolean } | null>(null);
+  const [shuffleAnim, setShuffleAnim] = useState<string | null>(null);
   const prevHandIds = useRef<string[]>([]);
   const prevMinionHp = useRef<Record<string, number>>({});
   const prevHeroHp = useRef<Record<string, number>>({});
@@ -265,6 +266,15 @@ export default function GameBoard() {
         playSound("click", 0.6);
         addLog(`Coin flip: ${result.toUpperCase()}`, gameState?.turnNumber ?? 0);
         setTimeout(() => setCoinFlip((c) => (c && c.id === id ? null : c)), 1300);
+      } else if (anim.type === "shuffle_to_deck") {
+        const d = anim.data as { playerId?: string };
+        if (d.playerId === playerId) {
+          const id = `${Date.now()}-${Math.random()}`;
+          setShuffleAnim(id);
+          playSound("click", 0.5);
+          addLog(`Shuffled a card back into your deck`, gameState?.turnNumber ?? 0);
+          setTimeout(() => setShuffleAnim((s) => (s === id ? null : s)), 850);
+        }
       } else if (anim.type === "play_card") {
         const d = anim.data as { cardId?: string };
         playSound("playCard", 0.85);
@@ -735,8 +745,28 @@ export default function GameBoard() {
         </div>
 
         {/* Player right: deck + grave */}
-        <div style={{ width: 110, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "4px 4px 8px", gap: 10, flexShrink: 0 }}>
+        <div style={{ width: 110, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "4px 4px 8px", gap: 10, flexShrink: 0, position: "relative" }}>
+          {shuffleAnim && (
+            <img
+              key={shuffleAnim}
+              src={CARD_BACK_DEFAULT}
+              alt=""
+              draggable={false}
+              style={{ position: "absolute", top: "50%", left: "50%", width: 40, height: 54, borderRadius: CARD_BACK_RADIUS, objectFit: "cover", zIndex: 5, pointerEvents: "none", boxShadow: "0 4px 14px rgba(0,0,0,.5)", animation: "shuffleToDeck 0.8s ease-in-out forwards" }}
+            />
+          )}
           <DeckPile count={myState.deckCount} />
+          {myState.topDeckRevealed && myState.deckPile?.[0] && (
+            <div
+              onMouseEnter={() => setZoomedCard(myState.deckPile[0] as unknown as CardData)}
+              onMouseLeave={() => setZoomedCard(null)}
+              title="Top of your deck — this is your next draw"
+              style={{ position: "relative", transform: "scale(0.66)", transformOrigin: "center top", marginTop: -8, marginBottom: -34, cursor: "help" }}
+            >
+              <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", zIndex: 3, font: `800 8px var(--font-mono,'JetBrains Mono',monospace)`, color: "#7fe0a0", letterSpacing: 1, whiteSpace: "nowrap", textShadow: "0 1px 3px #000" }}>NEXT DRAW</div>
+              <CardComponent card={myState.deckPile[0] as unknown as CardData} size="sm" glowing />
+            </div>
+          )}
           <GravePile count={myState.burnPile?.length ?? 0} onClick={() => setShowGraveyard("mine")} />
         </div>
       </div>
@@ -779,7 +809,7 @@ export default function GameBoard() {
       {zoomedCard && (
         <div
           onClick={inspectMode ? () => { setZoomedCard(null); setInspectMode(false); } : undefined}
-          style={{ position: "absolute", inset: 0, zIndex: 60, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, pointerEvents: inspectMode ? "auto" : "none", background: "rgba(4,6,12,.55)", backdropFilter: "blur(4px)" }}
+          style={{ position: "absolute", inset: 0, zIndex: showGraveyard ? 95 : 60, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, pointerEvents: inspectMode ? "auto" : "none", background: "rgba(4,6,12,.55)", backdropFilter: "blur(4px)" }}
         >
           <div style={{ animation: "cardZoomIn 0.18s ease-out", filter: "drop-shadow(0 0 40px rgba(0,0,0,.9))" }}>
             <CardComponent card={zoomedCard} size="lg" glowing />
@@ -996,6 +1026,7 @@ export default function GameBoard() {
         @keyframes damageFlash { 0%,100%{filter:none;}40%{filter:brightness(2.5) saturate(0.2) sepia(1) hue-rotate(-20deg);} }
         @keyframes drawCardIn { 0%{opacity:0;transform:translateX(80px) translateY(-20px) scale(0.6) rotate(12deg);}60%{opacity:1;transform:translateX(-6px) translateY(4px) scale(1.04) rotate(-1deg);}100%{opacity:1;transform:translateX(0) translateY(0) scale(1) rotate(0deg);} }
         @keyframes floatUp { 0%{opacity:0;transform:translateY(0) scale(0.8);}15%{opacity:1;transform:translateY(-4px) scale(1.1);}80%{opacity:1;transform:translateY(-26px) scale(1);}100%{opacity:0;transform:translateY(-34px) scale(0.9);} }
+        @keyframes shuffleToDeck { 0%{opacity:0;transform:translate(-50%,44px) scale(.8) rotate(-8deg);}20%{opacity:1;}70%{opacity:1;transform:translate(-50%,-40px) scale(1) rotate(6deg);}100%{opacity:0;transform:translate(-50%,-58px) scale(.7) rotate(0deg);} }
       `}</style>
     </div>
   );

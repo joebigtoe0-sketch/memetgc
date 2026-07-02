@@ -12,6 +12,23 @@ import { trackUserOnline, trackUserOffline } from "./online.js";
 
 // In-memory card registry (loaded from DB on startup)
 let cardRegistry: Map<string, Card> = new Map();
+let lastRegistryLoad = 0;
+// How long a loaded registry is considered fresh. Card data is edited rarely,
+// but we reload before each match so DB card tweaks (text/effects) take effect
+// without needing a full server redeploy.
+const REGISTRY_TTL_MS = 60_000;
+
+/** Reload the registry if it is stale, so card-data changes apply on the next match. */
+export async function ensureFreshCardRegistry(): Promise<void> {
+  if (Date.now() - lastRegistryLoad > REGISTRY_TTL_MS) {
+    await loadCardRegistry();
+  }
+}
+
+/** Number of cards currently loaded — used by the /health version marker. */
+export function getCardRegistrySize(): number {
+  return cardRegistry.size;
+}
 
 export async function loadCardRegistry(): Promise<void> {
   const cards = await prisma.card.findMany();
@@ -44,6 +61,7 @@ export async function loadCardRegistry(): Promise<void> {
       } satisfies Card,
     ])
   );
+  lastRegistryLoad = Date.now();
   console.log(`Card registry loaded: ${cardRegistry.size} cards`);
 }
 
@@ -108,6 +126,9 @@ async function beginMatch(
   ]);
 
   if (!hero1 || !hero2) return;
+
+  // Pick up any recent card-data changes without needing a full redeploy.
+  await ensureFreshCardRegistry();
 
   const p1: PlayerInfo = {
     socketId: entry1.socketId,
@@ -314,6 +335,7 @@ export function registerSocketHandlers(
           isAI: true,
         };
 
+        await ensureFreshCardRegistry();
         const room = createRoom(gameId, p1, p2, mode, cardRegistry);
         socket.join(gameId);
         socket.emit("match:found", gameId);

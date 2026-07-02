@@ -60,6 +60,8 @@ export interface PlayerState {
   hand: Card[];
   deckPile: Card[];
   deckCount: number;
+  /** When true, the top card of deckPile is revealed to the owner until it is drawn. */
+  topDeckRevealed?: boolean;
   burnPile: Card[];
   secrets: SecretSlot[];
   factionBonus: Faction | null;
@@ -166,6 +168,7 @@ export interface AnimationHint {
     | "discover"
     | "peek"
     | "coin_flip"
+    | "shuffle_to_deck"
     | "secret_trigger"
     | "game_over";
   data: Record<string, unknown>;

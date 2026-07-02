@@ -700,7 +700,7 @@ export const GENESIS_DROP_CARDS = [
     cost: 2,
     attack: 2,
     health: 3,
-    text: "Pump: Peek at the top card of your deck.",
+    text: "Pump: Reveal the top card of your deck until you draw it.",
     flavorText: "Unconfirmed. Unbothered.",
     keywordsJson: [{ id: "battlecry", display: "Pump" }],
     effectsJson: [
@@ -708,7 +708,7 @@ export const GENESIS_DROP_CARDS = [
         trigger: "on_play",
         target: "hero_friendly",
         action: "peek",
-        params: { from: "deck", position: "top", count: 1 },
+        params: { from: "deck", position: "top", count: 1, reveal: true },
       },
     ],
     collectible: true,
