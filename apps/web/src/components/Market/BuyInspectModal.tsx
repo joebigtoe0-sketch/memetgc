@@ -107,7 +107,19 @@ export default function BuyInspectModal({ kind, itemId, title, preview, onClose,
               <p style={{ font: `600 11px var(--font-archivo,'Archivo',sans-serif)`, color: "#7cc4ff", marginTop: 12 }}>{state.message}</p>
             )}
             {state.phase === "done" && (
-              <p style={{ font: `700 12px var(--font-archivo,'Archivo',sans-serif)`, color: "#19e08a", marginTop: 12 }}>Purchase complete! Added to your collection.</p>
+              <div style={{ marginTop: 12 }}>
+                <p style={{ font: `700 12px var(--font-archivo,'Archivo',sans-serif)`, color: "#19e08a", margin: 0 }}>Purchase complete! Added to your collection.</p>
+                {state.signature && (
+                  <a
+                    href={`https://solscan.io/tx/${state.signature}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 6, font: `600 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#7cc4ff", textDecoration: "none" }}
+                  >
+                    View transaction on Solscan ↗
+                  </a>
+                )}
+              </div>
             )}
 
             {needsConnect || walletDisconnected ? (

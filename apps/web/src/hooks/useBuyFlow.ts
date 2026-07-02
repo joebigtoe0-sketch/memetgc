@@ -12,6 +12,7 @@ export interface BuyState {
   phase: BuyPhase;
   message: string;
   error: string | null;
+  signature: string | null;
 }
 
 const CONFIRM_ATTEMPTS = 20;
@@ -21,34 +22,34 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-export type BuyResult = { success: true } | { success: false; error: string };
+export type BuyResult = { success: true; signature: string } | { success: false; error: string };
 
 export function useBuyFlow() {
   const { connection } = useConnection();
   const { canPay, payWalletError, sendTransaction, publicKey } = useMarketWallet();
-  const [state, setState] = useState<BuyState>({ phase: "idle", message: "", error: null });
+  const [state, setState] = useState<BuyState>({ phase: "idle", message: "", error: null, signature: null });
 
-  const reset = useCallback(() => setState({ phase: "idle", message: "", error: null }), []);
+  const reset = useCallback(() => setState({ phase: "idle", message: "", error: null, signature: null }), []);
 
   const buy = useCallback(
     async (kind: ListingKind, itemId: string): Promise<BuyResult> => {
       const walletErr = payWalletError();
       if (walletErr) {
-        setState({ phase: "error", message: "", error: walletErr });
+        setState({ phase: "error", message: "", error: walletErr, signature: null });
         return { success: false, error: walletErr };
       }
       if (!canPay || !publicKey || !sendTransaction) {
-        setState({ phase: "error", message: "", error: "WALLET_DISCONNECTED" });
+        setState({ phase: "error", message: "", error: "WALLET_DISCONNECTED", signature: null });
         return { success: false, error: "WALLET_DISCONNECTED" };
       }
 
       try {
-        setState({ phase: "reserving", message: "Reserving listing…", error: null });
+        setState({ phase: "reserving", message: "Reserving listing…", error: null, signature: null });
         const reservation = await market.reserve(
           kind === "card" ? { kind, cardId: itemId } : { kind, packType: itemId }
         );
 
-        setState({ phase: "signing", message: "Approve the payment in your wallet…", error: null });
+        setState({ phase: "signing", message: "Approve the payment in your wallet…", error: null, signature: null });
         const tx = await buildPurchaseTx({
           connection,
           buyer: publicKey,
@@ -61,7 +62,7 @@ export function useBuyFlow() {
 
         const signature = await sendTransaction(tx, connection);
 
-        setState({ phase: "confirming", message: "Confirming on-chain…", error: null });
+        setState({ phase: "confirming", message: "Confirming on-chain…", error: null, signature });
         // Wait for on-chain confirmation, then poll our backend verifier.
         try {
           await connection.confirmTransaction(signature, "confirmed");
@@ -73,15 +74,15 @@ export function useBuyFlow() {
           try {
             const res = await market.confirm({ listingId: reservation.listingId, signature });
             if (res.status === "sold") {
-              setState({ phase: "done", message: "Purchase complete!", error: null });
-              return { success: true };
+              setState({ phase: "done", message: "Purchase complete!", error: null, signature });
+              return { success: true, signature };
             }
           } catch (e) {
             const msg = (e as Error).message ?? "";
             // "pending" style errors: keep retrying. Anything else: abort.
             if (!/not confirmed|pending/i.test(msg)) {
               const err = msg || "Purchase failed";
-              setState({ phase: "error", message: "", error: err });
+              setState({ phase: "error", message: "", error: err, signature });
               return { success: false, error: err };
             }
           }
@@ -89,11 +90,11 @@ export function useBuyFlow() {
         }
 
         const err = "Could not confirm the transaction in time";
-        setState({ phase: "error", message: "", error: err });
+        setState({ phase: "error", message: "", error: err, signature });
         return { success: false, error: err };
       } catch (e) {
         const err = (e as Error).message ?? "Purchase failed";
-        setState({ phase: "error", message: "", error: err });
+        setState({ phase: "error", message: "", error: err, signature: null });
         return { success: false, error: err };
       }
     },

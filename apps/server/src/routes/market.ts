@@ -109,10 +109,18 @@ router.get("/listings", requireAuth, async (req: AuthRequest, res) => {
   });
 });
 
-// GET /api/market/mine — caller's non-terminal listings
+// GET /api/market/mine — caller's active listings + recently sold ones (so the
+// seller can see what sold). Sold listings older than 14 days are omitted.
+const SOLD_HISTORY_MS = 14 * 24 * 60 * 60 * 1000;
 router.get("/mine", requireAuth, async (req: AuthRequest, res) => {
   const rows = await prisma.marketListing.findMany({
-    where: { sellerId: req.user!.userId, status: { in: ["active", "reserved", "cancelling"] } },
+    where: {
+      sellerId: req.user!.userId,
+      OR: [
+        { status: { in: ["active", "reserved", "cancelling"] } },
+        { status: "sold", soldAt: { gte: new Date(Date.now() - SOLD_HISTORY_MS) } },
+      ],
+    },
     orderBy: { createdAt: "desc" },
   });
   res.json(
@@ -125,6 +133,8 @@ router.get("/mine", requireAuth, async (req: AuthRequest, res) => {
       status: r.status,
       cooldownUntil: r.cooldownUntil,
       reservedUntil: r.reservedUntil,
+      soldAt: r.soldAt,
+      txSignature: r.txSignature,
       createdAt: r.createdAt,
     }))
   );

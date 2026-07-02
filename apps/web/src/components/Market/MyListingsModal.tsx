@@ -14,6 +14,28 @@ const PACK_LABELS: Record<string, string> = {
   legendary: "Legendary Pack",
 };
 
+// Sold listings the seller has dismissed from their list. Persisted locally so
+// clearing doesn't require a schema change; it only declutters this device.
+const CLEARED_SOLD_KEY = "memetgc_cleared_sold_listings";
+
+function readClearedSold(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = window.localStorage.getItem(CLEARED_SOLD_KEY);
+    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function writeClearedSold(ids: Set<string>): void {
+  try {
+    window.localStorage.setItem(CLEARED_SOLD_KEY, JSON.stringify([...ids]));
+  } catch {
+    /* ignore quota/serialization errors */
+  }
+}
+
 interface Props {
   onClose: () => void;
   onChanged?: () => void;
@@ -37,6 +59,19 @@ export default function MyListingsModal({ onClose, onChanged }: Props) {
   const [cancelling, setCancelling] = useState(false);
   const [error, setError] = useState("");
   const [tick, setTick] = useState(0);
+  const [cleared, setCleared] = useState<Set<string>>(() => readClearedSold());
+
+  const activeListings = listings.filter((l) => l.status !== "sold");
+  const soldListings = listings.filter((l) => l.status === "sold" && !cleared.has(l.id));
+
+  function clearSold(id: string) {
+    setCleared((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      writeClearedSold(next);
+      return next;
+    });
+  }
 
   const refresh = useCallback(async () => {
     try {
@@ -118,7 +153,7 @@ export default function MyListingsModal({ onClose, onChanged }: Props) {
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
           <div style={{ font: `900 18px var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc" }}>My Listings</div>
           <span style={{ font: `600 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#6a7488" }}>
-            {listings.length} active
+            {activeListings.length} active{soldListings.length > 0 ? ` · ${soldListings.length} sold` : ""}
           </span>
           <button onClick={onClose} style={{ marginLeft: "auto", ...ghostBtn, width: "auto", marginTop: 0, padding: "6px 12px" }}>
             Close
@@ -129,7 +164,7 @@ export default function MyListingsModal({ onClose, onChanged }: Props) {
           <div style={{ padding: "40px 0", textAlign: "center", color: "#6a7488", font: `500 13px var(--font-archivo,'Archivo',sans-serif)` }}>
             Loading listings…
           </div>
-        ) : listings.length === 0 ? (
+        ) : activeListings.length === 0 && soldListings.length === 0 ? (
           <div style={{ padding: "40px 16px", textAlign: "center", color: "#6a7488" }}>
             <p style={{ font: `600 13px var(--font-archivo,'Archivo',sans-serif)`, color: "#aeb6c4", margin: 0 }}>
               You have no cards or packs listed for sale.
@@ -149,38 +184,89 @@ export default function MyListingsModal({ onClose, onChanged }: Props) {
             onCancel={() => cancelListing(selected)}
           />
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(160px,1fr))", gap: 16, maxHeight: "min(62vh, 520px)", overflowY: "auto", padding: "4px 2px 8px" }}>
-            {listings.map((l) => {
-              const st = statusLabel(l);
-              const card = l.kind === "card" && l.cardId ? cards.get(l.cardId) : undefined;
-              return (
-                <button
-                  key={l.id}
-                  onClick={() => setSelected(l)}
-                  style={{
-                    cursor: "pointer", padding: 0, border: "none", background: "transparent",
-                    textAlign: "center", position: "relative",
-                  }}
-                >
-                  {card ? (
-                    <CardComponent card={card} size="sm" />
-                  ) : (
-                    <div style={{ width: 130, height: 182, margin: "0 auto", borderRadius: 10, overflow: "hidden", border: "1px solid rgba(255,255,255,.12)", background: "#12161f" }}>
-                      <img src={packArtUrl(l.packType ?? "standard")} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-                    </div>
-                  )}
-                  <div style={{ marginTop: 8, font: `700 12px var(--font-archivo,'Archivo',sans-serif)`, color: "#dfe5ee", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {card?.name ?? PACK_LABELS[l.packType ?? ""] ?? l.packType}
-                  </div>
-                  <div style={{ font: `800 12px var(--font-mono,'JetBrains Mono',monospace)`, color: "#ffe07a", marginTop: 2 }}>
-                    {l.price.toLocaleString()} {BRAND.ticker}
-                  </div>
-                  <div style={{ font: `600 10px var(--font-mono,'JetBrains Mono',monospace)`, color: st.color, marginTop: 4 }}>
-                    {st.text}
-                  </div>
-                </button>
-              );
-            })}
+          <div style={{ maxHeight: "min(62vh, 520px)", overflowY: "auto", padding: "4px 2px 8px" }}>
+            {activeListings.length > 0 && (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(160px,1fr))", gap: 16 }}>
+                {activeListings.map((l) => {
+                  const st = statusLabel(l);
+                  const card = l.kind === "card" && l.cardId ? cards.get(l.cardId) : undefined;
+                  return (
+                    <button
+                      key={l.id}
+                      onClick={() => setSelected(l)}
+                      style={{
+                        cursor: "pointer", padding: 0, border: "none", background: "transparent",
+                        textAlign: "center", position: "relative",
+                      }}
+                    >
+                      {card ? (
+                        <CardComponent card={card} size="sm" />
+                      ) : (
+                        <div style={{ width: 130, height: 182, margin: "0 auto", borderRadius: 10, overflow: "hidden", border: "1px solid rgba(255,255,255,.12)", background: "#12161f" }}>
+                          <img src={packArtUrl(l.packType ?? "standard")} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                        </div>
+                      )}
+                      <div style={{ marginTop: 8, font: `700 12px var(--font-archivo,'Archivo',sans-serif)`, color: "#dfe5ee", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {card?.name ?? PACK_LABELS[l.packType ?? ""] ?? l.packType}
+                      </div>
+                      <div style={{ font: `800 12px var(--font-mono,'JetBrains Mono',monospace)`, color: "#ffe07a", marginTop: 2 }}>
+                        {l.price.toLocaleString()} {BRAND.ticker}
+                      </div>
+                      <div style={{ font: `600 10px var(--font-mono,'JetBrains Mono',monospace)`, color: st.color, marginTop: 4 }}>
+                        {st.text}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {soldListings.length > 0 && (
+              <>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, margin: `${activeListings.length > 0 ? 22 : 4}px 0 12px` }}>
+                  <span style={{ font: `700 10px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "1px", color: "#6a7488", textTransform: "uppercase" }}>Recently sold</span>
+                  <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,.07)" }} />
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(160px,1fr))", gap: 16 }}>
+                  {soldListings.map((l) => {
+                    const card = l.kind === "card" && l.cardId ? cards.get(l.cardId) : undefined;
+                    return (
+                      <div key={l.id} style={{ textAlign: "center", position: "relative" }}>
+                        <div style={{ position: "relative", opacity: 0.5, filter: "grayscale(0.5)" }}>
+                          {card ? (
+                            <CardComponent card={card} size="sm" />
+                          ) : (
+                            <div style={{ width: 130, height: 182, margin: "0 auto", borderRadius: 10, overflow: "hidden", border: "1px solid rgba(255,255,255,.12)", background: "#12161f" }}>
+                              <img src={packArtUrl(l.packType ?? "standard")} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                            </div>
+                          )}
+                          <div style={{ position: "absolute", top: "44%", left: "50%", transform: "translate(-50%,-50%) rotate(-12deg)", font: `900 20px var(--font-cinzel,'Cinzel',serif)`, letterSpacing: "2px", color: "#19e08a", textShadow: "0 2px 10px rgba(0,0,0,.8)", border: "2px solid #19e08a", borderRadius: 8, padding: "3px 12px", background: "rgba(6,12,9,.55)" }}>
+                            SOLD
+                          </div>
+                        </div>
+                        <div style={{ marginTop: 8, font: `700 12px var(--font-archivo,'Archivo',sans-serif)`, color: "#aeb6c4", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {card?.name ?? PACK_LABELS[l.packType ?? ""] ?? l.packType}
+                        </div>
+                        <div style={{ font: `800 12px var(--font-mono,'JetBrains Mono',monospace)`, color: "#19e08a", marginTop: 2 }}>
+                          +{l.price.toLocaleString()} {BRAND.ticker}
+                        </div>
+                        {l.txSignature && (
+                          <a href={`https://solscan.io/tx/${l.txSignature}`} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: 4, font: `600 9px var(--font-mono,'JetBrains Mono',monospace)`, color: "#7cc4ff", textDecoration: "none" }}>
+                            View on Solscan ↗
+                          </a>
+                        )}
+                        <button
+                          onClick={() => clearSold(l.id)}
+                          style={{ display: "block", margin: "6px auto 0", cursor: "pointer", padding: "4px 12px", borderRadius: 8, background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.14)", color: "#8a93a6", font: `700 10px var(--font-archivo,'Archivo',sans-serif)` }}
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>

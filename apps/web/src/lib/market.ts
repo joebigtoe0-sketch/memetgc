@@ -21,6 +21,8 @@ export interface MyListing {
   status: string;
   cooldownUntil: string | null;
   reservedUntil: string | null;
+  soldAt: string | null;
+  txSignature: string | null;
   createdAt: string;
 }
 
