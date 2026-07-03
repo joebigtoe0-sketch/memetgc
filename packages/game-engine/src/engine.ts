@@ -1079,6 +1079,8 @@ export function sanitizeState(state: GameState, playerId: string): SanitizedGame
     endReason: state.endReason,
     pendingTargetAction: state.pendingTargetAction,
     pendingDiscover: state.pendingDiscover?.playerId === playerId ? state.pendingDiscover : null,
+    // Overridden by the server (room.buildSanitizedState) with the live deadline.
+    turnTimerEndsAt: null,
   };
 }
 
