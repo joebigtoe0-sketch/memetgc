@@ -26,6 +26,20 @@ export async function recordMatchResults(
     const humans = Object.values(room.players).filter((p) => !p.isAI);
     if (humans.length === 0) return;
 
+    // Tutorial game: only outcome is unlocking the real modes on a win.
+    // No fragments, no stats, no match history entry.
+    if (room.mode === "tutorial") {
+      for (const player of humans) {
+        if (winnerId === player.userId) {
+          await prisma.user.update({
+            where: { id: player.userId },
+            data: { tutorialDone: true, isNewPlayer: false },
+          });
+        }
+      }
+      return;
+    }
+
     const now = new Date();
     const endReason = room.state.endReason ?? "hero_death";
     const turnNumber = room.state.turnNumber ?? 0;

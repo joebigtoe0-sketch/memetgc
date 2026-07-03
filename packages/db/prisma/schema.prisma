@@ -86,6 +86,7 @@ model User {
   dailyQuestsRefresh    DateTime? @map("daily_quests_last_refresh")
   firstWinToday         Boolean   @default(false) @map("first_win_today")
   isNewPlayer           Boolean   @default(true) @map("is_new_player")
+  tutorialDone          Boolean   @default(false) @map("tutorial_done")
   createdAt             DateTime  @default(now()) @map("created_at")
   updatedAt             DateTime  @updatedAt @map("updated_at")
 

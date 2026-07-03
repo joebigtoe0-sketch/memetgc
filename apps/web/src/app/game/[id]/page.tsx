@@ -6,6 +6,7 @@ import { useGameStore } from "@/store/gameStore";
 import GameBoard from "@/components/Game/GameBoard";
 import ScaleToFit from "@/components/Game/ScaleToFit";
 import RotateDevicePrompt from "@/components/Game/RotateDevicePrompt";
+import TutorialGuide from "@/components/Game/TutorialGuide";
 import { useGameMusic } from "@/hooks/useGameMusic";
 import { useIsMobile } from "@/hooks/useViewport";
 import { useMobileBrowserChromeHide } from "@/hooks/useMobileBrowserChromeHide";
@@ -57,6 +58,7 @@ export default function GamePage() {
           </ScaleToFit>
         </div>
       </div>
+      <TutorialGuide />
       <RotateDevicePrompt />
     </>
   );

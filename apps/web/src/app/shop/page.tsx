@@ -18,7 +18,7 @@ import { useMarketWallet } from "@/hooks/useMarketWallet";
 import { useIsMobile } from "@/hooks/useViewport";
 
 interface Pack { type: string; name: string; cost: number; color: string; desc: string; badge?: string; }
-interface Bundle { type: string; name: string; count: number; cost: number; desc: string; color: string; }
+interface Bundle { id: string; type: string; name: string; count: number; cost: number; desc: string; color: string; }
 
 const FEATURED: Pack = { type: "season", name: "Genesis Drop Pack", cost: 150, color: "#19e08a", desc: "Genesis Drop exclusives only — cards you can't get from Standard packs. Limited time." };
 
@@ -28,9 +28,9 @@ const PACKS: Pack[] = [
 ];
 
 const BUNDLES: Bundle[] = [
-  { type: "standard", name: "Starter Bundle", count: 5, cost: 450, desc: "5 Standard Packs", color: "#7b8cf4" },
-  { type: "standard", name: "Memepool Bundle", count: 15, cost: 1250, desc: "15 Standard Packs", color: "#f7931a" },
-  { type: "season", name: "Genesis Trio", count: 3, cost: 400, desc: "3 Genesis Drop Packs", color: "#19e08a" },
+  { id: "starter", type: "standard", name: "Starter Bundle", count: 5, cost: 450, desc: "5 Standard Packs", color: "#7b8cf4" },
+  { id: "memepool", type: "standard", name: "Memepool Bundle", count: 15, cost: 1250, desc: "15 Standard Packs", color: "#f7931a" },
+  { id: "genesis_trio", type: "season", name: "Genesis Trio", count: 3, cost: 400, desc: "3 Genesis Drop Packs", color: "#19e08a" },
 ];
 
 export default function ShopPage() {
@@ -56,14 +56,26 @@ export default function ShopPage() {
 
   if (!token || !hasUsername) return <AuthModal />;
 
-  async function buy(type: string, cost: number, count: number, label: string) {
+  async function buy(type: string, cost: number, label: string) {
     if (busy || fragments < cost) { if (fragments < cost) showToast("Not enough fragments."); return; }
     setBusy(label);
     try {
-      const res = await api.post<{ newBalance: number }>("/api/economy/packs/buy", { packType: type, count });
+      const res = await api.post<{ newBalance: number }>("/api/economy/packs/buy", { packType: type, count: 1 });
       setFragments(res.newBalance);
       refresh();
-      showToast(`Purchased ${count > 1 ? count + "× " : ""}${label}! Open it in Packs.`);
+      showToast(`Purchased ${label}! Open it in Packs.`);
+    } catch (e) { showToast((e as Error).message); }
+    setBusy("");
+  }
+
+  async function buyBundle(bundle: Bundle) {
+    if (busy || fragments < bundle.cost) { if (fragments < bundle.cost) showToast("Not enough fragments."); return; }
+    setBusy(bundle.name);
+    try {
+      const res = await api.post<{ newBalance: number }>("/api/economy/packs/buy", { bundleId: bundle.id });
+      setFragments(res.newBalance);
+      refresh();
+      showToast(`Purchased ${bundle.count}× ${bundle.name}! Open them in Packs.`);
     } catch (e) { showToast((e as Error).message); }
     setBusy("");
   }
@@ -109,7 +121,7 @@ export default function ShopPage() {
             <div style={{ font: `700 10px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "3px", color: "#7fe8bd" }}>FEATURED · LIMITED TIME</div>
             <div style={{ font: `900 30px var(--font-cinzel,'Cinzel',serif)`, color: "#fff", margin: "8px 0 8px" }}>{FEATURED.name}</div>
             <div style={{ font: `500 12px var(--font-archivo,'Archivo',sans-serif)`, color: "#a8dfc4", maxWidth: 440, lineHeight: 1.5 }}>{FEATURED.desc}</div>
-            <button onClick={() => buy(FEATURED.type, FEATURED.cost, 1, FEATURED.name)} disabled={busy !== "" || fragments < FEATURED.cost} style={{ ...goldBtn, marginTop: 16, opacity: fragments < FEATURED.cost ? 0.5 : 1, display: "inline-flex", alignItems: "center", gap: 8 }}>
+            <button onClick={() => buy(FEATURED.type, FEATURED.cost, FEATURED.name)} disabled={busy !== "" || fragments < FEATURED.cost} style={{ ...goldBtn, marginTop: 16, opacity: fragments < FEATURED.cost ? 0.5 : 1, display: "inline-flex", alignItems: "center", gap: 8 }}>
               <FragmentAmount amount={FEATURED.cost} iconSize={16} /> · BUY NOW
             </button>
           </div>
@@ -136,7 +148,7 @@ export default function ShopPage() {
                   <FragmentAmount amount={p.cost} iconSize={18} style={{ font: `900 18px var(--font-mono,'JetBrains Mono',monospace)`, color: "#f3e8cc" }} />
                   <span style={{ font: `600 9px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6", letterSpacing: "1px", marginLeft: "auto" }}>FRAGMENTS</span>
                 </div>
-                <button onClick={() => buy(p.type, p.cost, 1, p.name)} disabled={busy !== "" || !afford} style={{ width: "100%", cursor: afford ? "pointer" : "not-allowed", padding: "10px", borderRadius: 10, border: "none", color: "#1a1206", background: `linear-gradient(180deg,${p.color},color-mix(in srgb,${p.color} 70%,#000))`, font: `800 12px var(--font-cinzel,'Cinzel',serif)`, opacity: afford ? 1 : 0.5 }}>
+                <button onClick={() => buy(p.type, p.cost, p.name)} disabled={busy !== "" || !afford} style={{ width: "100%", cursor: afford ? "pointer" : "not-allowed", padding: "10px", borderRadius: 10, border: "none", color: "#1a1206", background: `linear-gradient(180deg,${p.color},color-mix(in srgb,${p.color} 70%,#000))`, font: `800 12px var(--font-cinzel,'Cinzel',serif)`, opacity: afford ? 1 : 0.5 }}>
                   {busy === p.name ? "BUYING…" : "BUY WITH FRAGMENTS"}
                 </button>
 
@@ -167,7 +179,7 @@ export default function ShopPage() {
                 <div style={{ flex: 1 }}>
                   <div style={{ font: `800 14px var(--font-cinzel,'Cinzel',serif)`, color: "#f1f4f9" }}>{b.name}</div>
                   <div style={{ font: `500 11px var(--font-archivo,'Archivo',sans-serif)`, color: "#aeb6c4", marginTop: 3 }}>{b.desc}</div>
-                  <button onClick={() => buy(b.type, b.cost, b.count, b.name)} disabled={busy !== "" || !afford} style={{ marginTop: 8, cursor: afford ? "pointer" : "not-allowed", padding: "7px 16px", borderRadius: 8, border: "none", color: "#1a1206", background: `linear-gradient(180deg,${b.color},color-mix(in srgb,${b.color} 70%,#000))`, font: `800 11px var(--font-cinzel,'Cinzel',serif)`, opacity: afford ? 1 : 0.5, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <button onClick={() => buyBundle(b)} disabled={busy !== "" || !afford} style={{ marginTop: 8, cursor: afford ? "pointer" : "not-allowed", padding: "7px 16px", borderRadius: 8, border: "none", color: "#1a1206", background: `linear-gradient(180deg,${b.color},color-mix(in srgb,${b.color} 70%,#000))`, font: `800 11px var(--font-cinzel,'Cinzel',serif)`, opacity: afford ? 1 : 0.5, display: "inline-flex", alignItems: "center", gap: 6 }}>
                     {busy === b.name ? "BUYING…" : <FragmentAmount amount={b.cost} iconSize={13} />}
                   </button>
                 </div>

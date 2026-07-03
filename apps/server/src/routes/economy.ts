@@ -17,6 +17,13 @@ const PACKS: Record<string, PackDef> = {
   season: { type: "season", name: "Genesis Drop Pack", cost: 150, currency: "frags" },
 };
 
+/** Discounted multi-pack bundles — must match shop UI prices exactly. */
+const BUNDLES: Record<string, { packType: string; count: number; cost: number; name: string }> = {
+  starter: { packType: "standard", count: 5, cost: 450, name: "Starter Bundle" },
+  memepool: { packType: "standard", count: 15, cost: 1250, name: "Memepool Bundle" },
+  genesis_trio: { packType: "season", count: 3, cost: 400, name: "Genesis Trio" },
+};
+
 /** Pack types players may still open from inventory (no longer sold). */
 const LEGACY_PACK_TYPES = new Set(["legendary", "faction"]);
 
@@ -66,33 +73,52 @@ router.get("/packs/inventory", requireAuth, async (req: AuthRequest, res) => {
   res.json(inv.map((p) => ({ packType: p.packType, quantity: p.quantity })));
 });
 
-// POST /api/economy/packs/buy — buy a pack into inventory
+// POST /api/economy/packs/buy — buy pack(s) into inventory
 router.post("/packs/buy", requireAuth, async (req: AuthRequest, res) => {
-  const { packType = "standard", currency = "frags", count = 1 } = req.body as { packType?: string; currency?: string; count?: number };
-  const pack = PACKS[packType];
-  if (!pack) { res.status(400).json({ error: "Unknown pack type" }); return; }
-  const qty = Math.max(1, Math.min(40, Number(count) || 1));
+  const { packType = "standard", currency = "frags", count = 1, bundleId } = req.body as {
+    packType?: string;
+    currency?: string;
+    count?: number;
+    bundleId?: string;
+  };
 
   if (currency === "degen") {
     res.status(501).json({ error: "On-chain $MEMEPOOL purchases are coming soon" });
     return;
   }
 
+  let grantPackType: string;
+  let qty: number;
+  let totalCost: number;
+
+  if (bundleId) {
+    const bundle = BUNDLES[bundleId];
+    if (!bundle) { res.status(400).json({ error: "Unknown bundle" }); return; }
+    grantPackType = bundle.packType;
+    qty = bundle.count;
+    totalCost = bundle.cost;
+  } else {
+    const pack = PACKS[packType];
+    if (!pack) { res.status(400).json({ error: "Unknown pack type" }); return; }
+    grantPackType = pack.type;
+    qty = Math.max(1, Math.min(40, Number(count) || 1));
+    totalCost = pack.cost * qty;
+  }
+
   const userId = req.user!.userId;
   const user = await prisma.user.findUnique({ where: { id: userId } });
-  const totalCost = pack.cost * qty;
   if (!user || user.fragments < totalCost) { res.status(400).json({ error: "Not enough fragments" }); return; }
 
   await prisma.$transaction([
     prisma.user.update({ where: { id: userId }, data: { fragments: { decrement: totalCost } } }),
     prisma.packInventory.upsert({
-      where: { userId_packType: { userId, packType } },
+      where: { userId_packType: { userId, packType: grantPackType } },
       update: { quantity: { increment: qty } },
-      create: { userId, packType, quantity: qty },
+      create: { userId, packType: grantPackType, quantity: qty },
     }),
   ]);
 
-  res.json({ success: true, packType, quantity: qty, newBalance: user.fragments - totalCost });
+  res.json({ success: true, packType: grantPackType, quantity: qty, newBalance: user.fragments - totalCost });
 });
 
 // POST /api/economy/packs/open — open one owned pack from inventory
@@ -260,6 +286,7 @@ router.get("/profile", requireAuth, async (req: AuthRequest, res) => {
     cosmetics,
     equippedCardBack: user.equippedCardBack,
     equippedBadge: user.equippedBadge,
+    tutorialDone: user.tutorialDone,
   });
 });
 

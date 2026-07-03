@@ -46,12 +46,14 @@ export function createRoom(
   p1: PlayerInfo,
   p2: PlayerInfo,
   mode: string,
-  cardRegistry: Map<string, Card>
+  cardRegistry: Map<string, Card>,
+  seed?: number
 ): GameRoom {
   const state = createGameState(
     gameId,
     { id: p1.userId, playerName: p1.username, heroId: p1.heroId, heroName: p1.heroName, heroFaction: p1.heroFaction, heroPower: p1.heroPower, deck: p1.deck },
-    { id: p2.userId, playerName: p2.username, heroId: p2.heroId, heroName: p2.heroName, heroFaction: p2.heroFaction, heroPower: p2.heroPower, deck: p2.deck }
+    { id: p2.userId, playerName: p2.username, heroId: p2.heroId, heroName: p2.heroName, heroFaction: p2.heroFaction, heroPower: p2.heroPower, deck: p2.deck },
+    seed
   );
 
   const room: GameRoom = {
@@ -423,7 +425,9 @@ function stepAITurn(
     return;
   }
 
-  const action = getAIAction(room.state, aiPlayerId);
+  const action = room.mode === "tutorial"
+    ? getTutorialAIAction(room.state, aiPlayerId)
+    : getAIAction(room.state, aiPlayerId);
   const result = applyAction(room.state, action, room.cardRegistry);
 
   if (!result.success) {
@@ -449,6 +453,36 @@ function stepAITurn(
   if (action.type === "end_turn") return;
 
   setTimeout(() => stepAITurn(room, io, aiPlayerId, iterations + 1), AI_ACTION_DELAY_MS);
+}
+
+/**
+ * Deliberately harmless AI used only in the guided tutorial game. It plays at
+ * most a couple of cheap minions (so the player has something to attack) but
+ * NEVER attacks, uses its hero power, or casts spells — the player cannot lose.
+ */
+function getTutorialAIAction(state: GameState, aiPlayerId: string): GameAction {
+  const player = state.players[aiPlayerId];
+  if (!player) return { type: "end_turn" };
+
+  // Resolve any pending discover pick (shouldn't happen with minion-only plays, but be safe)
+  if (state.pendingDiscover && state.pendingDiscover.playerId === aiPlayerId) {
+    const opt = state.pendingDiscover.options[0];
+    if (opt) return { type: "discover_choice", cardId: opt.id };
+  }
+
+  const minionsOnBoard = player.board.filter((s) => s !== null).length;
+  if (minionsOnBoard < 2) {
+    // Cheapest affordable minion with no targeting requirement
+    const playable = player.hand
+      .filter((c) => c.type === "minion" && c.cost <= player.mana + player.tempMana)
+      .sort((a, b) => a.cost - b.cost);
+    const card = playable[0] as (Card & { instanceId: string }) | undefined;
+    if (card) {
+      return { type: "play_card", cardInstanceId: card.instanceId };
+    }
+  }
+
+  return { type: "end_turn" };
 }
 
 function finishAITurn(room: GameRoom, io: Server<ClientToServerEvents, ServerToClientEvents>): void {

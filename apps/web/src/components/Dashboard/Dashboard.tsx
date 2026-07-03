@@ -31,6 +31,7 @@ interface Profile {
   seasonWins: number; seasonLosses: number; winStreak?: number;
   modeStats?: { ranked: { wins: number; losses: number }; casual: { wins: number; losses: number }; practice: { wins: number; losses: number } };
   ladderPosition?: number | null; isMemepool?: boolean;
+  tutorialDone?: boolean;
 }
 interface Quest {
   id: string; type: string; description: string;
@@ -95,6 +96,8 @@ export default function Dashboard() {
   const winrate = rankedGames > 0 ? Math.round((rankedWins / rankedGames) * 100) : 0;
   const streak = profile?.winStreak ?? 0;
   const rankPoints = profile?.rankPoints ?? 0;
+  // Locked until the guided tutorial game has been won (new accounts only).
+  const tutorialPending = profile ? profile.tutorialDone === false : false;
   const tierFloor = TIER_FLOORS[tier] ?? 0;
   // Each tier holds 5 divisions (V→I) of 100 ladder points each, so progress
   // within a division doubles as a percentage. Show the path to the *next
@@ -205,7 +208,7 @@ export default function Dashboard() {
             <div style={{ font: `700 11px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "3px", color: "#ffd187" }}>RANKED LADDER · LIVE</div>
             <div style={{ font: `900 ${isMobile ? 24 : 34}px/1 var(--font-cinzel,'Cinzel',serif)`, color: "#fff", margin: "10px 0 18px" }}>Climb to {formatRankTier("degen")} Rank</div>
             <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-              <button onClick={() => router.push("/play?mode=ranked")} style={{ cursor: "pointer", border: "none", padding: "13px 38px", borderRadius: 11, font: `800 16px var(--font-cinzel,'Cinzel',serif)`, color: "#2a1a00", background: "linear-gradient(180deg,#ffe07a,#e0890f)", boxShadow: "0 8px 20px rgba(224,137,15,.4), inset 0 1px 0 rgba(255,255,255,.5)" }}>▶  PLAY</button>
+              <button onClick={() => router.push(tutorialPending ? "/play?mode=tutorial" : "/play?mode=ranked")} style={{ cursor: "pointer", border: "none", padding: "13px 38px", borderRadius: 11, font: `800 16px var(--font-cinzel,'Cinzel',serif)`, color: "#2a1a00", background: "linear-gradient(180deg,#ffe07a,#e0890f)", boxShadow: "0 8px 20px rgba(224,137,15,.4), inset 0 1px 0 rgba(255,255,255,.5)" }}>{tutorialPending ? "▶  START TUTORIAL" : "▶  PLAY"}</button>
               <span style={{ font: `600 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#c9b48a" }}>
                 {profile?.ladderPosition ? `Ladder #${profile.ladderPosition.toLocaleString()}` : `${(profile?.rankPoints ?? 0).toLocaleString()} ladder pts`}
               </span>
@@ -213,9 +216,12 @@ export default function Dashboard() {
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14 }}>
+            {tutorialPending && (
+              <ModeCard name="Tutorial" tag="GUIDED · FIRST GAME" desc="Play a guided practice game with our mascot. Win it to unlock Casual & Ranked." badge="Start here" badgeColor="#5ad48a" highlight onClick={() => router.push("/play?mode=tutorial")} />
+            )}
             <ModeCard name="Practice" tag="FREE · VS AI" desc="Learn the ropes against bots. 2 frags per win." badge="Open" badgeColor="#9aa3b2" onClick={() => router.push("/play?mode=practice")} />
-            <ModeCard name="Casual" tag="FREE · VS PLAYERS" desc="No ladder stakes. Earn fragments per match." badge="Open" badgeColor="#7b8cf4" onClick={() => router.push("/play?mode=casual")} />
-            <ModeCard name="Ranked" tag="LADDER · OWN DECK" desc="Climb the ladder with your own deck. Earn fragments & season rewards." badge="Unlocked" badgeColor="#f7931a" highlight onClick={() => router.push("/play?mode=ranked")} />
+            <ModeCard name="Casual" tag="FREE · VS PLAYERS" desc={tutorialPending ? "Finish the tutorial game to unlock." : "No ladder stakes. Earn fragments per match."} badge={tutorialPending ? "Locked" : "Open"} badgeColor={tutorialPending ? "#6a7488" : "#7b8cf4"} disabled={tutorialPending} onClick={() => router.push("/play?mode=casual")} />
+            <ModeCard name="Ranked" tag="LADDER · OWN DECK" desc={tutorialPending ? "Finish the tutorial game to unlock." : "Climb the ladder with your own deck. Earn fragments & season rewards."} badge={tutorialPending ? "Locked" : "Unlocked"} badgeColor={tutorialPending ? "#6a7488" : "#f7931a"} highlight={!tutorialPending} disabled={tutorialPending} onClick={() => router.push("/play?mode=ranked")} />
           </div>
         </div>
 
@@ -276,11 +282,12 @@ function Panel({ children, style }: { children: React.ReactNode; style?: React.C
   );
 }
 
-function ModeCard({ name, tag, desc, badge, badgeColor, highlight, onClick }: { name: string; tag: string; desc: string; badge: string; badgeColor: string; highlight?: boolean; onClick: () => void }) {
+function ModeCard({ name, tag, desc, badge, badgeColor, highlight, disabled, onClick }: { name: string; tag: string; desc: string; badge: string; badgeColor: string; highlight?: boolean; disabled?: boolean; onClick: () => void }) {
+  const handleClick = () => { if (!disabled) onClick(); };
   return (
-    <div onClick={onClick} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClick(); }} style={{ cursor: "pointer", borderRadius: 14, padding: 16, background: highlight ? `linear-gradient(150deg,color-mix(in srgb,${badgeColor} 14%,transparent),rgba(18,23,35,.55))` : "rgba(255,255,255,.03)", border: `1px solid ${highlight ? badgeColor + "88" : "rgba(255,255,255,.08)"}`, transition: "transform .12s ease, border-color .12s ease" }}
-      onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(-3px)"; (e.currentTarget as HTMLDivElement).style.borderColor = badgeColor; }}
-      onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.transform = "none"; (e.currentTarget as HTMLDivElement).style.borderColor = highlight ? badgeColor + "88" : "rgba(255,255,255,.08)"; }}>
+    <div onClick={handleClick} role="button" tabIndex={disabled ? -1 : 0} aria-disabled={disabled} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleClick(); }} style={{ cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.45 : 1, borderRadius: 14, padding: 16, background: highlight ? `linear-gradient(150deg,color-mix(in srgb,${badgeColor} 14%,transparent),rgba(18,23,35,.55))` : "rgba(255,255,255,.03)", border: `1px solid ${highlight ? badgeColor + "88" : "rgba(255,255,255,.08)"}`, transition: "transform .12s ease, border-color .12s ease" }}
+      onMouseEnter={(e) => { if (disabled) return; (e.currentTarget as HTMLDivElement).style.transform = "translateY(-3px)"; (e.currentTarget as HTMLDivElement).style.borderColor = badgeColor; }}
+      onMouseLeave={(e) => { if (disabled) return; (e.currentTarget as HTMLDivElement).style.transform = "none"; (e.currentTarget as HTMLDivElement).style.borderColor = highlight ? badgeColor + "88" : "rgba(255,255,255,.08)"; }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <span style={{ font: `800 16px var(--font-cinzel,'Cinzel',serif)`, color: "#f1f4f9" }}>{name}</span>
         <span style={{ font: `700 9px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: ".5px", padding: "4px 9px", borderRadius: 6, color: badgeColor, background: `color-mix(in srgb,${badgeColor} 16%,transparent)`, border: `1px solid color-mix(in srgb,${badgeColor} 40%,transparent)` }}>{badge}</span>

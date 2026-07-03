@@ -11,6 +11,8 @@ import { formatRankTier } from "@/lib/brand";
 import FactionIcon from "@/components/Faction/FactionIcon";
 import { preloadFactionArt } from "@/lib/preloadArt";
 import { useIsMobile } from "@/hooks/useViewport";
+import { setTutorialGame, clearTutorialGame } from "@/lib/tutorial";
+import { BRAND } from "@/lib/brand";
 
 // Faction bonuses are granted by the HERO's faction (not the deck).
 const HERO_FACTION_BONUS: Record<string, string> = {
@@ -24,9 +26,9 @@ interface Hero {
   hero_power: { name: string; cost: number; description: string };
 }
 interface Deck { id: string; name: string; heroId: string; isStarter?: boolean; faction?: string; factionBonusActive: boolean; cardCount: number; cards: { cardId: string; quantity: number }[]; }
-type GameMode = "practice" | "casual" | "ranked";
+type GameMode = "practice" | "casual" | "ranked" | "tutorial";
 
-const MODE_LABEL: Record<GameMode, string> = { practice: "PRACTICE", casual: "CASUAL", ranked: "RANKED" };
+const MODE_LABEL: Record<GameMode, string> = { practice: "PRACTICE", casual: "CASUAL", ranked: "RANKED", tutorial: "TUTORIAL" };
 
 const TIPS = [
   "Swapping high-cost cards in your mulligan for a smoother early curve is usually correct.",
@@ -49,7 +51,22 @@ export default function HeroSelect() {
   const [queueing, setQueueing] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
   const [tier, setTier] = useState<{ rankTier: string; rankStars: number }>({ rankTier: "gold", rankStars: 2 });
+  const [tutorialError, setTutorialError] = useState("");
   const { connected } = useGameStore();
+  const isTutorial = mode === "tutorial";
+
+  // Tutorial skips hero/deck selection entirely — the server uses a preset
+  // bitcoin deck. Just join the queue as soon as the socket is up.
+  useEffect(() => {
+    if (!isTutorial || !connected) return;
+    const socket = getSocket();
+    if (!socket) return;
+    setTutorialGame();
+    socket.emit("queue:join", { mode: "tutorial", deckId: "", heroId: "" });
+    const onErr = (msg: string) => setTutorialError(msg);
+    socket.once("game:error", onErr);
+    return () => { socket.off("game:error", onErr); };
+  }, [isTutorial, connected]);
 
   useEffect(() => {
     preloadFactionArt();
@@ -85,6 +102,7 @@ export default function HeroSelect() {
     if (!socket) return;
     setQueueing(true);
     setStatusMsg(mode === "practice" ? "Starting practice game..." : "Finding a worthy opponent");
+    clearTutorialGame(); // this is a normal game — never show the guide
     socket.emit("queue:join", { mode, deckId: selectedDeck, heroId: selectedHero });
     socket.once("game:error", (msg) => { setStatusMsg(`Error: ${msg}`); setQueueing(false); });
   }
@@ -97,6 +115,24 @@ export default function HeroSelect() {
 
   const SH = heroes.find((h) => h.id === selectedHero);
   const sfc = SH ? factionColor(SH.faction) : "#9aa3b2";
+
+  if (isTutorial) {
+    return (
+      <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 18, background: "radial-gradient(120% 90% at 50% 40%,#0d1422 0%,#070a12 70%)", fontFamily: "var(--font-archivo,'Archivo',sans-serif)", padding: 20 }}>
+        <img src={BRAND.logoUrl} alt="" draggable={false} style={{ width: 110, height: 110, objectFit: "contain", animation: "tutorialBob 2.2s ease-in-out infinite" }} />
+        <div style={{ font: `900 22px var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc", textAlign: "center" }}>
+          {tutorialError ? "Couldn't start the tutorial" : "Preparing your first game…"}
+        </div>
+        <div style={{ font: `500 13px var(--font-archivo,'Archivo',sans-serif)`, color: tutorialError ? "#ff9a8a" : "#aeb6c4", textAlign: "center", maxWidth: 420, lineHeight: 1.5 }}>
+          {tutorialError || "I'll walk you through everything — you can't lose this one. Promise."}
+        </div>
+        {tutorialError && (
+          <button onClick={() => router.push("/")} style={{ cursor: "pointer", padding: "10px 24px", borderRadius: 10, border: "1px solid rgba(255,255,255,.15)", background: "rgba(255,255,255,.05)", color: "#cdd4df", font: `700 13px var(--font-archivo,'Archivo',sans-serif)` }}>‹ Back home</button>
+        )}
+        <style>{`@keyframes tutorialBob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }`}</style>
+      </div>
+    );
+  }
 
   return (
     <div style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", background: "radial-gradient(140% 90% at 50% -8%,#141b2a 0%,#090c13 60%,#06080d 100%)", fontFamily: "var(--font-archivo,'Archivo',sans-serif)", overflow: "auto" }}>

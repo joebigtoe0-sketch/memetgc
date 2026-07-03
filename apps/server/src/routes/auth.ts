@@ -148,6 +148,7 @@ router.get("/me", requireAuth, async (req: AuthRequest, res) => {
     walletAddress: user.walletAddress,
     accessTier: user.accessTier,
     isNewPlayer: user.isNewPlayer,
+    tutorialDone: user.tutorialDone,
   });
 });
 

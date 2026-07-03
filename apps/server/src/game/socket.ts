@@ -105,6 +105,95 @@ async function checkDegenBalance(walletAddress: string): Promise<boolean> {
   return balance >= MIN_PLAY_TOKENS;
 }
 
+// ---------------------------------------------------------------------------
+// Guided tutorial match
+// ---------------------------------------------------------------------------
+
+/** Fixed seed → identical shuffles/draws for every tutorial game. */
+const TUTORIAL_SEED = 13372026;
+const TUTORIAL_HERO_ID = "hero_satoshi";
+/** Same list as the "HODL Gang" starter deck — simple bitcoin curve. */
+const TUTORIAL_DECK_LIST: { id: string; qty: number }[] = [
+  { id: "bitcoin_paper_hands", qty: 4 },
+  { id: "bitcoin_baby_hodl", qty: 4 },
+  { id: "bitcoin_block_defender", qty: 3 },
+  { id: "bitcoin_mining_rig", qty: 3 },
+  { id: "bitcoin_cold_wallet", qty: 2 },
+  { id: "bitcoin_stack_sats", qty: 3 },
+  { id: "bitcoin_hodl_the_line", qty: 3 },
+  { id: "bitcoin_hardware_security", qty: 3 },
+  { id: "bitcoin_maxi", qty: 2 },
+  { id: "bitcoin_the_halving", qty: 3 },
+];
+
+function buildTutorialDeck(): Card[] {
+  const deck: Card[] = [];
+  for (const { id, qty } of TUTORIAL_DECK_LIST) {
+    const card = cardRegistry.get(id);
+    if (!card) continue;
+    for (let i = 0; i < qty; i++) deck.push({ ...card });
+  }
+  return deck;
+}
+
+/**
+ * Start the first-time-player tutorial: preset bitcoin deck, fixed seed so the
+ * draws are always the same, and a training-dummy AI that can't win.
+ */
+async function beginTutorialMatch(
+  io: Server<ClientToServerEvents, ServerToClientEvents>,
+  socket: Socket<ClientToServerEvents, ServerToClientEvents>,
+  userId: string,
+  username: string
+): Promise<void> {
+  await ensureFreshCardRegistry();
+
+  const hero = await prisma.hero.findUnique({ where: { id: TUTORIAL_HERO_ID } });
+  if (!hero) {
+    socket.emit("game:error", "Tutorial unavailable (hero missing)");
+    return;
+  }
+
+  const playerDeck = buildTutorialDeck();
+  const aiDeck = buildTutorialDeck();
+  if (playerDeck.length !== 30) {
+    socket.emit("game:error", "Tutorial unavailable (deck cards missing)");
+    return;
+  }
+
+  const me = await prisma.user.findUnique({ where: { id: userId }, select: { equippedCardBack: true } });
+
+  const gameId = randomUUID();
+  const p1: PlayerInfo = {
+    socketId: socket.id,
+    userId,
+    username,
+    heroId: hero.id,
+    heroName: hero.name,
+    heroFaction: hero.faction as Faction,
+    heroPower: hero.heroPowerJson as unknown as PlayerInfo["heroPower"],
+    deck: playerDeck,
+    isAI: false,
+    cardBack: me?.equippedCardBack ?? null,
+  };
+  const p2: PlayerInfo = {
+    socketId: null,
+    userId: "ai_opponent",
+    username: "Training Bot",
+    heroId: hero.id,
+    heroName: hero.name,
+    heroFaction: hero.faction as Faction,
+    heroPower: hero.heroPowerJson as unknown as PlayerInfo["heroPower"],
+    deck: aiDeck,
+    isAI: true,
+  };
+
+  const room = createRoom(gameId, p1, p2, "tutorial", cardRegistry, TUTORIAL_SEED);
+  socket.join(gameId);
+  socket.emit("match:found", gameId);
+  initMulligan(room, io);
+}
+
 /**
  * Build a room from two matched queue entries and start the mulligan.
  * Shared by the on-join matchmaking attempt and the periodic ticker.
@@ -240,6 +329,18 @@ export function registerSocketHandlers(
           socket.emit("game:error", `Need ${MIN_PLAY_TOKENS.toLocaleString()} $MEMEPOOL to play`);
           return;
         }
+        // New players must finish the guided tutorial before playing vs humans.
+        if ((mode === "casual" || mode === "ranked") && !user.tutorialDone) {
+          socket.emit("game:error", "Finish the tutorial first to unlock Casual and Ranked");
+          return;
+        }
+      }
+
+      // Guided tutorial: fixed deck, fixed seed, harmless AI — no deck needed.
+      if (mode === "tutorial") {
+        leaveQueue(authenticatedUserId);
+        await beginTutorialMatch(io, socket, authenticatedUserId, authenticatedUsername!);
+        return;
       }
 
       const deckRecord = await prisma.deck.findFirst({

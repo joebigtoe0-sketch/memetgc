@@ -190,7 +190,7 @@ export interface ServerToClientEvents {
 
 export interface ClientToServerEvents {
   "game:action": (action: GameAction) => void;
-  "queue:join": (opts: { mode: "practice" | "casual" | "ranked"; deckId: string; heroId: string }) => void;
+  "queue:join": (opts: { mode: "practice" | "casual" | "ranked" | "tutorial"; deckId: string; heroId: string }) => void;
   "queue:leave": () => void;
 }
 
