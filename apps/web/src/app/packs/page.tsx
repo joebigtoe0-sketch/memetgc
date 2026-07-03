@@ -12,6 +12,7 @@ import CardComponent, { type CardData } from "@/components/Card/CardComponent";
 import SellModal from "@/components/Market/SellModal";
 import GameIcon from "@/components/UI/GameIcon";
 import { musicManager } from "@/lib/music/MusicManager";
+import { playSound } from "@/lib/sounds";
 import { useIsMobile } from "@/hooks/useViewport";
 
 interface PackEntry { packType: string; quantity: number; }
@@ -88,8 +89,20 @@ export default function PacksPage() {
     }
   }
 
-  const flip = (i: number) => setRevealed((r) => r.map((v, idx) => (idx === i ? true : v)));
-  const revealAll = () => setRevealed((r) => r.map(() => true));
+  const flip = (i: number) => setRevealed((r) => {
+    if (r[i]) return r;
+    playSound("drawCard", 0.7);
+    if (RARITY_RANK[cards[i]?.rarity] >= 2) playSound("coin", 0.6);
+    return r.map((v, idx) => (idx === i ? true : v));
+  });
+  const revealAll = () => {
+    const anyHidden = revealed.some((v) => !v);
+    if (anyHidden) {
+      playSound("drawCard", 0.7);
+      if (cards.some((c) => RARITY_RANK[c.rarity] >= 2)) playSound("coin", 0.6);
+    }
+    setRevealed((r) => r.map(() => true));
+  };
   const allRevealed = revealed.length > 0 && revealed.every(Boolean);
   const bestRarity = cards.reduce((best, c) => (RARITY_RANK[c.rarity] > RARITY_RANK[best] ? c.rarity : best), "common");
 

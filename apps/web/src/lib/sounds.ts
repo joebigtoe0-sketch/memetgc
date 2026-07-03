@@ -7,22 +7,38 @@ export type SoundId =
   | "denied"
   | "cardHover"
   | "playCard"
+  | "drawCard"
+  | "summon"
+  | "attack"
   | "dealDamage"
   | "takingDamage"
-  | "destroy";
+  | "destroy"
+  | "heal"
+  | "coin"
+  | "shuffle"
+  | "heroPower"
+  | "turnStart";
 
 const PATHS: Record<SoundId, string> = {
   click: "/audio/click.wav",
-  clickempty: "/audio/clickempty.wav",
-  winGame: "/audio/wingame.wav",
-  loseGame: "/audio/losegame.wav",
-  noMana: "/audio/nomana.wav",
+  clickempty: "/audio/click_empty.wav",
+  winGame: "/audio/win.wav",
+  loseGame: "/audio/lose.wav",
+  noMana: "/audio/no_mana.wav",
   denied: "/audio/denied.wav",
-  cardHover: "/audio/cardhover.mp3",
-  playCard: "/audio/Playcard.mp3",
-  dealDamage: "/audio/dealdamage.wav",
-  takingDamage: "/audio/takingdamage.wav",
+  cardHover: "/audio/hover.wav",
+  playCard: "/audio/play_card.wav",
+  drawCard: "/audio/draw_card.wav",
+  summon: "/audio/summon.wav",
+  attack: "/audio/attack.wav",
+  dealDamage: "/audio/deal_damage.wav",
+  takingDamage: "/audio/take_damage.wav",
   destroy: "/audio/destroy.wav",
+  heal: "/audio/heal.wav",
+  coin: "/audio/coin.wav",
+  shuffle: "/audio/shuffle.wav",
+  heroPower: "/audio/hero_power.wav",
+  turnStart: "/audio/turn_start.wav",
 };
 
 /** All SFX file paths (for bulk preloading). */

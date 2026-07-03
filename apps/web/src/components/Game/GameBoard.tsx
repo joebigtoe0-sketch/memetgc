@@ -184,6 +184,7 @@ export default function GameBoard() {
       setTurnSecondsLeft(TURN_SECONDS);
       if (isMyTurn) {
         setShowNewTurn(true);
+        playSound("turnStart", 0.6);
         setTimeout(() => setShowNewTurn(false), 1800);
       }
     }
@@ -334,7 +335,7 @@ export default function GameBoard() {
     for (const anim of pendingAnimations) {
       if (anim.type === "draw") {
         const d = anim.data as { overdraw?: boolean; fatigue?: number; playerId?: string; memeBonus?: string };
-        if (d.playerId === playerId && !d.overdraw && !d.fatigue) playSound("playCard", 0.7);
+        if (d.playerId === playerId && !d.overdraw && !d.fatigue) playSound("drawCard", 0.7);
         if (d.memeBonus === "extra_draw") {
           // Meme faction coin-flip bonus — explains the extra card so it doesn't look like a bug
           if (d.playerId === playerId) { addToast("🎲 Meme Bonus: +1 card!", "#ff5fae"); addLog("Meme bonus: drew an extra card", gameState?.turnNumber ?? 0); }
@@ -361,6 +362,7 @@ export default function GameBoard() {
         }
       } else if (anim.type === "attack") {
         const d = anim.data as { attackerId?: string };
+        playSound("attack", 0.7);
         if (d.attackerId && !d.attackerId.startsWith("hero_")) {
           const isMyMinion = gameState?.myState.board.some((s) => s?.instanceId === d.attackerId);
           if (!isMyMinion) {
@@ -374,6 +376,7 @@ export default function GameBoard() {
         addToast("💀 Minion destroyed", "#ff8888");
         addLog(`Minion destroyed (${d.cardId ?? "?"})`, gameState?.turnNumber ?? 0);
       } else if (anim.type === "heal") {
+        playSound("heal", 0.7);
         addToast("💚 Healed", "#66ee88");
       } else if (anim.type === "peek") {
         const d = anim.data as { cardName?: string; playerId?: string; from?: string };
@@ -387,7 +390,7 @@ export default function GameBoard() {
         const result = d.result === "tails" ? "tails" : "heads";
         const id = `${Date.now()}-${Math.random()}`;
         setCoinFlip({ result, id, mine: d.playerId === playerId });
-        playSound("click", 0.6);
+        playSound("coin", 0.7);
         addLog(`Coin flip: ${result.toUpperCase()}`, gameState?.turnNumber ?? 0);
         setTimeout(() => setCoinFlip((c) => (c && c.id === id ? null : c)), 1300);
       } else if (anim.type === "shuffle_to_deck") {
@@ -395,13 +398,13 @@ export default function GameBoard() {
         if (d.playerId === playerId) {
           const id = `${Date.now()}-${Math.random()}`;
           setShuffleAnim(id);
-          playSound("click", 0.5);
+          playSound("shuffle", 0.6);
           addLog(`Shuffled a card back into your deck`, gameState?.turnNumber ?? 0);
           setTimeout(() => setShuffleAnim((s) => (s === id ? null : s)), 850);
         }
       } else if (anim.type === "play_card") {
         const d = anim.data as { cardId?: string };
-        playSound("playCard", 0.85);
+        playSound("summon", 0.85);
         addLog(`Card played: ${d.cardId ?? "?"}`, gameState?.turnNumber ?? 0);
       } else if (anim.type === "game_over") {
         const d = anim.data as { winner?: string };
@@ -546,6 +549,7 @@ export default function GameBoard() {
       if (!board.some((s) => s !== null)) { setActionError("No valid minion to target"); return; }
       selectCard(null); selectAttacker(null); setPhase("select_hero_power_target");
     } else {
+      playSound("heroPower", 0.8);
       sendAction({ type: "hero_power" });
     }
   }
@@ -596,6 +600,7 @@ export default function GameBoard() {
     }
     if (phase === "select_hero_power_target") {
       if (validHeroPowerTargets.includes(instanceId)) {
+        playSound("heroPower", 0.8);
         sendAction({ type: "hero_power", targetInstanceId: instanceId });
         setPhase("idle");
       } else {
