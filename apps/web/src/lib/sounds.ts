@@ -17,7 +17,10 @@ export type SoundId =
   | "coin"
   | "shuffle"
   | "heroPower"
-  | "turnStart";
+  | "turnStart"
+  | "packTear"
+  | "rareReveal"
+  | "legendaryReveal";
 
 const PATHS: Record<SoundId, string> = {
   click: "/audio/click.wav",
@@ -39,6 +42,9 @@ const PATHS: Record<SoundId, string> = {
   shuffle: "/audio/shuffle.wav",
   heroPower: "/audio/hero_power.wav",
   turnStart: "/audio/turn_start.wav",
+  packTear: "/audio/pack_tear.wav",
+  rareReveal: "/audio/rare_reveal.wav",
+  legendaryReveal: "/audio/legendary_reveal.wav",
 };
 
 /** All SFX file paths (for bulk preloading). */

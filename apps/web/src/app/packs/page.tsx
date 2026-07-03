@@ -33,6 +33,14 @@ function packMeta(packType: string) {
 const RARITY_RANK: Record<string, number> = { common: 0, rare: 1, epic: 2, legendary: 3 };
 
 type View = "inventory" | "reveal";
+/** pack: waiting for tap · tearing: shake+rip · dealing/cards: grid visible */
+type Stage = "pack" | "tearing" | "dealing" | "cards";
+type FlipState = "down" | "tease" | "up";
+
+const TEAR_MS = 700;
+const DEAL_STAGGER_MS = 110;
+const DEAL_IN_MS = 500;
+const TEASE_MS = 1100;
 
 export default function PacksPage() {
   const { token, hasUsername } = useAuthStore();
@@ -41,9 +49,10 @@ export default function PacksPage() {
 
   const [inventory, setInventory] = useState<PackEntry[]>([]);
   const [view, setView] = useState<View>("inventory");
+  const [stage, setStage] = useState<Stage>("pack");
   const [openType, setOpenType] = useState<string>("standard");
   const [cards, setCards] = useState<CardData[]>([]);
-  const [revealed, setRevealed] = useState<boolean[]>([]);
+  const [flips, setFlips] = useState<FlipState[]>([]);
   const [remaining, setRemaining] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -75,35 +84,67 @@ export default function PacksPage() {
   async function openPack(type: string) {
     if (busy) return;
     setBusy(true); setError("");
+    // Show the centered pack immediately; the API resolves while it flies in.
+    setOpenType(type);
+    setCards([]); setFlips([]);
+    setStage("pack");
+    setView("reveal");
     try {
       const res = await api.post<OpenResult>("/api/economy/packs/open", { packType: type });
-      setOpenType(type);
       setCards(res.cards);
-      setRevealed(res.cards.map(() => false));
+      setFlips(res.cards.map(() => "down"));
       setRemaining(res.remaining);
-      setView("reveal");
     } catch (e) {
       setError((e as Error).message);
+      setView("inventory");
     } finally {
       setBusy(false);
     }
   }
 
-  const flip = (i: number) => setRevealed((r) => {
-    if (r[i]) return r;
-    playSound("drawCard", 0.7);
-    if (RARITY_RANK[cards[i]?.rarity] >= 2) playSound("coin", 0.6);
-    return r.map((v, idx) => (idx === i ? true : v));
-  });
-  const revealAll = () => {
-    const anyHidden = revealed.some((v) => !v);
-    if (anyHidden) {
+  function tearPack() {
+    if (stage !== "pack" || cards.length === 0) return;
+    playSound("packTear", 0.9);
+    setStage("tearing");
+    setTimeout(() => {
+      setStage("dealing");
+      playSound("shuffle", 0.55);
+      setTimeout(() => setStage("cards"), cards.length * DEAL_STAGGER_MS + DEAL_IN_MS);
+    }, TEAR_MS);
+  }
+
+  function flip(i: number) {
+    if (flips[i] !== "down" || (stage !== "cards" && stage !== "dealing")) return;
+    const rank = RARITY_RANK[cards[i]?.rarity] ?? 0;
+    if (rank >= 1) {
+      // Rare+ teases: slow half-turn first, then snaps open with a sting.
+      playSound("coin", 0.45);
+      setFlips((f) => f.map((v, idx) => (idx === i ? "tease" : v)));
+      setTimeout(() => {
+        if (flipsRef.current[i] !== "tease") return;
+        playSound(rank >= 3 ? "legendaryReveal" : "rareReveal", 0.85);
+        setFlips((f) => f.map((v, idx) => (idx === i ? "up" : v)));
+      }, TEASE_MS);
+    } else {
       playSound("drawCard", 0.7);
-      if (cards.some((c) => RARITY_RANK[c.rarity] >= 2)) playSound("coin", 0.6);
+      setFlips((f) => f.map((v, idx) => (idx === i ? "up" : v)));
     }
-    setRevealed((r) => r.map(() => true));
-  };
-  const allRevealed = revealed.length > 0 && revealed.every(Boolean);
+  }
+  const flipRef = React.useRef(flip);
+  flipRef.current = flip;
+  const flipsRef = React.useRef(flips);
+  flipsRef.current = flips;
+
+  function revealAll() {
+    let delay = 0;
+    flips.forEach((f, i) => {
+      if (f !== "down") return;
+      setTimeout(() => flipRef.current(i), delay);
+      // Give rare+ cards room so their stings don't pile on top of each other.
+      delay += RARITY_RANK[cards[i]?.rarity] >= 1 ? 550 : 240;
+    });
+  }
+  const allRevealed = flips.length > 0 && flips.every((f) => f === "up");
   const bestRarity = cards.reduce((best, c) => (RARITY_RANK[c.rarity] > RARITY_RANK[best] ? c.rarity : best), "common");
 
   const meta = packMeta(openType);
@@ -112,8 +153,44 @@ export default function PacksPage() {
   // ── Reveal view ──────────────────────────────────────────────
   if (view === "reveal") {
     const headerColor = PACK_META[openType]?.color ?? "#e7c768";
+
+    // Stage 1-2: pack centered on screen, waiting for the tap / tearing open
+    if (stage === "pack" || stage === "tearing") {
+      return (
+        <div style={pageBg}>
+          <PackKeyframes />
+          <div style={{ display: "flex", alignItems: "center", padding: "16px 26px" }}>
+            <button onClick={() => { setView("inventory"); loadInventory(); }} style={backBtn}>‹ Packs</button>
+          </div>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 0 }}>
+            <div
+              data-sound-skip-click
+              onClick={tearPack}
+              style={{
+                cursor: cards.length > 0 && stage === "pack" ? "pointer" : "default",
+                animation: stage === "tearing"
+                  ? `packShake ${TEAR_MS}ms ease-in-out both`
+                  : "packEnter .55s cubic-bezier(.2,.9,.3,1.15) both",
+                filter: stage === "tearing" ? `drop-shadow(0 0 40px ${headerColor})` : undefined,
+                transition: "filter .3s ease",
+              }}
+            >
+              <PackBack packType={openType} />
+            </div>
+            <div style={{ font: `700 12px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "3px", color: stage === "tearing" ? headerColor : "#8a93a6", marginTop: 26, textTransform: "uppercase", animation: stage === "pack" ? "hintPulse 1.6s ease-in-out infinite" : undefined }}>
+              {stage === "tearing" ? "Tearing…" : cards.length > 0 ? "Tap the pack to tear it open" : "Opening…"}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Stage 3-4: cards dealt from the pack, then flipped
     return (
       <div style={pageBg}>
+        <PackKeyframes />
+        {/* burst flash left behind by the torn pack */}
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", background: `radial-gradient(45% 45% at 50% 45%, color-mix(in srgb,${headerColor} 45%,transparent), transparent 70%)`, animation: "burstFlash .7s ease-out both" }} />
         <div style={{ display: "flex", alignItems: "center", padding: "16px 26px" }}>
           <button onClick={() => { setView("inventory"); loadInventory(); }} style={backBtn}>‹ Packs</button>
         </div>
@@ -126,18 +203,20 @@ export default function PacksPage() {
             {allRevealed ? `${rarityLabel(bestRarity)} Pull!` : "Reveal your cards"}
           </div>
           <div style={{ font: `600 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6", marginTop: 6 }}>
-            {allRevealed ? `${cards.length} cards added to your collection` : `${revealed.filter(Boolean).length} of ${cards.length} revealed`}
+            {allRevealed ? `${cards.length} cards added to your collection` : `${flips.filter((f) => f === "up").length} of ${cards.length} revealed`}
           </div>
 
           <div style={{ display: "flex", gap: isMobile ? 10 : 16, flexWrap: "wrap", justifyContent: "center", margin: isMobile ? "20px 0 20px" : "30px 0 26px" }}>
             {cards.map((card, i) => (
-              <div key={i} data-sound-skip-click onClick={() => flip(i)} style={{ cursor: revealed[i] ? "default" : "pointer", transition: "transform .15s ease" }}>
-                {revealed[i] ? (
-                  <CardComponent card={card} size={isMobile ? "sm" : "md"} glowing={RARITY_RANK[card.rarity] >= 2} />
-                ) : (
-                  <CardBackFace mobile={isMobile} src={cardBack} />
-                )}
-              </div>
+              <FlipCard
+                key={i}
+                card={card}
+                state={flips[i] ?? "down"}
+                mobile={isMobile}
+                backSrc={cardBack}
+                dealDelayMs={i * DEAL_STAGGER_MS}
+                onClick={() => flip(i)}
+              />
             ))}
           </div>
 
@@ -220,16 +299,104 @@ function rarityLabel(r: string): string {
   return ({ common: "Solid", rare: "Rare", epic: "Epic", legendary: "Legendary" } as Record<string, string>)[r] ?? "Nice";
 }
 
-function CardBackFace({ mobile, src = CARD_BACK_DEFAULT }: { mobile?: boolean; src?: string }) {
+const TEASE_GLOW: Record<number, string> = {
+  1: "rgba(105,160,255,.75)",  // rare — blue
+  2: "rgba(190,110,255,.8)",   // epic — purple
+  3: "rgba(255,200,80,.9)",    // legendary — gold
+};
+
+function FlipCard({ card, state, mobile, backSrc, dealDelayMs, onClick }: {
+  card: CardData;
+  state: FlipState;
+  mobile?: boolean;
+  backSrc: string;
+  dealDelayMs: number;
+  onClick: () => void;
+}) {
   // Must match the revealed CardComponent size exactly: sm (130×190) on mobile, md (195×285) otherwise.
   const w = mobile ? 130 : 195, h = mobile ? 190 : 285;
+  const rank = RARITY_RANK[card.rarity] ?? 0;
+  const tease = state === "tease";
+  const up = state === "up";
+  // Tease creeps to 78° (still showing the back edge-on), then snaps through to 180°.
+  const rot = up ? 180 : tease ? 78 : 0;
+  const glow = TEASE_GLOW[rank] ?? TEASE_GLOW[1];
+
   return (
-    <img
-      src={src}
-      alt=""
-      draggable={false}
-      style={{ width: w, height: h, borderRadius: CARD_BACK_RADIUS, objectFit: "cover", boxShadow: "0 10px 26px rgba(0,0,0,.5)" }}
-    />
+    <div
+      data-sound-skip-click
+      onClick={onClick}
+      style={{
+        width: w, height: h, position: "relative", perspective: 1000,
+        cursor: up ? "default" : "pointer",
+        animation: `dealIn ${DEAL_IN_MS}ms cubic-bezier(.2,.85,.3,1.08) ${dealDelayMs}ms both`,
+      }}
+    >
+      {tease && (
+        <div style={{ position: "absolute", inset: -22, borderRadius: 20, pointerEvents: "none", background: `radial-gradient(50% 50% at 50% 50%, ${glow}, transparent 70%)`, animation: `teaseGlow ${TEASE_MS}ms ease-in both` }} />
+      )}
+      <div
+        style={{
+          position: "absolute", inset: 0, transformStyle: "preserve-3d",
+          transform: `rotateY(${rot}deg)`,
+          transition: up
+            ? "transform .5s cubic-bezier(.45,.05,.3,1.15)"
+            : tease
+              ? `transform ${TEASE_MS}ms cubic-bezier(.25,.5,.35,1)`
+              : "none",
+        }}
+      >
+        <div style={{ position: "absolute", inset: 0, backfaceVisibility: "hidden" }}>
+          <img
+            src={backSrc}
+            alt=""
+            draggable={false}
+            style={{ width: w, height: h, borderRadius: CARD_BACK_RADIUS, objectFit: "cover", boxShadow: "0 10px 26px rgba(0,0,0,.5)" }}
+          />
+        </div>
+        <div style={{ position: "absolute", inset: 0, backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}>
+          <CardComponent card={card} size={mobile ? "sm" : "md"} glowing={rank >= 2} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PackKeyframes() {
+  return (
+    <style>{`
+      @keyframes packEnter {
+        from { transform: translateY(55vh) scale(.45) rotate(-4deg); opacity: 0; }
+        to   { transform: none; opacity: 1; }
+      }
+      @keyframes packShake {
+        0%, 100% { transform: rotate(0) scale(1); }
+        12% { transform: rotate(-7deg) scale(1.03); }
+        24% { transform: rotate(6deg) scale(1.05); }
+        36% { transform: rotate(-8deg) scale(1.06); }
+        48% { transform: rotate(7deg) scale(1.08); }
+        60% { transform: rotate(-6deg) scale(1.1); }
+        72% { transform: rotate(5deg) scale(1.12); }
+        86% { transform: rotate(-3deg) scale(1.16); }
+      }
+      @keyframes burstFlash {
+        from { opacity: 1; }
+        to   { opacity: 0; }
+      }
+      @keyframes dealIn {
+        from { transform: translateY(-24vh) scale(.35) rotate(-5deg); opacity: 0; }
+        55%  { opacity: 1; }
+        to   { transform: none; opacity: 1; }
+      }
+      @keyframes teaseGlow {
+        from { opacity: 0; transform: scale(.85); }
+        to   { opacity: 1; transform: scale(1.06); }
+      }
+      @keyframes hintPulse {
+        0%, 100% { opacity: .55; }
+        50% { opacity: 1; }
+      }
+    `}</style>
   );
 }
 

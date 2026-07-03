@@ -321,6 +321,54 @@ def s_denied():
     return norm(fade(saw * 0.8, 0.003, 0.06), 0.6)
 
 
+def s_pack_tear():
+    # foil/paper rip: noise sweeping upward with jittery rip texture + crinkles
+    dur = 0.55
+    buf = np.zeros(int(SR * dur))
+    r = np.random.default_rng(303)
+    n = int(SR * 0.42)
+    t = T(0.42)
+    x = r.standard_normal(n)
+    sweep = np.geomspace(900, 6500, n)
+    y = hp(lp(x, sweep), 400)
+    jitter = np.abs(lp(r.standard_normal(n), 45))
+    jitter = 0.45 + 0.55 * jitter / (np.max(jitter) + 1e-9)
+    env = np.clip(t / 0.008, 0, 1) * np.exp(-np.maximum(t - 0.30, 0) / 0.06)
+    place(buf, y * env * jitter, 0.0)
+    for k in range(10):
+        st = 0.02 + k * 0.035 + r.random() * 0.02
+        place(buf, crack(0.02, 2500 + r.random() * 4000, seed=400 + k) * 0.5, st)
+    return norm(fade(buf, 0.002, 0.06), 0.85)
+
+
+def s_rare_reveal():
+    # bright rising sparkle sting
+    dur = 1.15
+    buf = np.zeros(int(SR * dur))
+    for i, nm in enumerate(["A4", "C5", "E5", "A5"]):
+        place(buf, bell(N[nm], 0.7, decay=0.35, bright=1.1) * (0.8 - i * 0.06), i * 0.075)
+    place(buf, bell(N["C6"], 0.8, decay=0.4, bright=1.2) * 0.4, 0.32)
+    place(buf, bell(N["E6"], 0.7, decay=0.32, bright=1.2) * 0.25, 0.40)
+    return norm(fade(reverb(buf, 0.3, 0.6, 0.2), 0.003, 0.15), 0.85)
+
+
+def s_legendary_reveal():
+    # deep boom + riser + massive triumphant chord with high shimmer
+    dur = 1.8
+    buf = np.zeros(int(SR * dur))
+    place(buf, thump(110, 40, 0.6, 0.2), 0.0)
+    nr = int(SR * 0.55)
+    tr = T(0.55)
+    r = np.random.default_rng(909)
+    ris = hp(lp(r.standard_normal(nr), np.geomspace(600, 8000, nr)), 300) * (tr / 0.55) ** 2
+    place(buf, ris * 0.45, 0.0)
+    for nm, a in [("C4", 0.9), ("G4", 0.8), ("C5", 0.75), ("E5", 0.6), ("G5", 0.5)]:
+        place(buf, bell(N[nm], 1.1, decay=0.6, bright=0.9) * a, 0.55)
+    place(buf, bell(N["C6"], 0.9, decay=0.45, bright=1.2) * 0.4, 0.62)
+    place(buf, bell(N["G6"], 0.8, decay=0.4, bright=1.3) * 0.3, 0.70)
+    return norm(fade(reverb(buf, 0.32, 0.8, 0.25), 0.004, 0.25), 0.92)
+
+
 def s_win():
     dur = 1.7
     buf = np.zeros(int(SR * dur))
@@ -364,6 +412,9 @@ SOUNDS = {
     "turn_start": s_turn_start,
     "no_mana": s_no_mana,
     "denied": s_denied,
+    "pack_tear": s_pack_tear,
+    "rare_reveal": s_rare_reveal,
+    "legendary_reveal": s_legendary_reveal,
     "win": s_win,
     "lose": s_lose,
 }
