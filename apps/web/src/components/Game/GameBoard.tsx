@@ -15,6 +15,7 @@ import BoardBackground from "./BoardBackground";
 import { CARD_BACK_DEFAULT, CARD_BACK_RADIUS, cardBackImage } from "@/lib/cardBacks";
 import GameIcon from "@/components/UI/GameIcon";
 import { playSound } from "@/lib/sounds";
+import { burstAtClient, burstAtElement, shockwaveAtClient, entityElement, centerOf, type BurstKind } from "./fx";
 import { api } from "@/lib/api";
 import { useIsMobile } from "@/hooks/useViewport";
 import MusicSettings from "@/components/Music/MusicSettings";
@@ -33,8 +34,18 @@ function attackTargetsFor(opponentState: { board: (MinionSlot | null)[]; playerI
 }
 
 interface Toast { id: string; text: string; color: string; }
-interface DamageFloat { id: string; entityKey: string; amount: number; isHeal: boolean; }
+interface DamageFloat { id: string; entityKey: string; amount: number; isHeal: boolean; text?: string; color?: string; }
 interface LogEntry { id: string; text: string; turn: number; }
+
+/** Pre-state snapshot used to pick FX (armor sparks, shield pops, death spots). */
+interface FxSnapshot {
+  armor: Record<string, number>;
+  shields: Set<string>;
+  rects: Map<string, { x: number; y: number }>;
+  atk: Map<string, number>;
+  boardIds: Set<string>;
+  init: boolean;
+}
 
 export default function GameBoard() {
   const { gameState, isMyTurn, selectedCardInstanceId, selectedAttackerId, lastActionError, playerId, pendingAnimations, matchReward, rankUpdate, opponentDisconnected } = useGameStore();
@@ -80,9 +91,14 @@ export default function GameBoard() {
   const [showSettings, setShowSettings] = useState(false);
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   // Combat animations
-  const [lungeId, setLungeId] = useState<string | null>(null);
   const [damageFlashIds, setDamageFlashIds] = useState<Set<string>>(new Set());
   const [damageFloats, setDamageFloats] = useState<DamageFloat[]>([]);
+  // Attack move: attacker physically travels to its target and back
+  const [attackMove, setAttackMove] = useState<{ entityId: string; dx: number; dy: number; returning: boolean } | null>(null);
+  const attackMoveSeq = useRef(0);
+  const [buffPulseIds, setBuffPulseIds] = useState<Set<string>>(new Set());
+  const fxLayerRef = useRef<HTMLDivElement | null>(null);
+  const fxSnapshotRef = useRef<FxSnapshot>({ armor: {}, shields: new Set(), rects: new Map(), atk: new Map(), boardIds: new Set(), init: false });
   const [boardBg, setBoardBg] = useState<string>(getDefaultBoardBackground);
   // Draw animation
   const [newCardIds, setNewCardIds] = useState<string[]>([]);
@@ -149,8 +165,6 @@ export default function GameBoard() {
       const valid = attackTargetsFor(opp);
       if (targetId && valid.includes(targetId)) {
         sendAction({ type: "attack", attackerInstanceId: drag.attackerId, defenderInstanceId: targetId });
-        setLungeId(drag.attackerId);
-        setTimeout(() => setLungeId(null), 520);
         selectAttacker(null);
         setPhase("idle");
       } else if (!moved) {
@@ -258,10 +272,83 @@ export default function GameBoard() {
     prevHandIds.current = currentIds;
   }, [gameState?.myState.hand]);
 
-  const addFloat = useCallback((entityKey: string, amount: number, isHeal: boolean) => {
+  const addFloat = useCallback((entityKey: string, amount: number, isHeal: boolean, extra?: { text?: string; color?: string }) => {
     const id = `${Date.now()}-${Math.random()}`;
-    setDamageFloats((prev) => [...prev, { id, entityKey, amount, isHeal }]);
+    setDamageFloats((prev) => [...prev, { id, entityKey, amount, isHeal, text: extra?.text, color: extra?.color }]);
     setTimeout(() => setDamageFloats((prev) => prev.filter((f) => f.id !== id)), 900);
+  }, []);
+
+  const triggerBuffPulse = useCallback((instanceId: string) => {
+    setBuffPulseIds((prev) => new Set(prev).add(instanceId));
+    setTimeout(() => setBuffPulseIds((prev) => {
+      const next = new Set(prev);
+      next.delete(instanceId);
+      return next;
+    }), 750);
+  }, []);
+
+  /**
+   * Full attack sequence: attacker element travels to the defender, impact
+   * particles fly (grey sparks when armor/shield absorbed, red otherwise),
+   * then the attacker returns. Falls back to particles-only when the
+   * attacker has already left the board.
+   */
+  const runAttackFx = useCallback((data: { attackerId?: string; defenderId?: string; attackerDamage?: number; defenderDamage?: number; damage?: number }, delayMs: number) => {
+    const { attackerId, defenderId } = data;
+    if (!attackerId || !defenderId) return;
+    setTimeout(() => {
+      const layer = fxLayerRef.current;
+      if (!layer) return;
+      const snap = fxSnapshotRef.current;
+
+      // Pick the defender's impact particles from the pre-attack snapshot:
+      // armored hero / divine-shield minion → grey-metallic, otherwise red.
+      let kind: BurstKind = "blood";
+      if (defenderId.startsWith("hero_")) {
+        if ((snap.armor[defenderId.slice(5)] ?? 0) > 0) kind = "spark";
+      } else if (snap.shields.has(defenderId)) {
+        kind = "shield";
+      }
+      const defDmg = data.defenderDamage ?? data.damage ?? 0;
+      const atkDmg = data.attackerDamage ?? 0;
+      const intensity = Math.min(1.6, 0.8 + defDmg * 0.08);
+      const ringColor = kind === "blood" ? "rgba(255,80,60,.65)" : "rgba(235,242,255,.75)";
+
+      const attackerEl = entityElement(attackerId);
+      const defenderEl = entityElement(defenderId);
+      const defPos = defenderEl ? centerOf(defenderEl) : snap.rects.get(defenderId);
+      if (!defPos) return;
+
+      const impact = (atkPos?: { x: number; y: number }) => {
+        playSound("attack", 0.75);
+        burstAtClient(layer, defPos.x, defPos.y, kind, intensity);
+        shockwaveAtClient(layer, defPos.x, defPos.y, ringColor);
+        // Retaliation damage sprays at the attacker's (moved) position
+        if (atkDmg > 0 && atkPos) burstAtClient(layer, atkPos.x, atkPos.y, "blood", 0.7);
+      };
+
+      if (!attackerEl) {
+        impact();
+        return;
+      }
+
+      // Travel most of the way to the target (local/unscaled coords for the transform)
+      const rect = layer.getBoundingClientRect();
+      const scale = layer.offsetWidth > 0 ? rect.width / layer.offsetWidth : 1;
+      const a = centerOf(attackerEl);
+      const dx = ((defPos.x - a.x) * 0.86) / scale;
+      const dy = ((defPos.y - a.y) * 0.86) / scale;
+      const moveId = ++attackMoveSeq.current;
+      setAttackMove({ entityId: attackerId, dx, dy, returning: false });
+
+      setTimeout(() => {
+        impact({ x: a.x + (defPos.x - a.x) * 0.86, y: a.y + (defPos.y - a.y) * 0.86 });
+        if (attackMoveSeq.current === moveId) setAttackMove({ entityId: attackerId, dx, dy, returning: true });
+        setTimeout(() => {
+          if (attackMoveSeq.current === moveId) setAttackMove(null);
+        }, 380);
+      }, 270);
+    }, delayMs);
   }, []);
 
   const addLog = useCallback((text: string, turn: number) => {
@@ -292,6 +379,8 @@ export default function GameBoard() {
           playSound(side === "my" ? "takingDamage" : "dealDamage", 0.75);
         } else if (delta < 0) {
           addFloat(`${side}_slot_${idx}`, Math.abs(delta), true);
+          const el = entityElement(slot.instanceId);
+          if (fxLayerRef.current && el) burstAtElement(fxLayerRef.current, el, "heal");
         }
       }
       prevMinionHp.current[slot.instanceId] = slot.currentHealth;
@@ -307,12 +396,20 @@ export default function GameBoard() {
       addFloat("my_hero", prevMyHp - myHp, false);
       addLog(`${gameState.myState.heroName} took ${prevMyHp - myHp} damage`, gameState.turnNumber);
       playSound("takingDamage", 0.75);
+    } else if (prevMyHp !== undefined && myHp > prevMyHp) {
+      addFloat("my_hero", myHp - prevMyHp, true);
+      const el = entityElement("hero_" + gameState.myState.playerId);
+      if (fxLayerRef.current && el) burstAtElement(fxLayerRef.current, el, "heal");
     }
     if (prevOppHp !== undefined && oppHp < prevOppHp) {
       flashIds.push("hero_opp");
       addFloat("opp_hero", prevOppHp - oppHp, false);
       addLog(`${gameState.opponentState.heroName} took ${prevOppHp - oppHp} damage`, gameState.turnNumber);
       playSound("dealDamage", 0.75);
+    } else if (prevOppHp !== undefined && oppHp > prevOppHp) {
+      addFloat("opp_hero", oppHp - prevOppHp, true);
+      const el = entityElement("hero_" + gameState.opponentState.playerId);
+      if (fxLayerRef.current && el) burstAtElement(fxLayerRef.current, el, "heal");
     }
     prevHeroHp.current["my"] = myHp;
     prevHeroHp.current["opp"] = oppHp;
@@ -332,6 +429,7 @@ export default function GameBoard() {
 
   useEffect(() => {
     if (!pendingAnimations?.length) return;
+    let attackIdx = 0;
     for (const anim of pendingAnimations) {
       if (anim.type === "draw") {
         const d = anim.data as { overdraw?: boolean; fatigue?: number; playerId?: string; memeBonus?: string };
@@ -351,6 +449,18 @@ export default function GameBoard() {
           if (d.playerId === playerId) { addToast("🎲 Meme Bonus: free Hero Power!", "#ff5fae"); addLog("Meme bonus: free hero power this turn", gameState?.turnNumber ?? 0); }
           else addLog("Opponent's Meme bonus: free hero power", gameState?.turnNumber ?? 0);
         }
+        // Spell impact particles on the struck target
+        const spell = anim.data as { targetId?: string; damage?: number };
+        if (spell.targetId && (spell.damage ?? 0) > 0 && fxLayerRef.current) {
+          const el = entityElement(spell.targetId);
+          if (el) {
+            const snap = fxSnapshotRef.current;
+            const armored = spell.targetId.startsWith("hero_")
+              ? (snap.armor[spell.targetId.slice(5)] ?? 0) > 0
+              : snap.shields.has(spell.targetId);
+            burstAtElement(fxLayerRef.current, el, armored ? "spark" : "blood", Math.min(1.5, 0.8 + (spell.damage ?? 0) * 0.08));
+          }
+        }
         // Show the spell card on the table briefly before it heads to the burn pile.
         if (d.card && d.cardId !== "coin") {
           const mine = d.playerId === playerId;
@@ -361,18 +471,18 @@ export default function GameBoard() {
           setTimeout(() => setSpellCast((s) => (s && s.id === id ? null : s)), 1600);
         }
       } else if (anim.type === "attack") {
-        const d = anim.data as { attackerId?: string };
-        playSound("attack", 0.7);
-        if (d.attackerId && !d.attackerId.startsWith("hero_")) {
-          const isMyMinion = gameState?.myState.board.some((s) => s?.instanceId === d.attackerId);
-          if (!isMyMinion) {
-            setLungeId(d.attackerId);
-            setTimeout(() => setLungeId(null), 520);
-          }
-        }
+        const d = anim.data as { attackerId?: string; defenderId?: string; attackerDamage?: number; defenderDamage?: number; damage?: number };
+        // Stagger so multi-attack batches (AI turns) play out one at a time
+        runAttackFx(d, attackIdx * 620);
+        attackIdx++;
       } else if (anim.type === "death") {
-        const d = anim.data as { cardId?: string };
+        const d = anim.data as { cardId?: string; instanceId?: string };
         playSound("destroy", 0.8);
+        const spot = d.instanceId ? fxSnapshotRef.current.rects.get(d.instanceId) : undefined;
+        if (fxLayerRef.current && spot) {
+          burstAtClient(fxLayerRef.current, spot.x, spot.y, "death", 1.2);
+          shockwaveAtClient(fxLayerRef.current, spot.x, spot.y, "rgba(130,130,150,.5)", 44);
+        }
         addToast("💀 Minion destroyed", "#ff8888");
         addLog(`Minion destroyed (${d.cardId ?? "?"})`, gameState?.turnNumber ?? 0);
       } else if (anim.type === "heal") {
@@ -412,7 +522,69 @@ export default function GameBoard() {
       }
     }
     clearAnimations();
-  }, [pendingAnimations, playerId, addToast, addLog, clearAnimations, gameState?.turnNumber]);
+  }, [pendingAnimations, playerId, addToast, addLog, clearAnimations, gameState?.turnNumber, runAttackFx]);
+
+  // FX snapshot + state-diff visuals. Runs AFTER the animation effect so the
+  // handlers above still see the pre-update snapshot (armor, shields, board
+  // positions). Also detects attack buffs, armor gains and fresh summons.
+  useEffect(() => {
+    if (!gameState) return;
+    const snap = fxSnapshotRef.current;
+    const layer = fxLayerRef.current;
+    const sides = [
+      { st: gameState.myState as { playerId: string; armor: number; board: (MinionSlot | null)[] }, prefix: "my" },
+      { st: gameState.opponentState as { playerId: string; armor: number; board: (MinionSlot | null)[] }, prefix: "opp" },
+    ];
+
+    if (snap.init && layer) {
+      for (const { st, prefix } of sides) {
+        st.board.forEach((slot, idx) => {
+          if (!slot) return;
+          const atkNow = (slot.currentAttack ?? 0) + (slot.tempAttackBoost ?? 0);
+          const el = entityElement(slot.instanceId);
+          if (!snap.boardIds.has(slot.instanceId)) {
+            // Fresh summon — dust poof
+            if (el) burstAtElement(layer, el, "summon");
+            return;
+          }
+          const prevAtk = snap.atk.get(slot.instanceId);
+          if (prevAtk !== undefined && atkNow > prevAtk) {
+            // Pumped! Gold glitter + pulse + "+X ATK" floater
+            if (el) burstAtElement(layer, el, "buff");
+            addFloat(`${prefix}_slot_${idx}`, atkNow - prevAtk, true, { text: `+${atkNow - prevAtk} ATK`, color: "#ffd75e" });
+            triggerBuffPulse(slot.instanceId);
+          }
+        });
+        const prevArmor = snap.armor[st.playerId] ?? 0;
+        if (st.armor > prevArmor) {
+          const el = entityElement("hero_" + st.playerId);
+          if (el) burstAtElement(layer, el, "armor");
+          addFloat(`${prefix}_hero`, st.armor - prevArmor, true, { text: `+${st.armor - prevArmor} armor`, color: "#b9c6da" });
+        }
+      }
+    }
+
+    // Rebuild the snapshot from the new state
+    const armor: Record<string, number> = {};
+    const shields = new Set<string>();
+    const atk = new Map<string, number>();
+    const boardIds = new Set<string>();
+    const rects = new Map<string, { x: number; y: number }>();
+    for (const { st } of sides) {
+      armor[st.playerId] = st.armor;
+      for (const slot of st.board) {
+        if (!slot) continue;
+        boardIds.add(slot.instanceId);
+        if (slot.hasDivineShield) shields.add(slot.instanceId);
+        atk.set(slot.instanceId, (slot.currentAttack ?? 0) + (slot.tempAttackBoost ?? 0));
+        const el = entityElement(slot.instanceId);
+        if (el) rects.set(slot.instanceId, centerOf(el));
+      }
+      const hel = entityElement("hero_" + st.playerId);
+      if (hel) rects.set("hero_" + st.playerId, centerOf(hel));
+    }
+    fxSnapshotRef.current = { armor, shields, rects, atk, boardIds, init: true };
+  }, [gameState, addFloat, triggerBuffPulse]);
 
   useEffect(() => {
     if (gameState?.status !== "finished") {
@@ -556,8 +728,6 @@ export default function GameBoard() {
 
   function doAttack(attacker: string, defender: string) {
     sendAction({ type: "attack", attackerInstanceId: attacker, defenderInstanceId: defender });
-    setLungeId(attacker);
-    setTimeout(() => setLungeId(null), 520);
     selectAttacker(null); setPhase("idle");
     attackDragRef.current = null;
     setAttackDrag(null);
@@ -654,6 +824,22 @@ export default function GameBoard() {
   const myFloats = damageFloats.filter((f) => f.entityKey.startsWith("my_"));
   const oppFloats = damageFloats.filter((f) => f.entityKey.startsWith("opp_"));
 
+  /** Transform applied to an entity's wrapper while it performs an attack move. */
+  const moveStyle = (entityId: string | undefined): React.CSSProperties => {
+    if (!entityId) return {};
+    if (attackMove?.entityId === entityId) {
+      return {
+        transform: attackMove.returning ? "translate(0,0) scale(1)" : `translate(${attackMove.dx}px,${attackMove.dy}px) scale(1.12)`,
+        transition: attackMove.returning ? "transform .36s cubic-bezier(.25,.6,.35,1)" : "transform .27s cubic-bezier(.5,.05,.7,.9)",
+        zIndex: 60,
+      };
+    }
+    if (buffPulseIds.has(entityId)) {
+      return { animation: "fxBuffPulse .7s ease" };
+    }
+    return {};
+  };
+
   return (
     <div style={{ position: "relative", width: "100%", height: "100%", display: "flex", flexDirection: "column", overflow: "hidden", fontFamily: "var(--font-archivo,'Archivo',sans-serif)" }}>
       <BoardBackground url={boardBg} />
@@ -665,7 +851,7 @@ export default function GameBoard() {
 
         {/* Opponent left: hero */}
         <div style={{ width: 130, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", padding: "8px 4px 4px", gap: 8, flexShrink: 0 }}>
-          <div style={{ position: "relative" }}>
+          <div data-entity-id={"hero_" + opponentState.playerId} style={{ position: "relative", ...moveStyle("hero_" + opponentState.playerId) }}>
             <HeroZone
               heroName={opponentState.heroName} playerName={opponentState.playerName} faction={opponentState.heroFaction} heroId={opponentState.heroId}
               hp={opponentState.hp} armor={opponentState.armor} isEnemy
@@ -730,11 +916,10 @@ export default function GameBoard() {
               return (
                 <BoardSlot key={i} highlighted={isValidTarget} dimmed={(phase === "select_attack_target" || phase === "select_play_target" || phase === "select_hero_power_target" || !!attackDrag) && !isValidTarget && !!slot}
                   onClick={!slot && phase !== "idle" ? cancelTargeting : undefined}>
-                  <div style={{ position: "relative" }}>
+                  <div data-entity-id={slot?.instanceId} style={{ position: "relative", ...moveStyle(slot?.instanceId) }}>
                     {slot && (
                       <MinionCard slot={slot} isEnemy isValidTarget={isValidTarget}
                         attackTargetId={isValidTarget ? slot.instanceId : undefined}
-                        isLunging={lungeId === slot.instanceId}
                         isDamageFlash={damageFlashIds.has(slot.instanceId)}
                         onClick={() => handleMinionClick(slot.instanceId, true)}
                         onHover={(h) => setZoomedCard(h ? slotToCardData(slot) : null)}
@@ -809,7 +994,7 @@ export default function GameBoard() {
 
         {/* Player left: Hero */}
         <div style={{ width: 130, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "4px 4px 8px", gap: 8, flexShrink: 0 }}>
-          <div style={{ position: "relative" }}>
+          <div data-entity-id={"hero_" + playerId} style={{ position: "relative", ...moveStyle("hero_" + playerId) }}>
             <HeroZone
               heroName={myState.heroName} playerName={myState.playerName} faction={myState.heroFaction} heroId={myState.heroId}
               hp={myState.hp} armor={myState.armor}
@@ -890,13 +1075,12 @@ export default function GameBoard() {
                   dimmed={((phase === "select_play_target" || phase === "select_hero_power_target") && !!slot && !isPlayTarget && !isHpTarget)}
                   onClick={!slot && phase !== "idle" ? cancelTargeting : undefined}
                 >
-                  <div style={{ position: "relative" }}>
+                  <div data-entity-id={slot?.instanceId} style={{ position: "relative", ...moveStyle(slot?.instanceId) }}>
                     {slot && (
                       <MinionCard
                         slot={slot}
                         frameTier={frameTiers.get(slot.card.id)}
                         isSelected={isAttacking} isAttacking={isAttacking || attackDrag?.attackerId === slot.instanceId} isValidTarget={isPlayTarget || isHpTarget}
-                        isLunging={lungeId === slot.instanceId}
                         isDamageFlash={damageFlashIds.has(slot.instanceId)}
                         onAttackPointerDown={(e) => beginAttackDrag(slot.instanceId, e)}
                         onClick={() => handleMinionClick(slot.instanceId, false)}
