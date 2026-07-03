@@ -863,7 +863,7 @@ export default function GameBoard() {
             />
             {/* Hero damage floaters */}
             {oppFloats.filter((f) => f.entityKey === "opp_hero").map((f) => (
-              <FloatNumber key={f.id} amount={f.amount} isHeal={f.isHeal} />
+              <FloatNumber key={f.id} amount={f.amount} isHeal={f.isHeal} text={f.text} color={f.color} />
             ))}
           </div>
           {(opponentState.locations ?? []).map((slot, li) => {
@@ -927,7 +927,7 @@ export default function GameBoard() {
                     )}
                     {/* Slot damage floaters */}
                     {oppFloats.filter((f) => f.entityKey === `opp_slot_${i}`).map((f) => (
-                      <FloatNumber key={f.id} amount={f.amount} isHeal={f.isHeal} />
+                      <FloatNumber key={f.id} amount={f.amount} isHeal={f.isHeal} text={f.text} color={f.color} />
                     ))}
                   </div>
                 </BoardSlot>
@@ -1009,7 +1009,7 @@ export default function GameBoard() {
             />
             {/* Hero damage floaters */}
             {myFloats.filter((f) => f.entityKey === "my_hero").map((f) => (
-              <FloatNumber key={f.id} amount={f.amount} isHeal={f.isHeal} />
+              <FloatNumber key={f.id} amount={f.amount} isHeal={f.isHeal} text={f.text} color={f.color} />
             ))}
           </div>
           {myState.hasWeapon && (
@@ -1088,7 +1088,7 @@ export default function GameBoard() {
                       />
                     )}
                     {myFloats.filter((f) => f.entityKey === `my_slot_${i}`).map((f) => (
-                      <FloatNumber key={f.id} amount={f.amount} isHeal={f.isHeal} />
+                      <FloatNumber key={f.id} amount={f.amount} isHeal={f.isHeal} text={f.text} color={f.color} />
                     ))}
                   </div>
                 </BoardSlot>
@@ -1421,25 +1421,30 @@ export default function GameBoard() {
         @keyframes floatUp { 0%{opacity:0;transform:translateY(0) scale(0.8);}15%{opacity:1;transform:translateY(-4px) scale(1.1);}80%{opacity:1;transform:translateY(-26px) scale(1);}100%{opacity:0;transform:translateY(-34px) scale(0.9);} }
         @keyframes shuffleToDeck { 0%{opacity:0;transform:translate(-50%,44px) scale(.8) rotate(-8deg);}20%{opacity:1;}70%{opacity:1;transform:translate(-50%,-40px) scale(1) rotate(6deg);}100%{opacity:0;transform:translate(-50%,-58px) scale(.7) rotate(0deg);} }
         @keyframes spellCastPop { 0%{opacity:0;transform:translate(-50%,-50%) scale(.5) rotate(-6deg);}12%{opacity:1;transform:translate(-50%,-50%) scale(1.06) rotate(0deg);}20%{transform:translate(-50%,-50%) scale(1) rotate(0deg);}75%{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(0deg);}100%{opacity:0;transform:translate(-50%,-18%) scale(.72) rotate(3deg);} }
+        @keyframes fxBuffPulse { 0%,100%{transform:scale(1);filter:none;}35%{transform:scale(1.14);filter:brightness(1.6) drop-shadow(0 0 14px rgba(255,215,94,.9));}70%{transform:scale(1.05);filter:brightness(1.25) drop-shadow(0 0 8px rgba(255,215,94,.6));} }
       `}</style>
+
+      {/* Particle / FX overlay — always on top, never intercepts input */}
+      <div ref={fxLayerRef} style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 90, overflow: "hidden" }} />
     </div>
   );
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────
 
-function FloatNumber({ amount, isHeal }: { amount: number; isHeal: boolean }) {
+function FloatNumber({ amount, isHeal, text, color }: { amount: number; isHeal: boolean; text?: string; color?: string }) {
+  const col = color ?? (isHeal ? "#55ee88" : "#ff4444");
   return (
     <div style={{
       position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)",
       zIndex: 30, pointerEvents: "none",
-      font: `900 18px var(--font-cinzel,'Cinzel',serif)`,
-      color: isHeal ? "#55ee88" : "#ff4444",
-      textShadow: `0 0 8px ${isHeal ? "#00ff88" : "#ff0000"}`,
+      font: `900 ${text ? 14 : 18}px var(--font-cinzel,'Cinzel',serif)`,
+      color: col,
+      textShadow: `0 0 8px ${col}`,
       animation: "floatUp 0.85s ease-out forwards",
       whiteSpace: "nowrap",
     }}>
-      {isHeal ? "+" : "−"}{amount}
+      {text ?? `${isHeal ? "+" : "−"}${amount}`}
     </div>
   );
 }
