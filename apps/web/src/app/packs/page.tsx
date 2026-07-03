@@ -6,7 +6,7 @@ import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import AuthModal from "@/components/Auth/AuthModal";
 import BottomNav from "@/components/Dashboard/BottomNav";
-import { CARD_BACK_DEFAULT, CARD_BACK_RADIUS } from "@/lib/cardBacks";
+import { CARD_BACK_DEFAULT, CARD_BACK_RADIUS, cardBackImage } from "@/lib/cardBacks";
 import { packArtUrl } from "@/lib/packArt";
 import CardComponent, { type CardData } from "@/components/Card/CardComponent";
 import SellModal from "@/components/Market/SellModal";
@@ -47,12 +47,20 @@ export default function PacksPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [sellPack, setSellPack] = useState<string | null>(null);
+  const [cardBack, setCardBack] = useState<string>(CARD_BACK_DEFAULT);
 
   const loadInventory = useCallback(() => {
     api.get<PackEntry[]>("/api/economy/packs/inventory").then(setInventory).catch(() => {});
   }, []);
 
   useEffect(() => { if (token) loadInventory(); }, [token, loadInventory]);
+
+  useEffect(() => {
+    if (!token) return;
+    api.get<{ equippedCardBack?: string | null }>("/api/economy/profile")
+      .then((p) => setCardBack(cardBackImage(p.equippedCardBack)))
+      .catch(() => {});
+  }, [token]);
 
   useEffect(() => {
     if (view !== "reveal" || !musicManager.isUnlocked()) return;
@@ -114,7 +122,7 @@ export default function PacksPage() {
                 {revealed[i] ? (
                   <CardComponent card={card} size={isMobile ? "sm" : "md"} glowing={RARITY_RANK[card.rarity] >= 2} />
                 ) : (
-                  <CardBackFace mobile={isMobile} />
+                  <CardBackFace mobile={isMobile} src={cardBack} />
                 )}
               </div>
             ))}
@@ -199,12 +207,12 @@ function rarityLabel(r: string): string {
   return ({ common: "Solid", rare: "Rare", epic: "Epic", legendary: "Legendary" } as Record<string, string>)[r] ?? "Nice";
 }
 
-function CardBackFace({ mobile }: { mobile?: boolean }) {
+function CardBackFace({ mobile, src = CARD_BACK_DEFAULT }: { mobile?: boolean; src?: string }) {
   // Must match the revealed CardComponent size exactly: sm (130×190) on mobile, md (195×285) otherwise.
   const w = mobile ? 130 : 195, h = mobile ? 190 : 285;
   return (
     <img
-      src={CARD_BACK_DEFAULT}
+      src={src}
       alt=""
       draggable={false}
       style={{ width: w, height: h, borderRadius: CARD_BACK_RADIUS, objectFit: "cover", boxShadow: "0 10px 26px rgba(0,0,0,.5)" }}

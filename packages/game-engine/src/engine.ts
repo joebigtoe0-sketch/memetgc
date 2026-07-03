@@ -1065,6 +1065,8 @@ export function sanitizeState(state: GameState, playerId: string): SanitizedGame
     burnPile: opponentState.burnPile,
     secretCount: opponentState.secrets.length,
     factionBonusActive: opponentState.factionBonusActive,
+    // Overridden by the server (room.buildSanitizedState) with the opponent's equipped back.
+    cardBack: null,
   };
 
   return {

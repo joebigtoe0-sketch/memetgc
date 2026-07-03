@@ -15,6 +15,8 @@ export interface PlayerInfo {
   heroPower: PlayerState["heroPower"];
   deck: Card[];
   isAI: boolean;
+  /** Equipped card back id (null = default). Shown to the opponent in-game. */
+  cardBack?: string | null;
 }
 
 export interface GameRoom {
@@ -293,9 +295,13 @@ function clearTurnTimer(room: GameRoom): void {
 }
 
 function buildSanitizedState(room: GameRoom, playerId: string) {
+  const sanitized = sanitizeState(room.state, playerId);
+  const opponentId = Object.keys(room.players).find((id) => id !== playerId);
+  const opponentBack = opponentId ? room.players[opponentId]?.cardBack ?? null : null;
   return {
-    ...sanitizeState(room.state, playerId),
+    ...sanitized,
     turnTimerEndsAt: room.turnTimerEndsAt,
+    opponentState: { ...sanitized.opponentState, cardBack: opponentBack },
   };
 }
 

@@ -492,6 +492,7 @@ export default function GameBoard() {
   const { myState, opponentState } = gameState;
   const canAct = isMyTurn && gameState.phase === "main" && gameState.status === "in_progress";
   const timerUrgent = isMyTurn && turnSecondsLeft <= 5;
+  const opponentCardBack = cardBackImage(opponentState.cardBack);
 
   function getValidAttackTargets(attackerId: string | null | undefined): string[] {
     if (!attackerId) return [];
@@ -704,7 +705,7 @@ export default function GameBoard() {
         <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
           {/* Face-down opponent hand at top */}
           <div style={{ flex: "0 0 200px", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "8px 0 0", overflow: "visible" }}>
-            <FaceDownHand count={opponentState.handCount} />
+            <FaceDownHand count={opponentState.handCount} backSrc={opponentCardBack} />
           </div>
 
           {/* Opponent board — slots at bottom */}
@@ -748,7 +749,7 @@ export default function GameBoard() {
         {/* Opponent right: deck + grave + mana */}
         <div style={{ width: 110, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", padding: "8px 4px 4px", gap: 8, flexShrink: 0 }}>
           <ManaDisplay mana={opponentState.mana} maxMana={opponentState.maxMana} />
-          <DeckPile count={opponentState.deckCount} />
+          <DeckPile count={opponentState.deckCount} backSrc={opponentCardBack} />
           <GravePile count={opponentState.burnPile?.length ?? 0} onClick={() => setShowGraveyard("opponent")} />
         </div>
       </div>
@@ -1259,7 +1260,7 @@ const OPP_HAND_W = 130;
 const OPP_HAND_H = 190;
 const OPP_HAND_SPREAD = 72;
 
-function FaceDownHand({ count }: { count: number }) {
+function FaceDownHand({ count, backSrc = CARD_BACK_DEFAULT }: { count: number; backSrc?: string }) {
   const n = Math.min(count, 10);
   const mid = (n - 1) / 2;
   if (n === 0) return null;
@@ -1273,7 +1274,7 @@ function FaceDownHand({ count }: { count: number }) {
         return (
           <img
             key={i}
-            src={CARD_BACK_DEFAULT}
+            src={backSrc}
             alt=""
             draggable={false}
             style={{

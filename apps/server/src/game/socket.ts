@@ -117,11 +117,13 @@ async function beginMatch(
 ): Promise<void> {
   const gameId = randomUUID();
 
-  const [deck1, deck2, hero1, hero2] = await Promise.all([
+  const [deck1, deck2, hero1, hero2, user1, user2] = await Promise.all([
     getDeckCards(entry1.deckId, entry1.userId),
     getDeckCards(entry2.deckId, entry2.userId),
     prisma.hero.findUnique({ where: { id: entry1.heroId } }),
     prisma.hero.findUnique({ where: { id: entry2.heroId } }),
+    prisma.user.findUnique({ where: { id: entry1.userId }, select: { equippedCardBack: true } }),
+    prisma.user.findUnique({ where: { id: entry2.userId }, select: { equippedCardBack: true } }),
   ]);
 
   if (!hero1 || !hero2) return;
@@ -139,6 +141,7 @@ async function beginMatch(
     heroPower: hero1.heroPowerJson as unknown as PlayerInfo["heroPower"],
     deck: deck1,
     isAI: false,
+    cardBack: user1?.equippedCardBack ?? null,
   };
   const p2: PlayerInfo = {
     socketId: entry2.socketId,
@@ -150,6 +153,7 @@ async function beginMatch(
     heroPower: hero2.heroPowerJson as unknown as PlayerInfo["heroPower"],
     deck: deck2,
     isAI: false,
+    cardBack: user2?.equippedCardBack ?? null,
   };
 
   const room = createRoom(gameId, p1, p2, mode, cardRegistry);
@@ -262,6 +266,7 @@ export function registerSocketHandlers(
         // Immediately match with AI
         const deck = await getDeckCards(deckId, authenticatedUserId);
         const hero = await prisma.hero.findUnique({ where: { id: heroId } });
+        const me = await prisma.user.findUnique({ where: { id: authenticatedUserId }, select: { equippedCardBack: true } });
         if (!hero || deck.length !== 30) {
           socket.emit("game:error", deck.length === 0 ? "Invalid deck or hero" : `Deck must have 30 cards (${deck.length}/30)`);
           return;
@@ -323,6 +328,7 @@ export function registerSocketHandlers(
           heroPower: hero.heroPowerJson as unknown as PlayerInfo["heroPower"],
           deck,
           isAI: false,
+          cardBack: me?.equippedCardBack ?? null,
         };
         const p2: PlayerInfo = {
           socketId: null,

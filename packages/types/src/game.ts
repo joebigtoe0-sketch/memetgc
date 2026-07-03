@@ -234,4 +234,6 @@ export interface OpponentView {
   burnPile: Card[];
   secretCount: number;
   factionBonusActive: boolean;
+  /** Opponent's equipped card back id (populated by the server; null = default). */
+  cardBack: string | null;
 }
