@@ -230,16 +230,31 @@ function autoEndTurnOnTimeout(
   expectedPlayerId: string
 ): void {
   room.turnTimerHandle = null;
-  room.turnTimerEndsAt = null;
-  if (room.state.status !== "in_progress") return;
-  if (room.state.activePlayerId !== expectedPlayerId) return;
 
+  if (room.state.status !== "in_progress") {
+    clearTurnTimer(room);
+    return;
+  }
+
+  // Stale callback (turn already ended another way) — ensure the current player has a timer.
+  if (room.state.activePlayerId !== expectedPlayerId) {
+    scheduleActiveTurnTimer(room, io);
+    broadcastState(room, io, []);
+    return;
+  }
+
+  room.turnTimerEndsAt = null;
   const result = applyAction(room.state, { type: "end_turn" }, room.cardRegistry);
   if (result.success) {
     room.state = result.newState;
-    broadcastState(room, io, []);
-    if (room.state.status === "finished") { cleanupRoom(room, io); return; }
+    if (room.state.status === "finished") {
+      broadcastState(room, io, result.animations);
+      cleanupRoom(room, io);
+      return;
+    }
+    // Schedule the next player's timer *before* broadcasting so clients get turnTimerEndsAt.
     triggerAIOrTimer(room, io);
+    broadcastState(room, io, result.animations);
     return;
   }
 

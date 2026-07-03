@@ -18,8 +18,10 @@ interface ModeRecord { wins: number; losses: number; }
 interface Profile {
   username: string; walletAddress: string | null; fragments: number;
   rankTier: string; rankStars: number; rankPoints: number;
-  seasonWins: number; seasonLosses: number; winStreak: number; level: number;
-  games: number; cardsOwned: number; legendaries: number; packsOpened: number; questsDone: number;
+  seasonWins: number; seasonLosses: number; winStreak: number; rankedWinStreak?: number; level: number;
+  games: number;
+  gameCounts?: { ranked: number; casual: number; practice: number; pvp: number; total: number };
+  cardsOwned: number; legendaries: number; packsOpened: number; questsDone: number;
   modeStats?: { ranked: ModeRecord; casual: ModeRecord; practice: ModeRecord };
   factionMastery: FactionMastery[]; recentMatches: RecentMatch[];
 }
@@ -43,10 +45,12 @@ export default function ProfilePage() {
   const stars = p?.rankStars ?? 0;
   const ranked = p?.modeStats?.ranked ?? { wins: 0, losses: 0 };
   const casual = p?.modeStats?.casual ?? { wins: 0, losses: 0 };
-  const wins = ranked.wins + casual.wins, losses = ranked.losses + casual.losses, games = wins + losses;
-  const winrate = games > 0 ? Math.round((wins / games) * 100) : 0;
+  const practice = p?.modeStats?.practice ?? { wins: 0, losses: 0 };
   const rankedGames = ranked.wins + ranked.losses;
   const casualGames = casual.wins + casual.losses;
+  const practiceGames = practice.wins + practice.losses;
+  const rankedWinrate = rankedGames > 0 ? Math.round((ranked.wins / rankedGames) * 100) : 0;
+  const rankedStreak = p?.rankedWinStreak ?? p?.winStreak ?? 0;
   // Progress toward the next division (each tier = 5 divisions of 100 pts).
   const rankPoints = p?.rankPoints ?? 0;
   const tierFloor = TIER_FLOORS[tier] ?? 0;
@@ -90,7 +94,7 @@ export default function ProfilePage() {
               )}
             </div>
             <div style={{ font: `600 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6", marginTop: 8 }}>
-              Member since Genesis · {games} games played{mains ? <> · Mains <span style={{ color: mainsColor }}>{mainsName}</span></> : null}
+              Member since Genesis · {rankedGames} ranked · {casualGames} casual · {practiceGames} vs AI{mains ? <> · Mains <span style={{ color: mainsColor }}>{mainsName}</span></> : null}
             </div>
           </div>
           <button onClick={logout} style={{ cursor: "pointer", padding: "9px 16px", borderRadius: 10, background: "rgba(255,90,90,.08)", border: "1px solid rgba(255,90,90,.3)", color: "#ff8a8a", font: `700 12px var(--font-archivo,'Archivo',sans-serif)` }}>Logout</button>
@@ -128,7 +132,7 @@ export default function ProfilePage() {
 
           <Stat
             value={`${ranked.wins}–${ranked.losses}`}
-            label={`Ranked${rankedGames ? ` · ${Math.round((ranked.wins / rankedGames) * 100)}%` : ""}`}
+            label={`Ranked${rankedGames ? ` · ${rankedWinrate}%` : ""}`}
             color="#e7c768"
           />
           <Stat
@@ -136,8 +140,13 @@ export default function ProfilePage() {
             label={`Casual${casualGames ? ` · ${Math.round((casual.wins / casualGames) * 100)}%` : ""}`}
             color="#7ad6ff"
           />
-          <Stat value={`${winrate}%`} label={`Win rate · ${games} games`} color="#19e08a" />
-          <Stat value={p?.winStreak ?? 0} label="Current streak" color="#f7931a" />
+          <Stat
+            value={`${practice.wins}–${practice.losses}`}
+            label={`Vs AI${practiceGames ? ` · ${Math.round((practice.wins / practiceGames) * 100)}%` : ""}`}
+            color="#b58bff"
+          />
+          <Stat value={`${rankedWinrate}%`} label={`Ranked win rate · ${rankedGames} games`} color="#19e08a" />
+          <Stat value={rankedStreak} label="Ranked win streak" color="#f7931a" />
           <Stat value={p?.cardsOwned ?? 0} label="Cards owned" color="#7ad6ff" />
           <Stat value={p?.legendaries ?? 0} label="Legendaries" color="#e7c768" />
           <Stat value={p?.packsOpened ?? 0} label="Packs opened" />

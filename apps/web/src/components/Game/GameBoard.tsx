@@ -78,6 +78,8 @@ export default function GameBoard() {
   const [boardBg, setBoardBg] = useState<string>(getDefaultBoardBackground);
   // Draw animation
   const [newCardIds, setNewCardIds] = useState<string[]>([]);
+  const [attackDrag, setAttackDrag] = useState<{ attackerId: string; startX: number; startY: number; x: number; y: number } | null>(null);
+  const attackDragRef = useRef<{ attackerId: string; startX: number; startY: number; x: number; y: number } | null>(null);
   const [coinFlip, setCoinFlip] = useState<{ result: "heads" | "tails"; id: string; mine: boolean } | null>(null);
   const [shuffleAnim, setShuffleAnim] = useState<string | null>(null);
   const [spellCast, setSpellCast] = useState<{ card: CardData; mine: boolean; id: string } | null>(null);
@@ -87,8 +89,33 @@ export default function GameBoard() {
   const turnTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const prevTurnKey = useRef("");
   const autoEndTurnRef = useRef("");
+  const fallbackEndsAtRef = useRef<number | null>(null);
+  const turnTimerEndsAtRef = useRef<number | null>(null);
+  const isMyTurnRef = useRef(isMyTurn);
+  const gameStatusRef = useRef(gameState?.status);
+  const activePlayerRef = useRef(gameState?.activePlayerId);
+  const turnNumberRef = useRef(gameState?.turnNumber);
+  isMyTurnRef.current = isMyTurn;
+  gameStatusRef.current = gameState?.status;
+  activePlayerRef.current = gameState?.activePlayerId;
+  turnNumberRef.current = gameState?.turnNumber;
+  turnTimerEndsAtRef.current = gameState?.turnTimerEndsAt ?? null;
   const logEndRef = useRef<HTMLDivElement | null>(null);
   const endSoundPlayed = useRef(false);
+
+  const requestAutoEndTurn = useCallback(() => {
+    if (gameStatusRef.current !== "in_progress" || !isMyTurnRef.current) return;
+    const turnKey = `${activePlayerRef.current}:${turnNumberRef.current}`;
+    const now = Date.now();
+    const last = autoEndTurnRef.current;
+    // Allow one immediate fire, then retry every 2s if the server hasn't advanced the turn.
+    if (last.startsWith(`${turnKey}:`)) {
+      const lastAt = Number(last.split(":")[2] ?? 0);
+      if (now - lastAt < 2000) return;
+    }
+    autoEndTurnRef.current = `${turnKey}:${now}`;
+    sendAction({ type: "end_turn" });
+  }, []);
 
   // Turn timer — synced to the server deadline when available.
   useEffect(() => {
@@ -97,6 +124,7 @@ export default function GameBoard() {
     if (inProgress && turnKey !== prevTurnKey.current) {
       setTurnSecondsLeft(TURN_SECONDS);
       autoEndTurnRef.current = "";
+      fallbackEndsAtRef.current = Date.now() + TURN_SECONDS * 1000;
       if (isMyTurn) {
         setShowNewTurn(true);
         setTimeout(() => setShowNewTurn(false), 1800);
@@ -105,32 +133,31 @@ export default function GameBoard() {
     prevTurnKey.current = turnKey;
 
     if (!inProgress) {
+      fallbackEndsAtRef.current = null;
       if (turnTimerRef.current) { clearInterval(turnTimerRef.current); turnTimerRef.current = null; }
       return;
     }
 
     const tick = () => {
-      const endsAt = gameState?.turnTimerEndsAt;
+      const endsAt = turnTimerEndsAtRef.current;
+      let left: number;
       if (endsAt != null) {
-        setTurnSecondsLeft(Math.max(0, Math.ceil((endsAt - Date.now()) / 1000)));
+        left = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
+        fallbackEndsAtRef.current = endsAt;
       } else {
-        setTurnSecondsLeft((s) => Math.max(0, s - 1));
+        if (fallbackEndsAtRef.current == null) {
+          fallbackEndsAtRef.current = Date.now() + TURN_SECONDS * 1000;
+        }
+        left = Math.max(0, Math.ceil((fallbackEndsAtRef.current - Date.now()) / 1000));
       }
+      setTurnSecondsLeft(left);
+      if (left === 0) requestAutoEndTurn();
     };
     tick();
     if (turnTimerRef.current) clearInterval(turnTimerRef.current);
     turnTimerRef.current = setInterval(tick, 250);
     return () => { if (turnTimerRef.current) clearInterval(turnTimerRef.current); };
-  }, [isMyTurn, gameState?.status, gameState?.activePlayerId, gameState?.turnNumber, gameState?.turnTimerEndsAt]);
-
-  // Backup: if the server deadline passes on our turn, auto-pass.
-  useEffect(() => {
-    if (gameState?.status !== "in_progress" || !isMyTurn || turnSecondsLeft > 0) return;
-    const turnKey = `${gameState.activePlayerId}:${gameState.turnNumber}`;
-    if (autoEndTurnRef.current === turnKey) return;
-    autoEndTurnRef.current = turnKey;
-    sendAction({ type: "end_turn" });
-  }, [gameState?.status, gameState?.activePlayerId, gameState?.turnNumber, isMyTurn, turnSecondsLeft]);
+  }, [isMyTurn, gameState?.status, gameState?.activePlayerId, gameState?.turnNumber, gameState?.turnTimerEndsAt, requestAutoEndTurn]);
 
   // Scroll log to bottom when new entries added
   useEffect(() => {
@@ -412,14 +439,22 @@ export default function GameBoard() {
   const canAct = isMyTurn && gameState.phase === "main" && gameState.status === "in_progress";
   const timerUrgent = isMyTurn && turnSecondsLeft <= 5;
 
-  function getValidTargets(): string[] {
-    if (!selectedAttackerId) return [];
+  function getValidAttackTargets(attackerId: string | null | undefined): string[] {
+    if (!attackerId) return [];
     const opponentMinions = opponentState.board.filter((s): s is MinionSlot => s !== null);
     const tauntMinions = opponentMinions.filter((m) => m.hasTaunt);
     if (tauntMinions.length > 0) return tauntMinions.map((m) => m.instanceId);
     return [...opponentMinions.map((m) => m.instanceId), "hero_" + opponentState.playerId];
   }
-  const validTargets = getValidTargets();
+
+  function canMinionAttack(slot: MinionSlot): boolean {
+    return !slot.hasAttacked && (!slot.summoningSickness || slot.hasCharge);
+  }
+
+  const activeAttackerId = attackDrag?.attackerId ?? selectedAttackerId;
+  const validTargets = getValidAttackTargets(activeAttackerId);
+  const opponentHeroTargetId = "hero_" + opponentState.playerId;
+  const opponentHeroIsAttackTarget = validTargets.includes(opponentHeroTargetId);
 
   function getValidPlayTargets(): string[] {
     if (phase !== "select_play_target" || !selectedCardInstanceId) return [];
@@ -468,15 +503,67 @@ export default function GameBoard() {
     setLungeId(attacker);
     setTimeout(() => setLungeId(null), 520);
     selectAttacker(null); setPhase("idle");
+    attackDragRef.current = null;
+    setAttackDrag(null);
   }
+
+  function beginAttackDrag(attackerId: string, e: React.PointerEvent) {
+    if (!canAct || phase !== "idle") return;
+    const slot = myState.board.find((s): s is MinionSlot => s !== null && s.instanceId === attackerId);
+    if (!slot || !canMinionAttack(slot)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    const next = { attackerId, startX: e.clientX, startY: e.clientY, x: e.clientX, y: e.clientY };
+    attackDragRef.current = next;
+    setAttackDrag(next);
+  }
+
+  useEffect(() => {
+    if (!attackDrag) return;
+    const onMove = (e: PointerEvent) => {
+      setAttackDrag((prev) => (prev ? { ...prev, x: e.clientX, y: e.clientY } : null));
+    };
+    const finish = (e: PointerEvent) => {
+      const drag = attackDragRef.current;
+      if (!drag) return;
+      attackDragRef.current = null;
+      setAttackDrag(null);
+      const dx = e.clientX - drag.startX;
+      const dy = e.clientY - drag.startY;
+      const moved = Math.abs(dx) > 10 || Math.abs(dy) > 10;
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      const targetEl = el?.closest("[data-attack-target]") as HTMLElement | null;
+      const targetId = targetEl?.dataset.attackTarget;
+      const valid = getValidAttackTargets(drag.attackerId);
+      if (targetId && valid.includes(targetId)) {
+        doAttack(drag.attackerId, targetId);
+      } else if (!moved) {
+        selectAttacker(drag.attackerId);
+        setPhase("select_attack_target");
+      }
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", finish);
+    window.addEventListener("pointercancel", finish);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", finish);
+      window.removeEventListener("pointercancel", finish);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- finish uses live board state via closure each drag session
+  }, [attackDrag, canAct, phase, myState.board, opponentState.board, opponentState.playerId]);
 
   function cancelTargeting() {
     selectCard(null); selectAttacker(null); setPhase("idle"); setActionError(null);
+    attackDragRef.current = null;
+    setAttackDrag(null);
   }
 
   function handleMinionClick(instanceId: string, isEnemy: boolean) {
     if (!canAct) return;
     if (phase === "select_attack_target") {
+      if (!isEnemy && instanceId === selectedAttackerId) return;
       if (validTargets.includes(instanceId)) doAttack(selectedAttackerId!, instanceId);
       else cancelTargeting();
       return;
@@ -501,7 +588,7 @@ export default function GameBoard() {
     }
     if (!isEnemy) {
       const slot = myState.board.find((s): s is MinionSlot => s !== null && s.instanceId === instanceId);
-      if (slot && !slot.hasAttacked && (!slot.summoningSickness || slot.hasCharge)) {
+      if (slot && canMinionAttack(slot)) {
         selectAttacker(instanceId); setPhase("select_attack_target");
       }
     }
@@ -560,7 +647,8 @@ export default function GameBoard() {
             <HeroZone
               heroName={opponentState.heroName} playerName={opponentState.playerName} faction={opponentState.heroFaction} heroId={opponentState.heroId}
               hp={opponentState.hp} armor={opponentState.armor} isEnemy
-              isValidTarget={(phase === "select_attack_target" && validTargets.includes("hero_" + opponentState.playerId)) || (phase === "select_play_target" && validPlayTargets.includes("hero_" + opponentState.playerId))}
+              attackTargetId={opponentHeroIsAttackTarget ? opponentHeroTargetId : undefined}
+              isValidTarget={(phase === "select_attack_target" && validTargets.includes(opponentHeroTargetId)) || (phase === "select_play_target" && validPlayTargets.includes(opponentHeroTargetId))}
               onHeroClick={() => handleHeroClick(true)}
               secretCount={opponentState.secretCount}
               hasWeapon={opponentState.hasWeapon} weaponAttack={opponentState.weaponAttack} weaponDurability={opponentState.weaponDurability}
@@ -613,15 +701,17 @@ export default function GameBoard() {
               const slot = opponentState.board[i];
               const isValidTarget = slot
                 ? (phase === "select_attack_target" && validTargets.includes(slot.instanceId)) ||
+                  (attackDrag && validTargets.includes(slot.instanceId)) ||
                   (phase === "select_play_target" && validPlayTargets.includes(slot.instanceId)) ||
                   (phase === "select_hero_power_target" && validHeroPowerTargets.includes(slot.instanceId))
                 : false;
               return (
-                <BoardSlot key={i} highlighted={isValidTarget} dimmed={(phase === "select_attack_target" || phase === "select_play_target" || phase === "select_hero_power_target") && !isValidTarget && !!slot}
+                <BoardSlot key={i} highlighted={isValidTarget} dimmed={(phase === "select_attack_target" || phase === "select_play_target" || phase === "select_hero_power_target" || !!attackDrag) && !isValidTarget && !!slot}
                   onClick={!slot && phase !== "idle" ? cancelTargeting : undefined}>
                   <div style={{ position: "relative" }}>
                     {slot && (
                       <MinionCard slot={slot} isEnemy isValidTarget={isValidTarget}
+                        attackTargetId={isValidTarget ? slot.instanceId : undefined}
                         isLunging={lungeId === slot.instanceId}
                         isDamageFlash={damageFlashIds.has(slot.instanceId)}
                         onClick={() => handleMinionClick(slot.instanceId, true)}
@@ -672,6 +762,11 @@ export default function GameBoard() {
             {phase === "select_play_target" && "→ SELECT TARGET FOR SPELL"}
             {phase === "select_attack_target" && "→ SELECT ATTACK TARGET"}
             {phase === "select_hero_power_target" && "→ SELECT MINION FOR HERO POWER"}
+          </div>
+        )}
+        {attackDrag && phase === "idle" && (
+          <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", zIndex: 20, padding: "6px 16px", borderRadius: 20, background: "rgba(60,50,0,.95)", border: "1px solid #e0c040", color: "#ffe060", font: `700 10px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "1px", whiteSpace: "nowrap", boxShadow: "0 0 16px rgba(224,192,64,.3)" }}>
+            → DRAG TO ATTACK TARGET
           </div>
         )}
 
@@ -778,9 +873,10 @@ export default function GameBoard() {
                       <MinionCard
                         slot={slot}
                         ownedCount={ownedCounts.get(slot.card.id)}
-                        isSelected={isAttacking} isAttacking={isAttacking} isValidTarget={isPlayTarget || isHpTarget}
+                        isSelected={isAttacking} isAttacking={isAttacking || attackDrag?.attackerId === slot.instanceId} isValidTarget={isPlayTarget || isHpTarget}
                         isLunging={lungeId === slot.instanceId}
                         isDamageFlash={damageFlashIds.has(slot.instanceId)}
+                        onAttackPointerDown={(e) => beginAttackDrag(slot.instanceId, e)}
                         onClick={() => handleMinionClick(slot.instanceId, false)}
                         onHover={(h) => setZoomedCard(h ? slotToCardData(slot) : null)}
                       />

@@ -24,6 +24,8 @@ interface Props {
   onHeroClick?: () => void;
   onHeroPowerClick?: () => void;
   secretCount?: number;
+  /** Drop target id while dragging a minion attack (enemy hero). */
+  attackTargetId?: string;
 }
 
 export default function HeroZone({
@@ -45,6 +47,7 @@ export default function HeroZone({
   onHeroClick,
   onHeroPowerClick,
   secretCount = 0,
+  attackTargetId,
 }: Props) {
   const [powerTipOpen, setPowerTipOpen] = useState(false);
   const fac = factionColor(faction);
@@ -72,6 +75,7 @@ export default function HeroZone({
       {/* Hero portrait */}
       <div
         data-sound-skip-click={onHeroClick ? "" : undefined}
+        data-attack-target={attackTargetId}
         onClick={onHeroClick}
         style={{
           position: "relative",

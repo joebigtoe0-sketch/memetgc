@@ -20,6 +20,9 @@ interface Props {
   isDamageFlash?: boolean;
   onClick?: () => void;
   onHover?: (hovered: boolean) => void;
+  /** Enemy minion / drop target id while dragging an attack */
+  attackTargetId?: string;
+  onAttackPointerDown?: (e: React.PointerEvent) => void;
 }
 
 export default function MinionCard({
@@ -33,6 +36,8 @@ export default function MinionCard({
   isDamageFlash,
   onClick,
   onHover,
+  attackTargetId,
+  onAttackPointerDown,
 }: Props) {
   const fac = factionColor(slot.card.faction);
   const isDamaged = slot.currentHealth < (slot.card.health ?? slot.maxHealth ?? slot.currentHealth);
@@ -70,7 +75,9 @@ export default function MinionCard({
   return (
     <div
       data-sound-skip-click={onClick ? "" : undefined}
+      data-attack-target={attackTargetId}
       onClick={(e) => { e.stopPropagation(); onClick?.(); }}
+      onPointerDown={onAttackPointerDown}
       onMouseEnter={() => { onHover?.(true); playSound("cardHover", 0.4); }}
       onMouseLeave={() => onHover?.(false)}
       style={{
@@ -78,6 +85,7 @@ export default function MinionCard({
         width: 96,
         height: 116,
         fontFamily: "var(--font-archivo,'Archivo',sans-serif)",
+        touchAction: onAttackPointerDown ? "none" : "auto",
         borderRadius: 11,
         cursor: "pointer",
         transform: (isSelected || isAttacking || isValidTarget) ? "scale(1.06) translateY(-4px)" : "scale(1)",

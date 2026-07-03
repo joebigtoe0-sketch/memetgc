@@ -188,10 +188,12 @@ export default function Dashboard() {
             <Panel style={{ padding: 16 }}>
               <div style={{ font: `900 24px/1 var(--font-mono,'JetBrains Mono',monospace)`, color: "#19e08a" }}>{winrate}%</div>
               <div style={{ font: `600 9px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6", letterSpacing: "1px", marginTop: 6 }}>RANKED WIN RATE</div>
+              <div style={{ font: `600 9px var(--font-mono,'JetBrains Mono',monospace)`, color: "#6a7488", marginTop: 4 }}>{rankedWins}–{rankedLosses}</div>
             </Panel>
             <Panel style={{ padding: 16 }}>
               <div style={{ font: `900 24px/1 var(--font-mono,'JetBrains Mono',monospace)`, color: "#f3e8cc" }}>{streak}</div>
               <div style={{ font: `600 9px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6", letterSpacing: "1px", marginTop: 6 }}>RANKED STREAK</div>
+              <div style={{ font: `600 9px var(--font-mono,'JetBrains Mono',monospace)`, color: "#6a7488", marginTop: 4 }}>{rankedGames} ranked games</div>
             </Panel>
           </div>
         </div>

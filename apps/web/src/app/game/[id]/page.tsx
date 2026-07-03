@@ -7,13 +7,19 @@ import GameBoard from "@/components/Game/GameBoard";
 import ScaleToFit from "@/components/Game/ScaleToFit";
 import RotateDevicePrompt from "@/components/Game/RotateDevicePrompt";
 import { useGameMusic } from "@/hooks/useGameMusic";
+import { useIsMobile } from "@/hooks/useViewport";
+import { useMobileBrowserChromeHide } from "@/hooks/useMobileBrowserChromeHide";
+
+const GAME_SCROLL_SHELL_ID = "game-scroll-shell";
 
 export default function GamePage() {
   const params = useParams();
   const router = useRouter();
   const { gameState, gameId, connected } = useGameStore();
+  const isMobile = useIsMobile();
 
   useGameMusic();
+  useMobileBrowserChromeHide(GAME_SCROLL_SHELL_ID, isMobile);
 
   useEffect(() => {
     if (!gameId && !gameState) {
@@ -36,9 +42,21 @@ export default function GamePage() {
 
   return (
     <>
-      <ScaleToFit>
-        <GameBoard />
-      </ScaleToFit>
+      <div
+        id={GAME_SCROLL_SHELL_ID}
+        style={{
+          position: "fixed",
+          inset: 0,
+          overflowY: isMobile ? "auto" : "hidden",
+          WebkitOverflowScrolling: "touch",
+        }}
+      >
+        <div style={{ height: isMobile ? "calc(100vh + 2px)" : "100vh", position: "relative" }}>
+          <ScaleToFit>
+            <GameBoard />
+          </ScaleToFit>
+        </div>
+      </div>
       <RotateDevicePrompt />
     </>
   );

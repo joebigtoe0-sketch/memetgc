@@ -22,6 +22,8 @@ interface Props {
 const CARD_SCALE = 0.50;
 // Drag distance (screen px) a card must travel upward to count as "play"
 const PLAY_DRAG_THRESHOLD = 64;
+// Finger jitter below this still counts as a tap-to-inspect on mobile
+const TAP_MOVE_THRESHOLD = 18;
 
 export default function HandZone({ hand, selectedInstanceId, currentMana, actionsEnabled = true, newCardIds = [], isMobile = false, onCardClick, onCardHover, onCardInspect }: Props) {
   const n = hand.length;
@@ -98,7 +100,7 @@ export default function HandZone({ hand, selectedInstanceId, currentMana, action
               if (!isMobile || dragId !== instId || !dragStart.current) return;
               const dy = e.clientY - dragStart.current.y;
               const dx = e.clientX - dragStart.current.x;
-              if (Math.abs(dy) > 6 || Math.abs(dx) > 6) dragStart.current.moved = true;
+              if (Math.abs(dy) > TAP_MOVE_THRESHOLD || Math.abs(dx) > TAP_MOVE_THRESHOLD) dragStart.current.moved = true;
               setDragDy(dy);
             }}
             onPointerUp={() => {
@@ -112,8 +114,8 @@ export default function HandZone({ hand, selectedInstanceId, currentMana, action
                 if (!actionsEnabled) { playSound("denied"); return; }
                 if (!canPlay) { playSound("noMana"); return; }
                 onCardClick?.(instId);
-              } else if (!moved) {
-                // A tap (no meaningful drag) → inspect the card
+              } else if (!moved || dragDy > -PLAY_DRAG_THRESHOLD) {
+                // Tap or small wobble → inspect; only upward drags play the card
                 onCardInspect?.(card as CardData);
               }
             }}

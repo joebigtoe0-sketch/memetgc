@@ -221,6 +221,9 @@ router.get("/profile", requireAuth, async (req: AuthRequest, res) => {
   });
 
   const wins = user.seasonWins, losses = user.seasonLosses, games = wins + losses;
+  const rankedGames = modeStats.ranked.wins + modeStats.ranked.losses;
+  const casualGames = modeStats.casual.wins + modeStats.casual.losses;
+  const practiceGames = modeStats.practice.wins + modeStats.practice.losses;
   const { tier, stars } = tierFromPoints(user.rankPoints);
   const standing = await getLadderStanding(user.id, user.rankPoints);
   res.json({
@@ -236,6 +239,14 @@ router.get("/profile", requireAuth, async (req: AuthRequest, res) => {
     seasonLosses: losses,
     modeStats,
     winStreak,
+    rankedWinStreak: winStreak,
+    gameCounts: {
+      ranked: rankedGames,
+      casual: casualGames,
+      practice: practiceGames,
+      pvp: rankedGames + casualGames,
+      total: rankedGames + casualGames + practiceGames,
+    },
     level: Math.max(1, Math.floor(user.rankPoints / 100) + 1),
     games,
     cardsOwned,
