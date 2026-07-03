@@ -24,6 +24,14 @@ import type { CardData } from "../Card/CardComponent";
 const TURN_SECONDS = 30;
 type PhaseAction = "idle" | "select_play_target" | "select_attack_target" | "select_hero_power_target";
 
+/** Legal attack targets against an opponent (taunt minions force targeting). */
+function attackTargetsFor(opponentState: { board: (MinionSlot | null)[]; playerId: string }): string[] {
+  const opponentMinions = opponentState.board.filter((s): s is MinionSlot => s !== null);
+  const tauntMinions = opponentMinions.filter((m) => m.hasTaunt);
+  if (tauntMinions.length > 0) return tauntMinions.map((m) => m.instanceId);
+  return [...opponentMinions.map((m) => m.instanceId), "hero_" + opponentState.playerId];
+}
+
 interface Toast { id: string; text: string; color: string; }
 interface DamageFloat { id: string; entityKey: string; amount: number; isHeal: boolean; }
 interface LogEntry { id: string; text: string; turn: number; }
@@ -89,17 +97,17 @@ export default function GameBoard() {
   const turnTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const prevTurnKey = useRef("");
   const autoEndTurnRef = useRef("");
-  const fallbackEndsAtRef = useRef<number | null>(null);
-  const turnTimerEndsAtRef = useRef<number | null>(null);
+  const turnStartRef = useRef<number>(Date.now());
   const isMyTurnRef = useRef(isMyTurn);
   const gameStatusRef = useRef(gameState?.status);
   const activePlayerRef = useRef(gameState?.activePlayerId);
   const turnNumberRef = useRef(gameState?.turnNumber);
+  const gameStateRef = useRef(gameState);
   isMyTurnRef.current = isMyTurn;
   gameStatusRef.current = gameState?.status;
   activePlayerRef.current = gameState?.activePlayerId;
   turnNumberRef.current = gameState?.turnNumber;
-  turnTimerEndsAtRef.current = gameState?.turnTimerEndsAt ?? null;
+  gameStateRef.current = gameState;
   const logEndRef = useRef<HTMLDivElement | null>(null);
   const endSoundPlayed = useRef(false);
 
@@ -117,14 +125,63 @@ export default function GameBoard() {
     sendAction({ type: "end_turn" });
   }, []);
 
-  // Turn timer — synced to the server deadline when available.
+  // Minion drag-to-attack — global pointer tracking while a drag is active.
+  // Declared here (before any early return) so hook order stays stable, and it
+  // reads live game state via refs so it works regardless of render branch.
+  useEffect(() => {
+    if (!attackDrag) return;
+    const onMove = (e: PointerEvent) => {
+      setAttackDrag((prev) => (prev ? { ...prev, x: e.clientX, y: e.clientY } : null));
+    };
+    const finish = (e: PointerEvent) => {
+      const drag = attackDragRef.current;
+      if (!drag) return;
+      attackDragRef.current = null;
+      setAttackDrag(null);
+      const dx = e.clientX - drag.startX;
+      const dy = e.clientY - drag.startY;
+      const moved = Math.abs(dx) > 10 || Math.abs(dy) > 10;
+      const opp = gameStateRef.current?.opponentState;
+      if (!opp) return;
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      const targetEl = el?.closest("[data-attack-target]") as HTMLElement | null;
+      const targetId = targetEl?.dataset.attackTarget;
+      const valid = attackTargetsFor(opp);
+      if (targetId && valid.includes(targetId)) {
+        sendAction({ type: "attack", attackerInstanceId: drag.attackerId, defenderInstanceId: targetId });
+        setLungeId(drag.attackerId);
+        setTimeout(() => setLungeId(null), 520);
+        selectAttacker(null);
+        setPhase("idle");
+      } else if (!moved) {
+        selectAttacker(drag.attackerId);
+        setPhase("select_attack_target");
+      }
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", finish);
+    window.addEventListener("pointercancel", finish);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", finish);
+      window.removeEventListener("pointercancel", finish);
+    };
+  }, [attackDrag, selectAttacker]);
+
+  // Turn timer — a purely LOCAL countdown that restarts only when the turn
+  // actually changes (activePlayer / turnNumber). We count down from the moment
+  // this client first sees a new turn rather than diffing an absolute server
+  // timestamp against the local clock — that avoids clock-skew artifacts (e.g.
+  // showing "32s") and mid-turn resets. The server remains the authority that
+  // actually ends the turn; the client just displays + sends a backup at 0.
   useEffect(() => {
     const inProgress = gameState?.status === "in_progress";
     const turnKey = inProgress ? `${gameState?.activePlayerId}:${gameState?.turnNumber}` : "";
+
     if (inProgress && turnKey !== prevTurnKey.current) {
-      setTurnSecondsLeft(TURN_SECONDS);
+      turnStartRef.current = Date.now();
       autoEndTurnRef.current = "";
-      fallbackEndsAtRef.current = Date.now() + TURN_SECONDS * 1000;
+      setTurnSecondsLeft(TURN_SECONDS);
       if (isMyTurn) {
         setShowNewTurn(true);
         setTimeout(() => setShowNewTurn(false), 1800);
@@ -133,23 +190,13 @@ export default function GameBoard() {
     prevTurnKey.current = turnKey;
 
     if (!inProgress) {
-      fallbackEndsAtRef.current = null;
       if (turnTimerRef.current) { clearInterval(turnTimerRef.current); turnTimerRef.current = null; }
       return;
     }
 
     const tick = () => {
-      const endsAt = turnTimerEndsAtRef.current;
-      let left: number;
-      if (endsAt != null) {
-        left = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
-        fallbackEndsAtRef.current = endsAt;
-      } else {
-        if (fallbackEndsAtRef.current == null) {
-          fallbackEndsAtRef.current = Date.now() + TURN_SECONDS * 1000;
-        }
-        left = Math.max(0, Math.ceil((fallbackEndsAtRef.current - Date.now()) / 1000));
-      }
+      const elapsed = (Date.now() - turnStartRef.current) / 1000;
+      const left = Math.max(0, Math.min(TURN_SECONDS, Math.ceil(TURN_SECONDS - elapsed)));
       setTurnSecondsLeft(left);
       if (left === 0) requestAutoEndTurn();
     };
@@ -157,7 +204,7 @@ export default function GameBoard() {
     if (turnTimerRef.current) clearInterval(turnTimerRef.current);
     turnTimerRef.current = setInterval(tick, 250);
     return () => { if (turnTimerRef.current) clearInterval(turnTimerRef.current); };
-  }, [isMyTurn, gameState?.status, gameState?.activePlayerId, gameState?.turnNumber, gameState?.turnTimerEndsAt, requestAutoEndTurn]);
+  }, [isMyTurn, gameState?.status, gameState?.activePlayerId, gameState?.turnNumber, requestAutoEndTurn]);
 
   // Scroll log to bottom when new entries added
   useEffect(() => {
@@ -448,10 +495,7 @@ export default function GameBoard() {
 
   function getValidAttackTargets(attackerId: string | null | undefined): string[] {
     if (!attackerId) return [];
-    const opponentMinions = opponentState.board.filter((s): s is MinionSlot => s !== null);
-    const tauntMinions = opponentMinions.filter((m) => m.hasTaunt);
-    if (tauntMinions.length > 0) return tauntMinions.map((m) => m.instanceId);
-    return [...opponentMinions.map((m) => m.instanceId), "hero_" + opponentState.playerId];
+    return attackTargetsFor(opponentState);
   }
 
   function canMinionAttack(slot: MinionSlot): boolean {
@@ -525,41 +569,6 @@ export default function GameBoard() {
     attackDragRef.current = next;
     setAttackDrag(next);
   }
-
-  useEffect(() => {
-    if (!attackDrag) return;
-    const onMove = (e: PointerEvent) => {
-      setAttackDrag((prev) => (prev ? { ...prev, x: e.clientX, y: e.clientY } : null));
-    };
-    const finish = (e: PointerEvent) => {
-      const drag = attackDragRef.current;
-      if (!drag) return;
-      attackDragRef.current = null;
-      setAttackDrag(null);
-      const dx = e.clientX - drag.startX;
-      const dy = e.clientY - drag.startY;
-      const moved = Math.abs(dx) > 10 || Math.abs(dy) > 10;
-      const el = document.elementFromPoint(e.clientX, e.clientY);
-      const targetEl = el?.closest("[data-attack-target]") as HTMLElement | null;
-      const targetId = targetEl?.dataset.attackTarget;
-      const valid = getValidAttackTargets(drag.attackerId);
-      if (targetId && valid.includes(targetId)) {
-        doAttack(drag.attackerId, targetId);
-      } else if (!moved) {
-        selectAttacker(drag.attackerId);
-        setPhase("select_attack_target");
-      }
-    };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", finish);
-    window.addEventListener("pointercancel", finish);
-    return () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", finish);
-      window.removeEventListener("pointercancel", finish);
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- finish uses live board state via closure each drag session
-  }, [attackDrag, canAct, phase, myState.board, opponentState.board, opponentState.playerId]);
 
   function cancelTargeting() {
     selectCard(null); selectAttacker(null); setPhase("idle"); setActionError(null);

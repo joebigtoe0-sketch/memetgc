@@ -130,14 +130,19 @@ export function handlePlayerAction(
   action: GameAction,
   io: Server<ClientToServerEvents, ServerToClientEvents>
 ): void {
-  // Clear any pending timers when player acts
-  clearTurnTimer(room);
   if (action.type === "mulligan") {
     const handle = room.mulliganTimerHandles.get(userId);
     if (handle) { clearTimeout(handle); room.mulliganTimerHandles.delete(userId); }
   }
 
   room.lastActionAt = Date.now();
+
+  // Snapshot the turn identity so we only reset the countdown when the turn
+  // actually advances — mid-turn actions (play/attack/hero power) must NOT
+  // restart the 30s timer.
+  const activeBefore = room.state.activePlayerId;
+  const turnBefore = room.state.turnNumber;
+  const statusBefore = room.state.status;
 
   // For mulligan/surrender, always force the authenticated userId
   const resolvedAction: GameAction = (action.type === "mulligan" || action.type === "surrender")
@@ -152,8 +157,10 @@ export function handlePlayerAction(
       io.to(player.socketId).emit("game:action_result", { success: false, error: result.error });
     }
     // A rejected action must never leave the active player's turn without a
-    // running timer — otherwise a single bad client action freezes the game.
-    scheduleActiveTurnTimer(room, io);
+    // running timer — but a running one must be left untouched (no reset).
+    if (!room.turnTimerHandle && room.state.status === "in_progress") {
+      scheduleActiveTurnTimer(room, io);
+    }
     broadcastState(room, io, []);
     return;
   }
@@ -161,14 +168,28 @@ export function handlePlayerAction(
   room.state = result.newState;
 
   if (room.state.status === "finished") {
+    clearTurnTimer(room);
     broadcastState(room, io, result.animations);
     cleanupRoom(room, io);
     return;
   }
 
-  // After mulligan, check if game started and trigger AI turn / turn timer
   if (room.state.status === "in_progress") {
-    triggerAIOrTimer(room, io);
+    const turnChanged =
+      room.state.activePlayerId !== activeBefore || room.state.turnNumber !== turnBefore;
+    const justStarted = statusBefore !== "in_progress";
+
+    if (turnChanged || justStarted) {
+      // A new turn began (or the match just started after mulligan) → fresh
+      // 30s timer, or hand off to the AI.
+      clearTurnTimer(room);
+      triggerAIOrTimer(room, io);
+    } else if (!room.turnTimerHandle) {
+      // Mid-turn action with no timer running (e.g. after a reconnect) → ensure one.
+      scheduleActiveTurnTimer(room, io);
+    }
+    // Otherwise keep the existing deadline — the countdown continues uninterrupted.
+
     broadcastState(room, io, result.animations);
     return;
   }
