@@ -5,13 +5,15 @@ import type { MinionSlot } from "@memetgc/types";
 
 import { factionColor } from "@/lib/factions";
 import { cardArtUrl } from "@/lib/cardArt";
-import { boardFrameStyle, frameTierFromOwned } from "@/lib/cardFrame";
+import { boardFrameStyle, frameTierFromCardTier } from "@/lib/cardFrame";
 import { playSound } from "@/lib/sounds";
 
 interface Props {
   slot: MinionSlot;
   isEnemy?: boolean;
-  /** Copies owned — drives default/silver/gold frame on your minions. */
+  /** Upgraded frame tier for your minions (from collection upgrades). */
+  frameTier?: "default" | "silver" | "gold";
+  /** @deprecated use frameTier */
   ownedCount?: number;
   isSelected?: boolean;
   isValidTarget?: boolean;
@@ -28,7 +30,7 @@ interface Props {
 export default function MinionCard({
   slot,
   isEnemy,
-  ownedCount,
+  frameTier,
   isSelected,
   isValidTarget,
   isAttacking,
@@ -55,7 +57,7 @@ export default function MinionCard({
 
   const atk = (slot.currentAttack ?? 0) + (slot.tempAttackBoost ?? 0);
 
-  const tier = isEnemy ? "dark" : frameTierFromOwned(ownedCount);
+  const tier = isEnemy ? "dark" : frameTierFromCardTier(frameTier);
   const frame = boardFrameStyle(tier);
 
   let borderColor = frame.borderColor;

@@ -3,10 +3,11 @@ import { prisma } from "@memetgc/db";
 import { requireAuth, type AuthRequest } from "../middleware/auth.js";
 import { computeWinStreak } from "../game/results.js";
 import { getDegenBalance, isDegenConfigured } from "../lib/helius.js";
-import { getTokenBalance, MIN_PLAY_TOKENS } from "../lib/solana.js";
+import { getTokenBalance, getTokenBalanceForMint, MIN_PLAY_TOKENS } from "../lib/solana.js";
 import { tierFromPoints } from "../game/rank.js";
 import { getLadderStanding } from "../game/leaderboard.js";
 import { generateDailyQuests } from "../game/dailyQuests.js";
+import { CARD_BACKS, getCardBackDef } from "@memetgc/types";
 
 const router: ReturnType<typeof Router> = Router();
 
@@ -113,9 +114,9 @@ router.post("/packs/open", requireAuth, async (req: AuthRequest, res) => {
     prisma.user.update({ where: { id: userId }, data: { packsOpened: { increment: 1 } } }),
     ...cards.map((c) =>
       prisma.collectionEntry.upsert({
-        where: { userId_cardId: { userId, cardId: c.cardId } },
+        where: { userId_cardId_frameTier: { userId, cardId: c.cardId, frameTier: "default" } },
         update: { quantity: { increment: 1 } },
-        create: { userId, cardId: c.cardId, quantity: 1 },
+        create: { userId, cardId: c.cardId, frameTier: "default", quantity: 1 },
       })
     ),
   ]);
@@ -262,7 +263,83 @@ router.get("/profile", requireAuth, async (req: AuthRequest, res) => {
   });
 });
 
-// POST /api/economy/cosmetics/equip — equip an owned card back or badge (value:null unequips)
+/**
+ * Whether a user may use a given card back id.
+ *  - default: always
+ *  - token-gated: wallet must currently hold >= min of the mint
+ *  - cosmetic (season reward etc.): must own the matching UserCosmetic
+ */
+async function canUseCardBack(
+  userId: string,
+  walletAddress: string | null,
+  cardBackId: string
+): Promise<boolean> {
+  const def = CARD_BACKS.find((c) => c.id === cardBackId);
+  if (def) {
+    if (def.gate.type === "default") return true;
+    if (def.gate.type === "token") {
+      if (!walletAddress) return false;
+      const balance = await getTokenBalanceForMint(walletAddress, def.gate.mint);
+      return balance >= def.gate.min;
+    }
+    // cosmetic-gated registry entry falls through to ownership check below
+  }
+  const owned = await prisma.userCosmetic.findFirst({ where: { userId, type: "card_back", value: cardBackId } });
+  return !!owned;
+}
+
+// GET /api/economy/card-backs — all selectable card backs with ownership/eligibility
+router.get("/card-backs", requireAuth, async (req: AuthRequest, res) => {
+  const userId = req.user!.userId;
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) { res.status(404).json({ error: "User not found" }); return; }
+
+  // Live token balances for any token-gated card backs (one call per distinct mint).
+  const tokenGates = CARD_BACKS.filter((c) => c.gate.type === "token");
+  const mintBalances = new Map<string, number>();
+  if (user.walletAddress) {
+    await Promise.all(
+      tokenGates.map(async (c) => {
+        if (c.gate.type !== "token") return;
+        if (mintBalances.has(c.gate.mint)) return;
+        const bal = await getTokenBalanceForMint(user.walletAddress!, c.gate.mint);
+        mintBalances.set(c.gate.mint, bal);
+      })
+    );
+  }
+
+  const ownedCosmetics = await prisma.userCosmetic.findMany({
+    where: { userId, type: "card_back" },
+    select: { value: true },
+  });
+  const ownedSet = new Set(ownedCosmetics.map((c) => c.value));
+
+  const items = CARD_BACKS.map((c) => {
+    let unlocked = false;
+    let balance: number | undefined;
+    if (c.gate.type === "default") {
+      unlocked = true;
+    } else if (c.gate.type === "token") {
+      balance = mintBalances.get(c.gate.mint) ?? 0;
+      unlocked = !!user.walletAddress && balance >= c.gate.min;
+    } else {
+      unlocked = ownedSet.has(c.id);
+    }
+    return {
+      id: c.id,
+      name: c.name,
+      image: c.image,
+      description: c.description,
+      gate: c.gate,
+      unlocked,
+      ...(balance != null ? { balance } : {}),
+    };
+  });
+
+  res.json({ equipped: user.equippedCardBack ?? getCardBackDef(null).id, cardBacks: items });
+});
+
+// POST /api/economy/cosmetics/equip — equip an owned/eligible card back or badge (value:null unequips)
 router.post("/cosmetics/equip", requireAuth, async (req: AuthRequest, res) => {
   const userId = req.user!.userId;
   const { type, value } = req.body as { type?: string; value?: string | null };
@@ -272,6 +349,23 @@ router.post("/cosmetics/equip", requireAuth, async (req: AuthRequest, res) => {
     return;
   }
 
+  if (type === "card_back") {
+    // Normalize the default id to null (matches the DB default / "no back equipped").
+    const cardBackId = value && value !== getCardBackDef(null).id ? value : null;
+    if (cardBackId != null) {
+      const user = await prisma.user.findUnique({ where: { id: userId }, select: { walletAddress: true } });
+      const allowed = await canUseCardBack(userId, user?.walletAddress ?? null, cardBackId);
+      if (!allowed) {
+        res.status(403).json({ error: "This card back is locked" });
+        return;
+      }
+    }
+    await prisma.user.update({ where: { id: userId }, data: { equippedCardBack: cardBackId } });
+    res.json({ ok: true, type, value: cardBackId });
+    return;
+  }
+
+  // Badges: must own the cosmetic.
   if (value != null) {
     const owned = await prisma.userCosmetic.findFirst({ where: { userId, type, value } });
     if (!owned) {
@@ -279,9 +373,7 @@ router.post("/cosmetics/equip", requireAuth, async (req: AuthRequest, res) => {
       return;
     }
   }
-
-  const field = type === "card_back" ? "equippedCardBack" : "equippedBadge";
-  await prisma.user.update({ where: { id: userId }, data: { [field]: value ?? null } });
+  await prisma.user.update({ where: { id: userId }, data: { equippedBadge: value ?? null } });
   res.json({ ok: true, type, value: value ?? null });
 });
 

@@ -13,10 +13,25 @@ import { factionColor, factionDisplayName, FACTIONS } from "@/lib/factions";
 import FactionIcon from "@/components/Faction/FactionIcon";
 import SellModal from "@/components/Market/SellModal";
 import MyListingsModal from "@/components/Market/MyListingsModal";
+import UpgradeCardModal, { type UpgradePath } from "@/components/Collection/UpgradeCardModal";
+import CardBacksModal from "@/components/Collection/CardBacksModal";
 import GameIcon from "@/components/UI/GameIcon";
 import { useIsMobile } from "@/hooks/useViewport";
+import {
+  canUpgradeToGoldFromDefault,
+  canUpgradeToGoldFromSilver,
+  canUpgradeToSilver,
+} from "@memetgc/types";
 
-interface CollectionEntry { cardId: string; quantity: number; card: CardData; }
+interface CollectionEntry {
+  cardId: string;
+  quantity: number;
+  defaultQuantity: number;
+  silverQuantity: number;
+  goldQuantity: number;
+  displayFrameTier: "default" | "silver" | "gold";
+  card: CardData;
+}
 interface Deck { id: string; name: string; heroId: string; isStarter?: boolean; faction?: string; factionBonusActive?: boolean; cardCount: number; cards: { cardId: string; quantity: number }[]; }
 interface Hero { id: string; name: string; faction: string; description: string; }
 
@@ -38,7 +53,9 @@ export default function CollectionPage() {
   const [loading, setLoading] = useState(true);
   const [zoom, setZoom] = useState<{ card: CardData; source: "grid" | "deck" } | null>(null);
   const [sellCard, setSellCard] = useState<CardData | null>(null);
+  const [upgrade, setUpgrade] = useState<{ card: CardData; path: UpgradePath; entry: CollectionEntry } | null>(null);
   const [showListings, setShowListings] = useState(false);
+  const [showCardBacks, setShowCardBacks] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState("");
   const [toast, setToast] = useState("");
@@ -47,6 +64,10 @@ export default function CollectionPage() {
   const [filterSearch, setFilterSearch] = useState("");
 
   const showToast = useCallback((t: string) => { setToast(t); setTimeout(() => setToast(""), 2600); }, []);
+
+  const reloadCollection = useCallback(() => {
+    api.get<CollectionEntry[]>("/api/collection").then(setCollection).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!token) return;
@@ -87,6 +108,24 @@ export default function CollectionPage() {
   const deckFac = deck ? factionColor(deckHeroFaction) : "#9aa3b2";
 
   const copiesInDeck = (id: string) => deck?.cards.find((c) => c.cardId === id)?.quantity ?? 0;
+  const deckCopiesForCard = (cardId: string) =>
+    decks.reduce((sum, d) => sum + (d.cards.find((c) => c.cardId === cardId)?.quantity ?? 0), 0);
+
+  function entryFor(cardId: string): CollectionEntry | undefined {
+    return collection.find((e) => e.cardId === cardId);
+  }
+
+  function upgradeOptions(entry: CollectionEntry) {
+    const inDecks = deckCopiesForCard(entry.cardId);
+    const d = entry.defaultQuantity ?? entry.quantity;
+    const s = entry.silverQuantity ?? 0;
+    const g = entry.goldQuantity ?? 0;
+    const opts: { path: UpgradePath; label: string }[] = [];
+    if (canUpgradeToSilver(d, inDecks, s, g)) opts.push({ path: "silver", label: "Upgrade to Silver (50)" });
+    if (canUpgradeToGoldFromDefault(d, inDecks, s, g)) opts.push({ path: "gold_default", label: "Upgrade to Gold (100)" });
+    if (canUpgradeToGoldFromSilver(s, inDecks, g, d)) opts.push({ path: "gold_silver", label: "Fuse 2 Silver → Gold" });
+    return opts;
+  }
   function canAdd(card: CardData): { ok: boolean; reason?: string } {
     if (!deck) return { ok: false, reason: "Create or select a deck first" };
     if (isStarter) return { ok: false, reason: "Starter decks can't be edited — make a New Deck" };
@@ -181,6 +220,7 @@ export default function CollectionPage() {
         <div style={{ marginLeft: isMobile ? 0 : "auto", width: isMobile ? "100%" : undefined, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <button onClick={() => router.push("/market")} style={{ cursor: "pointer", height: 34, padding: "0 14px", borderRadius: 9, display: "flex", alignItems: "center", gap: 6, font: `800 12px var(--font-cinzel,'Cinzel',serif)`, color: "#04140d", background: "linear-gradient(180deg,#4ff0a8,#129c66)", border: "none", boxShadow: "0 4px 12px rgba(25,224,138,.3)" }}>Buy Cards</button>
           <button onClick={() => setShowListings(true)} style={{ cursor: "pointer", height: 34, padding: "0 14px", borderRadius: 9, display: "flex", alignItems: "center", gap: 6, font: `800 12px var(--font-cinzel,'Cinzel',serif)`, color: "#e7ecf3", background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.14)" }}>My Listings</button>
+          <button onClick={() => setShowCardBacks(true)} style={{ cursor: "pointer", height: 34, padding: "0 14px", borderRadius: 9, display: "flex", alignItems: "center", gap: 6, font: `800 12px var(--font-cinzel,'Cinzel',serif)`, color: "#e7ecf3", background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.14)" }}>Card Backs</button>
           <button onClick={newDeck} style={{ cursor: "pointer", height: 34, padding: "0 14px", borderRadius: 9, display: "flex", alignItems: "center", gap: 6, font: `800 12px var(--font-cinzel,'Cinzel',serif)`, color: "#2a1a00", background: "linear-gradient(180deg,#ffe07a,#e0890f)", border: "none", boxShadow: "0 4px 12px rgba(224,137,15,.3)" }}>+ New Deck</button>
           <FacBtn active={filterFaction === ""} color="#cdd4df" onClick={() => setFilterFaction("")}>ALL</FacBtn>
           <div style={{ width: 1, height: 24, background: "rgba(255,255,255,.1)", margin: "0 2px" }} />
@@ -226,12 +266,35 @@ export default function CollectionPage() {
                   const inDeck = copiesInDeck(entry.cardId);
                   return (
                     <div key={entry.cardId} data-sound-skip-click style={{ position: "relative", cursor: "pointer" }}
-                      onClick={() => setZoom({ card: { ...entry.card, ownedCount: entry.quantity }, source: "grid" })}
+                      onClick={() => setZoom({
+                        card: {
+                          ...entry.card,
+                          ownedCount: entry.quantity,
+                          frameTier: entry.displayFrameTier ?? entry.card.frameTier,
+                        },
+                        source: "grid",
+                      })}
                       onContextMenu={(e) => { e.preventDefault(); addCard(entry.card); }}
                     >
-                      <CardComponent card={{ ...entry.card, ownedCount: entry.quantity }} size={isMobile ? "sm" : "md"} interactive dimmed={inDeck > 0 && inDeck >= (COPY_LIMIT[entry.card.rarity] ?? 1)} />
+                      <CardComponent
+                        card={{
+                          ...entry.card,
+                          ownedCount: entry.quantity,
+                          frameTier: entry.displayFrameTier ?? entry.card.frameTier,
+                        }}
+                        size={isMobile ? "sm" : "md"}
+                        interactive
+                        dimmed={inDeck > 0 && inDeck >= (COPY_LIMIT[entry.card.rarity] ?? 1)}
+                      />
                       <div style={{ position: "absolute", bottom: -10, left: "50%", transform: "translateX(-50%)", padding: "2px 11px", borderRadius: 20, font: `800 11px var(--font-mono,'JetBrains Mono',monospace)`, background: "#0d1020", border: `1px solid ${factionColor(entry.card.faction)}`, color: factionColor(entry.card.faction), whiteSpace: "nowrap" }}>
-                        ×{entry.quantity}{inDeck > 0 ? ` · ${inDeck} in deck` : ""}
+                        ×{entry.quantity}
+                        {(entry.silverQuantity > 0 || entry.goldQuantity > 0) && (
+                          <span style={{ color: entry.goldQuantity > 0 ? "#e7c768" : "#cfd6e0" }}>
+                            {entry.silverQuantity > 0 ? ` · ${entry.silverQuantity}★` : ""}
+                            {entry.goldQuantity > 0 ? ` · ${entry.goldQuantity}✦` : ""}
+                          </span>
+                        )}
+                        {inDeck > 0 ? ` · ${inDeck} in deck` : ""}
                       </div>
                     </div>
                   );
@@ -360,30 +423,55 @@ export default function CollectionPage() {
         onClose={() => setZoom(null)}
         actions={
           zoom?.source === "grid"
-            ? [
-                { label: deck && !isStarter ? (canAdd(zoom.card).ok ? "Add to Deck" : (canAdd(zoom.card).reason ?? "Can't add")) : "Add to Deck", onClick: () => { addCard(zoom.card); setZoom(null); }, disabled: !canAdd(zoom.card).ok },
-                { label: "Sell", variant: "ghost" as const, onClick: () => { setSellCard(zoom.card); setZoom(null); }, disabled: (ownedMap.get(zoom.card.id) ?? 0) < 1 },
-              ]
+            ? (() => {
+                const entry = entryFor(zoom.card.id);
+                const upgrades = entry ? upgradeOptions(entry) : [];
+                return [
+                  { label: deck && !isStarter ? (canAdd(zoom.card).ok ? "Add to Deck" : (canAdd(zoom.card).reason ?? "Can't add")) : "Add to Deck", onClick: () => { addCard(zoom.card); setZoom(null); }, disabled: !canAdd(zoom.card).ok },
+                  ...upgrades.map((u) => ({
+                    label: u.label,
+                    variant: "ghost" as const,
+                    onClick: () => {
+                      if (!entry) return;
+                      setUpgrade({ card: zoom.card, path: u.path, entry });
+                      setZoom(null);
+                    },
+                  })),
+                  { label: "Sell", variant: "ghost" as const, onClick: () => { setSellCard(zoom.card); setZoom(null); }, disabled: (entry?.defaultQuantity ?? ownedMap.get(zoom.card.id) ?? 0) < 1 },
+                ];
+              })()
             : zoom?.source === "deck"
             ? [{ label: "Remove from Deck", variant: "danger" as const, onClick: () => { removeCard(zoom.card.id); setZoom(null); }, disabled: isStarter }]
             : undefined
         }
       />
+      {upgrade && (
+        <UpgradeCardModal
+          card={upgrade.card}
+          path={upgrade.path}
+          defaultQuantity={upgrade.entry.defaultQuantity}
+          silverQuantity={upgrade.entry.silverQuantity}
+          goldQuantity={upgrade.entry.goldQuantity}
+          onClose={() => setUpgrade(null)}
+          onUpgraded={() => { reloadCollection(); showToast("Card upgraded!"); }}
+        />
+      )}
       {sellCard && (
         <SellModal
           kind="card"
           itemId={sellCard.id}
           title={sellCard.name}
           onClose={() => setSellCard(null)}
-          onListed={() => { api.get<CollectionEntry[]>("/api/collection").then(setCollection).catch(() => {}); }}
+          onListed={() => { reloadCollection(); }}
         />
       )}
       {showListings && (
         <MyListingsModal
           onClose={() => setShowListings(false)}
-          onChanged={() => { api.get<CollectionEntry[]>("/api/collection").then(setCollection).catch(() => {}); }}
+          onChanged={() => { reloadCollection(); }}
         />
       )}
+      {showCardBacks && <CardBacksModal onClose={() => setShowCardBacks(false)} />}
     </div>
   );
 }

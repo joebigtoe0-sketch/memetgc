@@ -75,10 +75,19 @@ interface TokenAccountsResponse {
 
 /** Returns the wallet's $MEMEPOOL balance (ui amount). 0 on any error/not configured. */
 export async function getTokenBalance(walletAddress: string): Promise<number> {
-  if (!walletAddress) return 0;
+  return getTokenBalanceForMint(walletAddress, DEGEN_MINT);
+}
+
+/**
+ * Returns the wallet's balance (ui amount) for an arbitrary SPL mint.
+ * Used for token-gated cosmetics (e.g. holding $ANSEM to unlock a card back).
+ * Returns 0 on any error / when RPC is not configured.
+ */
+export async function getTokenBalanceForMint(walletAddress: string, mint: string): Promise<number> {
+  if (!walletAddress || !mint) return 0;
   const result = await rpc<TokenAccountsResponse>("getTokenAccountsByOwner", [
     walletAddress,
-    { mint: DEGEN_MINT },
+    { mint },
     { encoding: "jsonParsed" },
   ]);
   const accounts = result?.value ?? [];

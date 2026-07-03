@@ -175,11 +175,11 @@ router.post("/list", requireAuth, async (req: AuthRequest, res) => {
     const listing = await prisma.$transaction(async (tx) => {
       if (kind === "card") {
         const entry = await tx.collectionEntry.findUnique({
-          where: { userId_cardId: { userId: user.id, cardId: itemId } },
+          where: { userId_cardId_frameTier: { userId: user.id, cardId: itemId, frameTier: "default" } },
         });
         if (!entry || entry.quantity < 1) throw new Error("INSUFFICIENT");
         await tx.collectionEntry.update({
-          where: { userId_cardId: { userId: user.id, cardId: itemId } },
+          where: { userId_cardId_frameTier: { userId: user.id, cardId: itemId, frameTier: "default" } },
           data: { quantity: { decrement: 1 } },
         });
       } else {
@@ -418,9 +418,9 @@ router.post("/confirm", requireAuth, async (req: AuthRequest, res) => {
 
       if (listing.kind === "card" && listing.cardId) {
         await tx.collectionEntry.upsert({
-          where: { userId_cardId: { userId: buyer.id, cardId: listing.cardId } },
+          where: { userId_cardId_frameTier: { userId: buyer.id, cardId: listing.cardId, frameTier: "default" } },
           update: { quantity: { increment: 1 } },
-          create: { userId: buyer.id, cardId: listing.cardId, quantity: 1 },
+          create: { userId: buyer.id, cardId: listing.cardId, frameTier: "default", quantity: 1 },
         });
       } else if (listing.kind === "pack" && listing.packType) {
         await tx.packInventory.upsert({
@@ -473,9 +473,9 @@ async function sweep(): Promise<void> {
           if (flipped.count === 0) return;
           if (listing.kind === "card" && listing.cardId) {
             await tx.collectionEntry.upsert({
-              where: { userId_cardId: { userId: listing.sellerId, cardId: listing.cardId } },
+              where: { userId_cardId_frameTier: { userId: listing.sellerId, cardId: listing.cardId, frameTier: "default" } },
               update: { quantity: { increment: 1 } },
-              create: { userId: listing.sellerId, cardId: listing.cardId, quantity: 1 },
+              create: { userId: listing.sellerId, cardId: listing.cardId, frameTier: "default", quantity: 1 },
             });
           } else if (listing.kind === "pack" && listing.packType) {
             await tx.packInventory.upsert({

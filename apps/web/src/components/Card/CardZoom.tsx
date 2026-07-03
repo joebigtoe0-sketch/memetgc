@@ -53,7 +53,7 @@ export default function CardZoom({ card, onClose, actions }: Props) {
       </div>
 
       {actions && actions.length > 0 && (
-        <div style={{ display: "flex", gap: 12, marginTop: 22 }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: "flex", gap: 12, marginTop: 22, flexWrap: "wrap", justifyContent: "center", maxWidth: 520 }} onClick={(e) => e.stopPropagation()}>
           {actions.map((a, i) => (
             <button key={i} onClick={a.onClick} disabled={a.disabled} style={btnStyle(a.variant ?? "primary", a.disabled)}>
               {a.label}

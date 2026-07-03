@@ -3,6 +3,7 @@ import { prisma } from "@memetgc/db";
 import { requireAuth, type AuthRequest } from "../middleware/auth.js";
 import { z } from "zod";
 import type { Keyword, CardEffect } from "@memetgc/types";
+import { aggregateOwnership } from "../lib/collectionFrames.js";
 
 const router: ReturnType<typeof Router> = Router();
 
@@ -127,10 +128,10 @@ router.post("/", requireAuth, async (req: AuthRequest, res) => {
   const owned = await prisma.collectionEntry.findMany({
     where: { userId, cardId: { in: uniqueCardIds } },
   });
-  const ownedMap = new Map(owned.map((o) => [o.cardId, o.quantity]));
+  const ownedMap = aggregateOwnership(owned);
 
   for (const [id, needed] of countMap) {
-    if ((ownedMap.get(id) ?? 0) < needed) {
+    if ((ownedMap.get(id)?.totalQuantity ?? 0) < needed) {
       res.status(400).json({ error: `You don't own enough copies of card: ${id}` });
       return;
     }
@@ -222,8 +223,9 @@ router.post("/:id/cards", requireAuth, async (req: AuthRequest, res) => {
   const limit = COPY_LIMITS[card.rarity] ?? 1;
   if (have + 1 > limit) { res.status(400).json({ error: `Max ${limit} copies of ${card.name}` }); return; }
 
-  const owned = await prisma.collectionEntry.findUnique({ where: { userId_cardId: { userId, cardId } } });
-  if ((owned?.quantity ?? 0) < have + 1) { res.status(400).json({ error: `You don't own enough copies of ${card.name}` }); return; }
+  const ownedRows = await prisma.collectionEntry.findMany({ where: { userId, cardId } });
+  const ownedTotal = aggregateOwnership(ownedRows).get(cardId)?.totalQuantity ?? 0;
+  if (ownedTotal < have + 1) { res.status(400).json({ error: `You don't own enough copies of ${card.name}` }); return; }
 
   if (existing) await prisma.deckCard.update({ where: { id: existing.id }, data: { quantity: have + 1 } });
   else await prisma.deckCard.create({ data: { deckId: deck.id, cardId, quantity: 1 } });

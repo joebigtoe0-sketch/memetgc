@@ -12,7 +12,7 @@ import { getPlayCardTargets } from "@memetgc/game-engine";
 import { preloadCardArt, preloadAllCardArt, preloadFactionArt } from "@/lib/preloadArt";
 import { getMatchBoardBackground, getDefaultBoardBackground } from "@/lib/boards";
 import BoardBackground from "./BoardBackground";
-import { CARD_BACK_DEFAULT, CARD_BACK_RADIUS } from "@/lib/cardBacks";
+import { CARD_BACK_DEFAULT, CARD_BACK_RADIUS, cardBackImage } from "@/lib/cardBacks";
 import GameIcon from "@/components/UI/GameIcon";
 import { playSound } from "@/lib/sounds";
 import { api } from "@/lib/api";
@@ -27,7 +27,6 @@ type PhaseAction = "idle" | "select_play_target" | "select_attack_target" | "sel
 interface Toast { id: string; text: string; color: string; }
 interface DamageFloat { id: string; entityKey: string; amount: number; isHeal: boolean; }
 interface LogEntry { id: string; text: string; turn: number; }
-interface CollectionEntry { cardId: string; quantity: number; }
 
 export default function GameBoard() {
   const { gameState, isMyTurn, selectedCardInstanceId, selectedAttackerId, lastActionError, playerId, pendingAnimations, matchReward, rankUpdate, opponentDisconnected } = useGameStore();
@@ -37,7 +36,8 @@ export default function GameBoard() {
   // On mobile a card is inspected via tap; the zoom overlay becomes tap-to-close.
   const [inspectMode, setInspectMode] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [ownedCounts, setOwnedCounts] = useState<Map<string, number>>(new Map());
+  const [frameTiers, setFrameTiers] = useState<Map<string, "default" | "silver" | "gold">>(new Map());
+  const [myCardBack, setMyCardBack] = useState<string>(CARD_BACK_DEFAULT);
   const isMobile = useIsMobile();
 
   const toggleFullscreen = useCallback(() => {
@@ -172,8 +172,15 @@ export default function GameBoard() {
   }, []);
 
   useEffect(() => {
-    api.get<CollectionEntry[]>("/api/collection")
-      .then((entries) => setOwnedCounts(new Map(entries.map((e) => [e.cardId, e.quantity]))))
+    api.get<{ cardId: string; displayFrameTier?: "default" | "silver" | "gold" }[]>("/api/collection")
+      .then((entries) => setFrameTiers(new Map(entries.map((e) => [e.cardId, e.displayFrameTier ?? "default"]))))
+      .catch(() => {});
+  }, []);
+
+  // Equipped card back — applied to the local player's deck / face-down cards.
+  useEffect(() => {
+    api.get<{ equippedCardBack?: string | null }>("/api/economy/profile")
+      .then((p) => setMyCardBack(cardBackImage(p.equippedCardBack)))
       .catch(() => {});
   }, []);
 
@@ -872,7 +879,7 @@ export default function GameBoard() {
                     {slot && (
                       <MinionCard
                         slot={slot}
-                        ownedCount={ownedCounts.get(slot.card.id)}
+                        frameTier={frameTiers.get(slot.card.id)}
                         isSelected={isAttacking} isAttacking={isAttacking || attackDrag?.attackerId === slot.instanceId} isValidTarget={isPlayTarget || isHpTarget}
                         isLunging={lungeId === slot.instanceId}
                         isDamageFlash={damageFlashIds.has(slot.instanceId)}
@@ -928,13 +935,13 @@ export default function GameBoard() {
           {shuffleAnim && (
             <img
               key={shuffleAnim}
-              src={CARD_BACK_DEFAULT}
+              src={myCardBack}
               alt=""
               draggable={false}
               style={{ position: "absolute", top: "50%", left: "50%", width: 40, height: 54, borderRadius: CARD_BACK_RADIUS, objectFit: "cover", zIndex: 5, pointerEvents: "none", boxShadow: "0 4px 14px rgba(0,0,0,.5)", animation: "shuffleToDeck 0.8s ease-in-out forwards" }}
             />
           )}
-          <DeckPile count={myState.deckCount} />
+          <DeckPile count={myState.deckCount} backSrc={myCardBack} />
           {myState.topDeckRevealed && myState.deckPile?.[0] && (
             <div
               onMouseEnter={() => setZoomedCard(myState.deckPile[0] as unknown as CardData)}
@@ -1288,11 +1295,11 @@ function BoardSlot({ children, highlighted, glowing, dimmed, clickable, onClick 
   );
 }
 
-function DeckPile({ count }: { count: number }) {
+function DeckPile({ count, backSrc = CARD_BACK_DEFAULT }: { count: number; backSrc?: string }) {
   return (
     <div style={{ position: "relative", width: 44, height: 58, flexShrink: 0 }}>
       <img
-        src={CARD_BACK_DEFAULT}
+        src={backSrc}
         alt=""
         draggable={false}
         style={{ width: "100%", height: "100%", borderRadius: CARD_BACK_RADIUS, objectFit: "cover", boxShadow: "2px 2px 0 rgba(0,0,0,.45), 0 4px 12px rgba(0,0,0,.35)" }}

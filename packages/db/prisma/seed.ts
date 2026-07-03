@@ -1048,9 +1048,9 @@ async function main() {
   // Grant all genesis cards to demo user
   for (const card of CARDS.filter((c) => c.collectible !== false)) {
     await prisma.collectionEntry.upsert({
-      where: { userId_cardId: { userId: demoUser.id, cardId: card.id } },
+      where: { userId_cardId_frameTier: { userId: demoUser.id, cardId: card.id, frameTier: "default" } },
       update: {},
-      create: { userId: demoUser.id, cardId: card.id, quantity: 4 },
+      create: { userId: demoUser.id, cardId: card.id, frameTier: "default", quantity: 4 },
     });
   }
 

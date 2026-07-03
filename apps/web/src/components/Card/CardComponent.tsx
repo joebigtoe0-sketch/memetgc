@@ -27,8 +27,10 @@ export interface CardData {
   hasTaunt?: boolean;
   currentAttack?: number;
   currentHealth?: number;
-  /** How many copies the player owns — drives the frame tier (silver >50, gold >100). */
+  /** How many copies the player owns (display only). */
   ownedCount?: number;
+  /** Upgraded frame tier — silver/gold from destroying duplicate copies. */
+  frameTier?: "default" | "silver" | "gold";
 }
 
 interface Props {
@@ -50,7 +52,7 @@ const RARITY_GEM: Record<string, [string, string]> = {
   legendary: ["#ffe07a", "#e0890f"],
 };
 
-// Frame tier driven by how many copies you own: dark by default, silver >50, gold >100.
+// Frame tier from upgraded copies (or legacy owned-count fallback).
 const FRAME: Record<"dark" | "silver" | "gold", { bg: string; edge: string; glow: string }> = {
   dark: {
     bg: "linear-gradient(150deg,#171b22 0%,#262b34 38%,#0d1015 50%,#262b34 62%,#0a0c10 100%)",
@@ -68,9 +70,12 @@ const FRAME: Record<"dark" | "silver" | "gold", { bg: string; edge: string; glow
     glow: "rgba(231,199,104,.55)",
   },
 };
-function frameTier(owned?: number): "dark" | "silver" | "gold" {
-  if (owned != null && owned > 100) return "gold";
-  if (owned != null && owned > 50) return "silver";
+function resolveFrameTier(card: CardData): "dark" | "silver" | "gold" {
+  if (card.frameTier === "gold") return "gold";
+  if (card.frameTier === "silver") return "silver";
+  if (card.frameTier === "default") return "dark";
+  if (card.ownedCount != null && card.ownedCount > 100) return "gold";
+  if (card.ownedCount != null && card.ownedCount > 50) return "silver";
   return "dark";
 }
 
@@ -94,7 +99,7 @@ export default function CardComponent({
   const isLeg = card.rarity === "legendary";
   const scale = SCALE[size];
   const outer = OUTER[size];
-  const tier = frameTier(card.ownedCount);
+  const tier = resolveFrameTier(card);
   const frame = FRAME[tier];
 
   // Stats

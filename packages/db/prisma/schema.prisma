@@ -139,15 +139,16 @@ model PackInventory {
 }
 
 model CollectionEntry {
-  id       String @id @default(cuid())
-  userId   String @map("user_id")
-  cardId   String @map("card_id")
-  quantity Int    @default(1)
+  id        String @id @default(cuid())
+  userId    String @map("user_id")
+  cardId    String @map("card_id")
+  quantity  Int    @default(1)
+  frameTier String @default("default") @map("frame_tier")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   card Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, cardId])
+  @@unique([userId, cardId, frameTier])
   @@map("collection_entries")
 }
 
