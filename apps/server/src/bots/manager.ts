@@ -1,5 +1,5 @@
 import { prisma } from "@memetgc/db";
-import { joinQueue, leaveQueue, getQueueEntries, isQueued } from "../matchmaking/queue.js";
+import { joinQueue, leaveQueue, getQueueEntries, isQueued, rankedMmrWindow } from "../matchmaking/queue.js";
 import { getRoomByUserId } from "../game/room.js";
 
 /**
@@ -9,8 +9,9 @@ import { getRoomByUserId } from "../game/room.js";
  * room machinery with the smart AI + human-like pacing, and gain/lose real MMR
  * and ladder points like anyone else.
  *
- * When a human is waiting, exactly one bot (closest MMR) joins to fill the
- * slot. Bots never queue on their own and never play each other.
+ * When a human is waiting, one bot joins to fill the slot — picked at random
+ * (casual) or at random among bots in the ranked MMR window. Bots never queue
+ * on their own and never play each other.
  */
 
 const COPY_LIMITS: Record<string, number> = { common: 4, rare: 3, epic: 2, legendary: 1 };
@@ -233,12 +234,18 @@ async function tick(): Promise<void> {
       select: { id: true, mmr: true },
     });
     const mmrById = new Map(users.map((u) => [u.id, u.mmr]));
-    // Always pick the idle bot whose rating is closest to the waiting human.
-    const pick = [...idle].sort(
-      (a, b) =>
-        Math.abs((mmrById.get(a.userId) ?? 1000) - seeker.mmr) -
-        Math.abs((mmrById.get(b.userId) ?? 1000) - seeker.mmr)
-    )[0]!;
+
+    let pool = idle;
+    if (mode === "ranked") {
+      const waitedMs = Date.now() - seeker.joinedAt;
+      const window = rankedMmrWindow(waitedMs);
+      const inWindow = idle.filter(
+        (b) => Math.abs((mmrById.get(b.userId) ?? 1000) - seeker.mmr) <= window
+      );
+      if (inWindow.length > 0) pool = inWindow;
+    }
+
+    const pick = pool[Math.floor(Math.random() * pool.length)]!;
 
     joinQueue({
       socketId: "",

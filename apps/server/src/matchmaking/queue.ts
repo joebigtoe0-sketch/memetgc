@@ -24,9 +24,13 @@ const RANKED_BASE_WINDOW = 200;
 const RANKED_WINDOW_PER_SEC = 100;
 const RANKED_MAX_WAIT_MS = 60_000; // after this, accept any opponent
 
-function rankedWindow(waitedMs: number): number {
+export function rankedMmrWindow(waitedMs: number): number {
   if (waitedMs >= RANKED_MAX_WAIT_MS) return Number.POSITIVE_INFINITY;
   return RANKED_BASE_WINDOW + RANKED_WINDOW_PER_SEC * Math.floor(waitedMs / 1000);
+}
+
+function rankedWindow(waitedMs: number): number {
+  return rankedMmrWindow(waitedMs);
 }
 
 export function joinQueue(entry: QueueEntry): void {
