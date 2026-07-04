@@ -15,15 +15,10 @@ import Logo from "@/components/Brand/Logo";
 import SettingsButton from "@/components/Settings/SettingsButton";
 import { BRAND, formatRankTier } from "@/lib/brand";
 import { useIsMobile } from "@/hooks/useViewport";
+import { LeaderboardBadge, RankRewardPanel, SeasonPanel, ROMAN, TIER_COLOR } from "@/components/Rank/seasonUi";
+import type { SeasonRewardTier } from "@memetgc/types";
 
 const RANK_TIERS = ["bronze", "silver", "gold", "platinum", "diamond", "degen"] as const;
-const TIER_COLOR: Record<string, string> = {
-  bronze: "#c8843c", silver: "#cfd6e0", gold: "#e7c768",
-  platinum: "#7ad6ff", diamond: "#b58bff", degen: "#ff5fae",
-};
-const ROMAN = ["", "I", "II", "III", "IV", "V"];
-// Fixed ladder-point floors per tier (mirrors server rank.ts). Used to show
-// accurate "progress to next tier" instead of a coarse per-division estimate.
 const TIER_FLOORS: Record<string, number> = { bronze: 0, silver: 500, gold: 1000, platinum: 1500, diamond: 2000, degen: 2500 };
 
 interface Profile {
@@ -32,6 +27,9 @@ interface Profile {
   modeStats?: { ranked: { wins: number; losses: number }; casual: { wins: number; losses: number }; practice: { wins: number; losses: number } };
   ladderPosition?: number | null; isMemepool?: boolean;
   tutorialDone?: boolean;
+  seasonPeakPoints?: number; seasonPeakTier?: string; seasonPeakStars?: number;
+  seasonRewardTier?: SeasonRewardTier;
+  seasonReward?: { tier: SeasonRewardTier; label: string; fragments: number; cardBack: boolean; badge: boolean };
 }
 interface Quest {
   id: string; type: string; description: string;
@@ -150,17 +148,21 @@ export default function Dashboard() {
         {/* LEFT — Profile */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14, order: isMobile ? 2 : 0 }}>
           <Panel style={{ padding: 18 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{ width: 46, height: 46, borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(150deg,#243042,#12161f)", border: `1px solid ${tierColor}55`, font: `900 20px var(--font-cinzel,'Cinzel',serif)`, color: tierColor }}>
-                {(username ?? "?")[0]?.toUpperCase()}
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ width: 46, height: 46, borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(150deg,#243042,#12161f)", border: `1px solid ${tierColor}55`, font: `900 20px var(--font-cinzel,'Cinzel',serif)`, color: tierColor }}>
+                  {(username ?? "?")[0]?.toUpperCase()}
+                </div>
+                <div>
+                  <div style={{ font: `800 16px var(--font-cinzel,'Cinzel',serif)`, color: "#f1f4f9" }}>{username ?? "Player"}</div>
+                  <div style={{ font: `600 10px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6", marginTop: 3 }}>{rankedGames} ranked games</div>
+                </div>
               </div>
-              <div>
-                <div style={{ font: `800 16px var(--font-cinzel,'Cinzel',serif)`, color: "#f1f4f9" }}>{username ?? "Player"}</div>
-                <div style={{ font: `600 10px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6", marginTop: 3 }}>{rankedGames} ranked games</div>
-              </div>
+              <LeaderboardBadge position={profile?.ladderPosition} compact />
             </div>
 
-            <div style={{ marginTop: 18, display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
+            <div style={{ font: `700 9px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "2px", color: "#8a93a6", marginTop: 16 }}>CURRENT RANK</div>
+            <div style={{ marginTop: 8, display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
               <div>
                 <div style={{ font: `900 26px/1 var(--font-cinzel,'Cinzel',serif)`, color: tierColor, textTransform: "uppercase", letterSpacing: ".5px" }}>
                   {formatRankTier(tier)} {ROMAN[Math.max(1, 5 - stars)] ?? ""}
@@ -185,6 +187,10 @@ export default function Dashboard() {
                 <div style={{ width: `${progressPct}%`, height: "100%", borderRadius: 4, background: `linear-gradient(90deg,${tierColor},#f7c64a)`, boxShadow: `0 0 8px ${tierColor}88` }} />
               </div>
             </div>
+
+            {profile && (
+              <RankRewardPanel profile={profile} showLeaderboard={!profile.ladderPosition} />
+            )}
           </Panel>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
@@ -199,6 +205,8 @@ export default function Dashboard() {
               <div style={{ font: `600 9px var(--font-mono,'JetBrains Mono',monospace)`, color: "#6a7488", marginTop: 4 }}>{rankedGames} ranked games</div>
             </Panel>
           </div>
+
+          <SeasonPanel profile={profile} />
         </div>
 
         {/* CENTER — Play + modes */}

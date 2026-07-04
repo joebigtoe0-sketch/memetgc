@@ -11,6 +11,8 @@ import FactionIcon from "@/components/Faction/FactionIcon";
 import BottomNav from "@/components/Dashboard/BottomNav";
 import MusicSettings from "@/components/Music/MusicSettings";
 import { useIsMobile } from "@/hooks/useViewport";
+import { LeaderboardBadge, RankRewardPanel, SeasonPanel, ROMAN, TIER_COLOR } from "@/components/Rank/seasonUi";
+import type { SeasonRewardTier } from "@memetgc/types";
 
 interface FactionMastery { faction: string; level: number; }
 interface RecentMatch { opponent: string; won: boolean; mode: string; delta: number; endedAt: string | null; }
@@ -24,10 +26,15 @@ interface Profile {
   cardsOwned: number; legendaries: number; packsOpened: number; questsDone: number;
   modeStats?: { ranked: ModeRecord; casual: ModeRecord; practice: ModeRecord };
   factionMastery: FactionMastery[]; recentMatches: RecentMatch[];
+  ladderPosition?: number | null;
+  isMemepool?: boolean;
+  seasonPeakPoints?: number;
+  seasonPeakTier?: string;
+  seasonPeakStars?: number;
+  seasonRewardTier?: SeasonRewardTier;
+  seasonReward?: { tier: SeasonRewardTier; label: string; fragments: number; cardBack: boolean; badge: boolean };
 }
 
-const TIER_COLOR: Record<string, string> = { bronze: "#c8843c", silver: "#cfd6e0", gold: "#e7c768", platinum: "#7ad6ff", diamond: "#b58bff", degen: "#ff5fae" };
-const ROMAN = ["", "I", "II", "III", "IV", "V"];
 const RANK_TIERS = ["bronze", "silver", "gold", "platinum", "diamond", "degen"] as const;
 const TIER_FLOORS: Record<string, number> = { bronze: 0, silver: 500, gold: 1000, platinum: 1500, diamond: 2000, degen: 2500 };
 
@@ -97,7 +104,10 @@ export default function ProfilePage() {
               Member since Genesis · {rankedGames} ranked · {casualGames} casual · {practiceGames} vs AI{mains ? <> · Mains <span style={{ color: mainsColor }}>{mainsName}</span></> : null}
             </div>
           </div>
-          <button onClick={logout} style={{ cursor: "pointer", padding: "9px 16px", borderRadius: 10, background: "rgba(255,90,90,.08)", border: "1px solid rgba(255,90,90,.3)", color: "#ff8a8a", font: `700 12px var(--font-archivo,'Archivo',sans-serif)` }}>Logout</button>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <LeaderboardBadge position={p?.ladderPosition} />
+            <button onClick={logout} style={{ cursor: "pointer", padding: "9px 16px", borderRadius: 10, background: "rgba(255,90,90,.08)", border: "1px solid rgba(255,90,90,.3)", color: "#ff8a8a", font: `700 12px var(--font-archivo,'Archivo',sans-serif)` }}>Logout</button>
+          </div>
         </div>
 
         {/* Rank + stat tiles */}
@@ -125,9 +135,7 @@ export default function ProfilePage() {
                 <div style={{ width: `${progressPct}%`, height: "100%", borderRadius: 4, background: `linear-gradient(90deg,${tc},#f7c64a)`, boxShadow: `0 0 8px ${tc}88` }} />
               </div>
             </div>
-            <div style={{ marginTop: "auto", paddingTop: 14, display: "flex", justifyContent: "space-between", font: `600 10px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6" }}>
-              <span>Season high</span><span style={{ color: "#cdd4df" }}>{formatRankTier(tier).toUpperCase()}</span>
-            </div>
+            {p && <RankRewardPanel profile={p} showLeaderboard={!p.ladderPosition} />}
           </div>
 
           <Stat
@@ -151,6 +159,10 @@ export default function ProfilePage() {
           <Stat value={p?.legendaries ?? 0} label="Legendaries" color="#e7c768" />
           <Stat value={p?.packsOpened ?? 0} label="Packs opened" />
           <Stat value={p?.questsDone ?? 0} label="Quests done" color="#b58bff" />
+        </div>
+
+        <div style={{ marginTop: 16 }}>
+          <SeasonPanel profile={p} />
         </div>
 
         {/* Faction mastery + recent matches */}

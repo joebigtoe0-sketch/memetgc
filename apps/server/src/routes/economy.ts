@@ -7,7 +7,7 @@ import { getTokenBalance, getTokenBalanceForMint, MIN_PLAY_TOKENS } from "../lib
 import { tierFromPoints } from "../game/rank.js";
 import { getLadderStanding } from "../game/leaderboard.js";
 import { generateDailyQuests } from "../game/dailyQuests.js";
-import { CARD_BACKS, getCardBackDef } from "@memetgc/types";
+import { CARD_BACKS, getCardBackDef, getSeasonReward, type SeasonRewardTier } from "@memetgc/types";
 
 const router: ReturnType<typeof Router> = Router();
 
@@ -253,6 +253,9 @@ router.get("/profile", requireAuth, async (req: AuthRequest, res) => {
   const practiceGames = modeStats.practice.wins + modeStats.practice.losses;
   const { tier, stars } = tierFromPoints(user.rankPoints);
   const standing = await getLadderStanding(user.id, user.rankPoints);
+  const peakInfo = tierFromPoints(user.seasonPeakPoints);
+  const rewardTier: SeasonRewardTier = standing.isMemepool ? "degen" : peakInfo.tier;
+  const seasonReward = getSeasonReward(rewardTier);
   res.json({
     username: user.username,
     walletAddress: user.walletAddress,
@@ -262,6 +265,17 @@ router.get("/profile", requireAuth, async (req: AuthRequest, res) => {
     rankPoints: user.rankPoints,
     ladderPosition: standing.position,
     isMemepool: standing.isMemepool,
+    seasonPeakPoints: user.seasonPeakPoints,
+    seasonPeakTier: peakInfo.tier,
+    seasonPeakStars: peakInfo.stars,
+    seasonRewardTier: rewardTier,
+    seasonReward: {
+      tier: seasonReward.tier,
+      label: seasonReward.label,
+      fragments: seasonReward.fragments,
+      cardBack: seasonReward.cardBack,
+      badge: seasonReward.badge,
+    },
     seasonWins: wins,
     seasonLosses: losses,
     modeStats,

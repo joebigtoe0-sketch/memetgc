@@ -7,6 +7,8 @@ import { useAuthStore } from "@/store/authStore";
 import Logo from "@/components/Brand/Logo";
 import { BRAND, formatRankTier } from "@/lib/brand";
 import { useIsMobile } from "@/hooks/useViewport";
+import { SeasonRewardsTable } from "@/components/Rank/seasonUi";
+import type { SeasonRewardTier } from "@memetgc/types";
 
 interface Row {
   position: number;
@@ -32,8 +34,9 @@ const ROMAN = ["", "I", "II", "III", "IV", "V"];
 export default function LeaderboardPage() {
   const router = useRouter();
   const isMobile = useIsMobile();
-  const { username } = useAuthStore();
+  const { username, token } = useAuthStore();
   const [data, setData] = useState<LeaderboardResponse | null>(null);
+  const [highlightTier, setHighlightTier] = useState<SeasonRewardTier | undefined>();
   const [loading, setLoading] = useState(true);
   const gridCols = isMobile ? "40px 1fr 66px 58px" : "56px 1fr 150px 90px 90px";
   const rowPad = isMobile ? "10px 12px" : "11px 16px";
@@ -44,6 +47,16 @@ export default function LeaderboardPage() {
       .catch(() => setData({ season: null, players: [] }))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!token) return;
+    api.get<{ seasonRewardTier?: SeasonRewardTier; isMemepool?: boolean }>("/api/economy/profile")
+      .then((p) => {
+        if (p.isMemepool) setHighlightTier("degen");
+        else if (p.seasonRewardTier) setHighlightTier(p.seasonRewardTier);
+      })
+      .catch(() => {});
+  }, [token]);
 
   return (
     <div style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", background: "radial-gradient(140% 90% at 50% -8%,#141b2a 0%,#090c13 60%,#06080d 100%)", fontFamily: "var(--font-archivo,'Archivo',sans-serif)" }}>
@@ -64,6 +77,8 @@ export default function LeaderboardPage() {
 
       <main style={{ position: "relative", zIndex: 1, flex: 1, overflowY: "auto", padding: "28px clamp(16px, 5vw, 60px) 80px" }}>
         <div style={{ maxWidth: 820, margin: "0 auto" }}>
+          <SeasonRewardsTable highlightTier={highlightTier} />
+
           <div style={{ font: `700 11px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "2px", color: "#8a93a6", marginBottom: 14 }}>
             TOP 100 · MEMEPOOL RANK = LIVE TOP 100 ABOVE DIAMOND
           </div>
