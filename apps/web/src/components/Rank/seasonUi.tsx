@@ -90,8 +90,8 @@ export function SeasonRewardBox({
         )}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 10 }}>
-        <div style={{ width: compact ? 36 : 42, height: compact ? 36 : 42, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", background: `${tc}22`, border: `1px solid ${tc}55`, fontSize: compact ? 18 : 20 }}>
-          🎁
+        <div style={{ width: compact ? 36 : 42, height: compact ? 36 : 42, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", background: `${tc}22`, border: `1px solid ${tc}55` }}>
+          <GameIcon name="fragment" size={compact ? 20 : 24} />
         </div>
         <div>
           <div style={{ font: `800 ${compact ? 16 : 18}px var(--font-mono,'JetBrains Mono',monospace)`, color: tc }}>
@@ -192,14 +192,12 @@ export function LeaderboardBadge({ position, compact }: { position: number | nul
   );
 }
 
-/** Rank + peak + reward block for profile/dashboard left panel. */
+/** Rank + peak stats for profile/dashboard left panel (rewards live in SeasonPanel). */
 export function RankRewardPanel({ profile, showLeaderboard }: { profile: ProfileSeasonData; showLeaderboard?: boolean }) {
   const tier = profile.rankTier ?? "bronze";
   const peakTier = profile.seasonPeakTier ?? tier;
   const peakStars = profile.seasonPeakStars ?? profile.rankStars ?? 0;
   const peakTc = TIER_COLOR[peakTier] ?? TIER_COLOR[tier] ?? "#e7c768";
-  const rewardTier = (profile.seasonRewardTier ?? peakTier) as SeasonRewardTier;
-  const reward = profile.seasonReward ?? getSeasonReward(rewardTier);
 
   return (
     <>
@@ -215,7 +213,6 @@ export function RankRewardPanel({ profile, showLeaderboard }: { profile: Profile
           {formatRankTier(peakTier)} {ROMAN[Math.max(1, 5 - peakStars)] ?? ""}
         </span>
       </div>
-      <SeasonRewardBox rewardTier={reward.tier} reward={reward} />
     </>
   );
 }
