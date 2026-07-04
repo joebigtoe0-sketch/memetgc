@@ -5,11 +5,12 @@ import { getRoomByUserId } from "../game/room.js";
 /**
  * Disguised AI ladder players ("bots"). Each one is a real User row with a
  * random 60-card collection and a deck built from it. They hop into the
- * casual/ranked queues when a human has been waiting a while, play through
- * the normal room machinery with the smart AI + human-like pacing, and gain/
- * lose real MMR and ladder points like anyone else.
+ * casual/ranked queues when a human has been waiting, play through the normal
+ * room machinery with the smart AI + human-like pacing, and gain/lose real MMR
+ * and ladder points like anyone else.
  *
- * Bots never queue when no human is waiting and never play each other.
+ * When a human is waiting, exactly one bot (closest MMR) joins to fill the
+ * slot. Bots never queue on their own and never play each other.
  */
 
 const COPY_LIMITS: Record<string, number> = { common: 4, rare: 3, epic: 2, legendary: 1 };
@@ -232,14 +233,12 @@ async function tick(): Promise<void> {
       select: { id: true, mmr: true },
     });
     const mmrById = new Map(users.map((u) => [u.id, u.mmr]));
-    const pick =
-      mode === "ranked"
-        ? [...idle].sort(
-            (a, b) =>
-              Math.abs((mmrById.get(a.userId) ?? 1000) - seeker.mmr) -
-              Math.abs((mmrById.get(b.userId) ?? 1000) - seeker.mmr)
-          )[0]!
-        : idle[Math.floor(Math.random() * idle.length)]!;
+    // Always pick the idle bot whose rating is closest to the waiting human.
+    const pick = [...idle].sort(
+      (a, b) =>
+        Math.abs((mmrById.get(a.userId) ?? 1000) - seeker.mmr) -
+        Math.abs((mmrById.get(b.userId) ?? 1000) - seeker.mmr)
+    )[0]!;
 
     joinQueue({
       socketId: "",
