@@ -9,6 +9,8 @@ export interface QueueEntry {
   mode: GameMode;
   mmr: number;
   joinedAt: number;
+  /** True for the disguised AI ladder bots. */
+  isBot?: boolean;
 }
 
 const queues: Record<GameMode, QueueEntry[]> = {
@@ -80,6 +82,16 @@ export function tryMatchmake(mode: GameMode, now = Date.now()): [QueueEntry, Que
 
 export function getQueueSize(mode: GameMode): number {
   return queues[mode].length;
+}
+
+/** Read-only snapshot of a mode's queue (used by the bot manager). */
+export function getQueueEntries(mode: GameMode): readonly QueueEntry[] {
+  return queues[mode];
+}
+
+/** True if the user is waiting in any queue. */
+export function isQueued(userId: string): boolean {
+  return Object.values(queues).some((q) => q.some((e) => e.userId === userId));
 }
 
 export function removeBySocketId(socketId: string): void {

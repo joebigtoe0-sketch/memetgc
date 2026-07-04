@@ -204,6 +204,9 @@ async function beginMatch(
   entry2: QueueEntry,
   mode: string
 ): Promise<void> {
+  // Bots exist to give humans games — never let two of them play each other.
+  if (entry1.isBot && entry2.isBot) return;
+
   const gameId = randomUUID();
 
   const [deck1, deck2, hero1, hero2, user1, user2] = await Promise.all([
@@ -221,7 +224,7 @@ async function beginMatch(
   await ensureFreshCardRegistry();
 
   const p1: PlayerInfo = {
-    socketId: entry1.socketId,
+    socketId: entry1.isBot ? null : entry1.socketId,
     userId: entry1.userId,
     username: entry1.username,
     heroId: entry1.heroId,
@@ -229,11 +232,12 @@ async function beginMatch(
     heroFaction: hero1.faction as Faction,
     heroPower: hero1.heroPowerJson as unknown as PlayerInfo["heroPower"],
     deck: deck1,
-    isAI: false,
+    isAI: !!entry1.isBot,
+    isBot: !!entry1.isBot,
     cardBack: user1?.equippedCardBack ?? null,
   };
   const p2: PlayerInfo = {
-    socketId: entry2.socketId,
+    socketId: entry2.isBot ? null : entry2.socketId,
     userId: entry2.userId,
     username: entry2.username,
     heroId: entry2.heroId,
@@ -241,7 +245,8 @@ async function beginMatch(
     heroFaction: hero2.faction as Faction,
     heroPower: hero2.heroPowerJson as unknown as PlayerInfo["heroPower"],
     deck: deck2,
-    isAI: false,
+    isAI: !!entry2.isBot,
+    isBot: !!entry2.isBot,
     cardBack: user2?.equippedCardBack ?? null,
   };
 

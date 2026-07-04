@@ -17,6 +17,7 @@ import seasonRouter from "./routes/season.js";
 import onlineRouter from "./routes/online.js";
 import { registerSocketHandlers, loadCardRegistry, startMatchmakingTicker, getCardRegistrySize } from "./game/socket.js";
 import { getSolanaConfigStatus } from "./lib/solana.js";
+import { ensureBots, startBotTicker } from "./bots/manager.js";
 
 // Bump this string whenever you want to confirm a fresh deploy is live via /health.
 const BUILD_TAG = "2026-07-02-market-disconnect-fixes";
@@ -75,6 +76,12 @@ async function start(): Promise<void> {
   await loadCardRegistry();
   startMarketSweeper();
   startMatchmakingTicker(io);
+
+  // Disguised AI ladder players — seed accounts/decks, then let them fill
+  // casual/ranked queues when humans are waiting.
+  ensureBots()
+    .then(() => startBotTicker())
+    .catch((err) => console.error("[bots] setup failed:", err));
 
   httpServer.listen(PORT, () => {
     console.log(`🎮 Legends of the Memepool server running on port ${PORT}`);

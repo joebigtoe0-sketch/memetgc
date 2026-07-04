@@ -25,6 +25,9 @@ export async function recordMatchResults(
     const winnerId = room.state.winner ?? null;
     const humans = Object.values(room.players).filter((p) => !p.isAI);
     if (humans.length === 0) return;
+    // Bots are real user rows: their MMR/points/season stats move like anyone
+    // else's (keeps the ladder believable) — but they earn no fragments or quests.
+    const participants = Object.values(room.players).filter((p) => !p.isAI || p.isBot);
 
     // Tutorial game: only outcome is unlocking the real modes on a win.
     // No fragments, no stats, no match history entry.
@@ -50,7 +53,7 @@ export async function recordMatchResults(
     // Snapshot both players' MMR up-front so each Elo calc uses pre-match ratings.
     const userSnapshots = new Map<string, { mmr: number; rankPoints: number; games: number }>();
     if (isRanked && trackStats) {
-      for (const player of humans) {
+      for (const player of participants) {
         const u = await prisma.user.findUnique({
           where: { id: player.userId },
           select: { mmr: true, rankPoints: true, seasonWins: true, seasonLosses: true },
@@ -65,9 +68,10 @@ export async function recordMatchResults(
       }
     }
 
-    for (const player of humans) {
+    for (const player of participants) {
       const userId = player.userId;
       const isWinner = winnerId === userId;
+      const isBotPlayer = !!player.isBot;
 
       const user = await prisma.user.findUnique({ where: { id: userId } });
       if (!user) continue;
@@ -143,7 +147,7 @@ export async function recordMatchResults(
         }
       }
 
-      if (matchFragments > 0) {
+      if (matchFragments > 0 && !isBotPlayer) {
         updateData.fragments = { increment: matchFragments };
       }
 
@@ -151,18 +155,23 @@ export async function recordMatchResults(
         await prisma.user.update({ where: { id: userId }, data: updateData });
       }
 
-      if (trackQuests) {
+      if (trackQuests && !isBotPlayer) {
         await updateQuests(userId, { isWinner, minionsDestroyed, mode: room.mode }, now);
       }
     }
 
     const seasonId = isRanked ? await getActiveSeasonId() : null;
-    const [p1, p2] = Object.values(room.players);
-    if (p1 && !p1.isAI) {
+    // Record the match with real user ids for humans AND bots (so opponents
+    // show up by username in history); plain practice AI stays null.
+    const [pa, pb] = Object.values(room.players);
+    const qualifies = (p?: typeof pa) => !!p && (!p.isAI || !!p.isBot);
+    const first = qualifies(pa) ? pa : pb;
+    const second = first === pa ? pb : pa;
+    if (first && qualifies(first)) {
       await prisma.match.create({
         data: {
-          player1Id: p1.userId,
-          player2Id: p2 && !p2.isAI ? p2.userId : null,
+          player1Id: first.userId,
+          player2Id: second && qualifies(second) ? second.userId : null,
           mode: room.mode,
           winnerId: winnerId,
           endReason,

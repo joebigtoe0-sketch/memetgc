@@ -1,4 +1,4 @@
-import { applyAction, sanitizeState, getAIAction, createGameState } from "@memetgc/game-engine";
+import { applyAction, sanitizeState, getSmartAIAction, getSmartMulliganKeeps, createGameState } from "@memetgc/game-engine";
 import type { GameState, GameAction, Card, PlayerState, AnimationHint } from "@memetgc/types";
 import type { Server } from "socket.io";
 import type { ServerToClientEvents, ClientToServerEvents } from "@memetgc/types";
@@ -15,6 +15,8 @@ export interface PlayerInfo {
   heroPower: PlayerState["heroPower"];
   deck: Card[];
   isAI: boolean;
+  /** Disguised ladder bot: real user row, plays via AI with human-like pacing. */
+  isBot?: boolean;
   /** Equipped card back id (null = default). Shown to the opponent in-game. */
   cardBack?: string | null;
 }
@@ -79,9 +81,14 @@ export function initMulligan(
   room: GameRoom,
   io: Server<ClientToServerEvents, ServerToClientEvents>
 ): void {
-  // Auto-mulligan AI players immediately (keep all cards)
+  // Auto-mulligan AI players. Ladder bots take a few human-like seconds and
+  // mulligan intelligently; plain practice/tutorial AI confirms instantly.
   for (const [userId, info] of Object.entries(room.players)) {
     if (info.isAI && room.state.status === "mulligan") {
+      if (info.isBot) {
+        scheduleBotMulligan(room, io, userId);
+        continue;
+      }
       const result = applyAction(room.state, { type: "mulligan", keepInstanceIds: [], playerId: userId }, room.cardRegistry);
       if (result.success) {
         room.state = result.newState;
@@ -209,7 +216,12 @@ export function handlePlayerAction(
 function autoMulliganAI(room: GameRoom, io: Server<ClientToServerEvents, ServerToClientEvents>): void {
   let changed = false;
   for (const [userId, info] of Object.entries(room.players)) {
-    if (info.isAI && room.state.status === "mulligan") {
+    if (info.isAI && room.state.status === "mulligan" && !room.state.pendingMulligan[userId]) {
+      // Bots mulligan on their own (scheduled) timer — don't rush them here.
+      if (info.isBot) {
+        if (!room.mulliganTimerHandles.has(userId)) scheduleBotMulligan(room, io, userId);
+        continue;
+      }
       const result = applyAction(room.state, { type: "mulligan", keepInstanceIds: [], playerId: userId }, room.cardRegistry);
       if (result.success) {
         room.state = result.newState;
@@ -225,12 +237,41 @@ function autoMulliganAI(room: GameRoom, io: Server<ClientToServerEvents, ServerT
   }
 }
 
+/**
+ * Ladder bots "think" for a few seconds before confirming their mulligan and
+ * keep only their cheap cards, like a decent human would.
+ */
+function scheduleBotMulligan(
+  room: GameRoom,
+  io: Server<ClientToServerEvents, ServerToClientEvents>,
+  botUserId: string
+): void {
+  if (room.mulliganTimerHandles.has(botUserId)) return;
+  const delay = 2500 + Math.random() * 4500;
+  const handle = setTimeout(() => {
+    room.mulliganTimerHandles.delete(botUserId);
+    if (room.state.status !== "mulligan" || room.state.pendingMulligan[botUserId]) return;
+    const botState = room.state.players[botUserId];
+    const keeps = botState ? getSmartMulliganKeeps(botState) : [];
+    const result = applyAction(room.state, { type: "mulligan", keepInstanceIds: keeps, playerId: botUserId }, room.cardRegistry);
+    if (!result.success) return;
+    room.state = result.newState;
+    broadcastState(room, io, []);
+    if (room.state.status === "in_progress") {
+      triggerAIOrTimer(room, io);
+    }
+  }, delay);
+  room.mulliganTimerHandles.set(botUserId, handle);
+}
+
 function triggerAIOrTimer(room: GameRoom, io: Server<ClientToServerEvents, ServerToClientEvents>): void {
   if (room.state.status !== "in_progress") return;
 
   const activePlayerInfo = room.players[room.state.activePlayerId];
   if (activePlayerInfo?.isAI) {
-    setTimeout(() => processAITurn(room, io), 800);
+    // Ladder bots pause like a human reading the board; practice AI stays snappy.
+    const delay = activePlayerInfo.isBot ? 1800 + Math.random() * 2700 : 800;
+    setTimeout(() => processAITurn(room, io), delay);
   } else {
     scheduleActiveTurnTimer(room, io);
   }
@@ -387,6 +428,16 @@ export function handlePlayerReconnect(
 const AI_ACTION_DELAY_MS = 1100;
 const AI_MAX_ACTIONS = 20;
 
+/**
+ * Time between a bot's actions. Mostly a quick 1.3–3s rhythm with the
+ * occasional longer "let me think" pause so it reads as a human playing.
+ */
+function botActionDelay(): number {
+  const base = 1300 + Math.random() * 1700;
+  const longThink = Math.random() < 0.18 ? 1800 + Math.random() * 2800 : 0;
+  return Math.round(base + longThink);
+}
+
 function processAITurn(room: GameRoom, io: Server<ClientToServerEvents, ServerToClientEvents>): void {
   if (room.state.status !== "in_progress") return;
 
@@ -427,7 +478,7 @@ function stepAITurn(
 
   const action = room.mode === "tutorial"
     ? getTutorialAIAction(room.state, aiPlayerId)
-    : getAIAction(room.state, aiPlayerId);
+    : getSmartAIAction(room.state, aiPlayerId);
   const result = applyAction(room.state, action, room.cardRegistry);
 
   if (!result.success) {
@@ -452,7 +503,8 @@ function stepAITurn(
 
   if (action.type === "end_turn") return;
 
-  setTimeout(() => stepAITurn(room, io, aiPlayerId, iterations + 1), AI_ACTION_DELAY_MS);
+  const isBot = room.players[aiPlayerId]?.isBot;
+  setTimeout(() => stepAITurn(room, io, aiPlayerId, iterations + 1), isBot ? botActionDelay() : AI_ACTION_DELAY_MS);
 }
 
 /**
