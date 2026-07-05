@@ -17,6 +17,7 @@ interface GameStore {
   matchReward: number | null;
   rankUpdate: { delta: number; points: number; tier: string; stars: number; streakBonus?: number; streak?: number } | null;
   opponentDisconnected: boolean;
+  isSpectator: boolean;
 
   // UI state
   selectedCardInstanceId: string | null;
@@ -34,6 +35,7 @@ interface GameStore {
   setMatchReward: (fragments: number | null) => void;
   setRankUpdate: (r: { delta: number; points: number; tier: string; stars: number; streakBonus?: number; streak?: number } | null) => void;
   setOpponentDisconnected: (v: boolean) => void;
+  setSpectator: (v: boolean) => void;
   setActionError: (error: string | null) => void;
   selectCard: (instanceId: string | null) => void;
   selectAttacker: (instanceId: string | null) => void;
@@ -51,6 +53,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   matchReward: null,
   rankUpdate: null,
   opponentDisconnected: false,
+  isSpectator: false,
   selectedCardInstanceId: null,
   selectedAttackerId: null,
   zoomedCard: null,
@@ -63,7 +66,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   setGameState: (state) =>
     set((store) => ({
       gameState: state,
-      isMyTurn: state.activePlayerId === store.playerId,
+      isSpectator: !!state.spectator,
+      isMyTurn: !state.spectator && state.activePlayerId === store.playerId,
       lastActionError: null,
     })),
 
@@ -72,6 +76,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   setMatchReward: (matchReward) => set({ matchReward }),
   setRankUpdate: (rankUpdate) => set({ rankUpdate }),
   setOpponentDisconnected: (opponentDisconnected) => set({ opponentDisconnected }),
+  setSpectator: (isSpectator) => set({ isSpectator }),
   setActionError: (error) => set({ lastActionError: error }),
 
   selectCard: (selectedCardInstanceId) =>
@@ -92,6 +97,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       matchReward: null,
       rankUpdate: null,
       opponentDisconnected: false,
+      isSpectator: false,
       selectedCardInstanceId: null,
       selectedAttackerId: null,
       zoomedCard: null,

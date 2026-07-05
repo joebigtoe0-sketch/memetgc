@@ -48,7 +48,7 @@ interface FxSnapshot {
 }
 
 export default function GameBoard() {
-  const { gameState, isMyTurn, selectedCardInstanceId, selectedAttackerId, lastActionError, playerId, pendingAnimations, matchReward, rankUpdate, opponentDisconnected } = useGameStore();
+  const { gameState, isMyTurn, selectedCardInstanceId, selectedAttackerId, lastActionError, playerId, pendingAnimations, matchReward, rankUpdate, opponentDisconnected, isSpectator } = useGameStore();
   const { selectCard, selectAttacker, setActionError, clearAnimations } = useGameStore();
   const [phase, setPhase] = useState<PhaseAction>("idle");
   const [zoomedCard, setZoomedCard] = useState<CardData | null>(null);
@@ -608,10 +608,34 @@ export default function GameBoard() {
   }
 
   if (gameState.status === "mulligan") {
+    if (isSpectator) {
+      return (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "#8a93a6", background: boardBg ? undefined : "#060810" }}>
+          <BoardBackground url={boardBg} />
+          <div style={{ textAlign: "center", zIndex: 1 }}>
+            <GameIcon name="battle" size={40} style={{ margin: "0 auto 12px" }} />
+            <p style={{ font: `800 14px var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc" }}>Mulligan phase</p>
+            <p style={{ font: `500 12px var(--font-archivo,'Archivo',sans-serif)`, marginTop: 8 }}>Players are choosing starting hands…</p>
+          </div>
+        </div>
+      );
+    }
     return <MulliganScreen hand={gameState.myState.hand as (Card & { instanceId: string })[]} isFirstPlayer={gameState.myState.playerId !== gameState.activePlayerId} boardBg={boardBg} />;
   }
 
   if (gameState.status === "finished") {
+    if (isSpectator) {
+      const winnerName = gameState.winner === gameState.myState.playerId
+        ? gameState.myState.playerName
+        : gameState.opponentState.playerName;
+      return (
+        <div style={{ position: "absolute", inset: 0, zIndex: 50, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, background: "rgba(6,8,13,.96)" }}>
+          <div style={{ font: `900 48px/1 var(--font-cinzel,'Cinzel',serif)`, color: "#e7c768" }}>MATCH OVER</div>
+          <div style={{ font: `700 18px var(--font-archivo,'Archivo',sans-serif)`, color: "#e7ecf3" }}>{winnerName} wins</div>
+          <button onClick={() => window.history.back()} style={{ marginTop: 12, cursor: "pointer", padding: "10px 20px", borderRadius: 10, border: "1px solid rgba(255,255,255,.15)", background: "rgba(255,255,255,.06)", color: "#cdd4df", font: `700 12px var(--font-archivo,'Archivo',sans-serif)` }}>Back to admin</button>
+        </div>
+      );
+    }
     const iWon = gameState.winner === playerId;
     return (
       <div style={{ position: "absolute", inset: 0, zIndex: 50, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 24, background: "rgba(6,8,13,.96)" }}>
@@ -665,7 +689,7 @@ export default function GameBoard() {
   }
 
   const { myState, opponentState } = gameState;
-  const canAct = isMyTurn && gameState.phase === "main" && gameState.status === "in_progress";
+  const canAct = !isSpectator && isMyTurn && gameState.phase === "main" && gameState.status === "in_progress";
   const timerUrgent = isMyTurn && turnSecondsLeft <= 5;
   const opponentCardBack = cardBackImage(opponentState.cardBack);
 
@@ -908,7 +932,17 @@ export default function GameBoard() {
         <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
           {/* Face-down opponent hand at top */}
           <div style={{ flex: "0 0 200px", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "8px 0 0", overflow: "visible" }}>
-            <FaceDownHand count={opponentState.handCount} backSrc={opponentCardBack} />
+            {isSpectator && opponentState.hand && opponentState.hand.length > 0 ? (
+              <HandZone
+                hand={opponentState.hand as (Card & { instanceId?: string })[]}
+                currentMana={opponentState.mana}
+                actionsEnabled={false}
+                isMobile={isMobile}
+                onCardHover={(c) => setZoomedCard(c)}
+              />
+            ) : (
+              <FaceDownHand count={opponentState.handCount} backSrc={opponentCardBack} />
+            )}
           </div>
 
           {/* Opponent board — slots at bottom */}

@@ -15,12 +15,21 @@ export function getSocket(): Socket<ServerToClientEvents, ClientToServerEvents> 
 }
 
 export function sendAction(action: GameAction): void {
+  if (useGameStore.getState().isSpectator) return;
   socket?.emit("game:action", action);
+}
+
+export function spectateGame(gameId: string): void {
+  socket?.emit("game:spectate", { gameId });
+}
+
+export function leaveSpectate(): void {
+  socket?.emit("game:spectate_leave");
 }
 
 export function useSocket() {
   const { token, userId } = useAuthStore();
-  const { setConnected, setGameId, setGameState, setAnimations, setActionError, setPlayerId, setMatchReward, setRankUpdate, setOpponentDisconnected } = useGameStore();
+  const { setConnected, setGameId, setGameState, setAnimations, setActionError, setPlayerId, setMatchReward, setRankUpdate, setOpponentDisconnected, setSpectator } = useGameStore();
   const initializedRef = useRef(false);
 
   useEffect(() => {
@@ -70,6 +79,12 @@ export function useSocket() {
 
     socket.on("game:opponent_status", (status) => {
       setOpponentDisconnected(!status.connected);
+    });
+
+    socket.on("game:spectate_started", (state) => {
+      setSpectator(true);
+      setGameId(state.gameId);
+      setGameState(state);
     });
 
     socket.on("game:error", (msg) => {

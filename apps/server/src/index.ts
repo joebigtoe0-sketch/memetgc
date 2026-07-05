@@ -16,6 +16,7 @@ import leaderboardRouter from "./routes/leaderboard.js";
 import seasonRouter from "./routes/season.js";
 import onlineRouter from "./routes/online.js";
 import tournamentsRouter from "./routes/tournaments.js";
+import adminRouter from "./routes/admin.js";
 import { registerSocketHandlers, loadCardRegistry, startMatchmakingTicker, getCardRegistrySize } from "./game/socket.js";
 import { getSolanaConfigStatus } from "./lib/solana.js";
 import { ensureBots, startBotTicker } from "./bots/manager.js";
@@ -62,6 +63,7 @@ app.use("/api/leaderboard", leaderboardRouter);
 app.use("/api/season", seasonRouter);
 app.use("/api/online", onlineRouter);
 app.use("/api/tournaments", tournamentsRouter);
+app.use("/api/admin", adminRouter);
 
 app.get("/health", (_req, res) => {
   res.json({

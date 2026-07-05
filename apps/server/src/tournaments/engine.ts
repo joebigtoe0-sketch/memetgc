@@ -20,6 +20,50 @@ export function setTournamentEngineIo(io: Server<ClientToServerEvents, ServerToC
   ioRef = io;
 }
 
+const BOT_FILL_TARGET = 5;
+const BOT_REGISTER_INTERVAL_MS = 5 * 60 * 1000;
+
+async function getBotPool(): Promise<string[]> {
+  let pool = getBotIdentities().map((b) => b.userId);
+  if (pool.length === 0) {
+    const dbBots = await prisma.user.findMany({ where: { isBot: true }, select: { id: true }, take: 10 });
+    pool = dbBots.map((b) => b.id);
+  }
+  return pool;
+}
+
+/** Gradually register ladder bots into upcoming tournaments (1 every 5 min, up to 5 total). */
+async function processBotRegistrations(): Promise<void> {
+  const now = Date.now();
+  const upcoming = await prisma.tournament.findMany({
+    where: { status: "upcoming", startAt: { gt: new Date() } },
+    include: { entries: { select: { userId: true } } },
+  });
+
+  const botPool = await getBotPool();
+  if (botPool.length === 0) return;
+
+  for (const t of upcoming) {
+    const current = t.entries.length;
+    if (current >= BOT_FILL_TARGET) continue;
+
+    const elapsed = now - t.createdAt.getTime();
+    const desiredTotal = Math.min(BOT_FILL_TARGET, Math.floor(elapsed / BOT_REGISTER_INTERVAL_MS) + 1);
+    if (current >= desiredTotal) continue;
+
+    const registered = new Set(t.entries.map((e) => e.userId));
+    const available = botPool.filter((id) => !registered.has(id));
+    const toAdd = Math.min(desiredTotal - current, available.length);
+
+    for (let i = 0; i < toAdd; i++) {
+      const botId = available[i]!;
+      await prisma.tournamentEntry.create({
+        data: { tournamentId: t.id, userId: botId },
+      }).catch(() => {});
+    }
+  }
+}
+
 async function isBot(userId: string | null): Promise<boolean> {
   if (!userId) return false;
   const u = await prisma.user.findUnique({ where: { id: userId }, select: { isBot: true } });
@@ -284,14 +328,10 @@ export async function startTournament(tournamentId: string): Promise<void> {
   const bracketSize = computeBracketSize(humanIds.length, tournament.maxSlots);
   const botsNeeded = bracketSize - humanIds.length;
 
-  let botPool = getBotIdentities().map((b) => b.userId);
-  if (botPool.length === 0) {
-    const dbBots = await prisma.user.findMany({ where: { isBot: true }, select: { id: true }, take: 5 });
-    botPool = dbBots.map((b) => b.id);
-  }
+  let botPool = await getBotPool();
 
   const botIds: string[] = [];
-  for (let i = 0; i < botsNeeded; i++) {
+  for (let i = 0; i < botsNeeded && botPool.length > 0; i++) {
     botIds.push(botPool[i % botPool.length]!);
   }
 
@@ -393,6 +433,8 @@ async function processExpiredJoinWindows(): Promise<void> {
 
 async function tick(): Promise<void> {
   const now = new Date();
+
+  await processBotRegistrations();
 
   const due = await prisma.tournament.findMany({
     where: { status: "upcoming", startAt: { lte: now } },

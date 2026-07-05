@@ -61,13 +61,14 @@ function useResetCountdown() {
 export default function Dashboard() {
   const router = useRouter();
   const isMobile = useIsMobile();
-  const { username, fragments, walletAddress, setFragments } = useAuthStore();
+  const { username, fragments, walletAddress, setFragments, token } = useAuthStore();
   const { connected } = useGameStore();
   const { degen, packs } = useBalances();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [quests, setQuests] = useState<Quest[]>([]);
   const [liveTournaments, setLiveTournaments] = useState(0);
   const [activeTournamentMatch, setActiveTournamentMatch] = useState<ActiveTournamentMatch | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [, countdownTick] = useState(0);
   const resetIn = useResetCountdown();
 
@@ -80,7 +81,10 @@ export default function Dashboard() {
     loadQuests();
     api.get<{ liveCount: number }>("/api/tournaments").then((d) => setLiveTournaments(d.liveCount)).catch(() => {});
     api.get<{ match: ActiveTournamentMatch | null }>("/api/tournaments/active-match").then((d) => setActiveTournamentMatch(d.match)).catch(() => {});
-  }, [loadQuests, setFragments]);
+    if (token) {
+      api.get<{ isAdmin: boolean }>("/api/admin/check").then((d) => setIsAdmin(d.isAdmin)).catch(() => {});
+    }
+  }, [loadQuests, setFragments, token]);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -143,6 +147,9 @@ export default function Dashboard() {
           <StatChip icon="pack" label={`${packs} packs`} onClick={() => router.push("/packs")} />
           <button onClick={() => router.push("/leaderboard")} style={{ cursor: "pointer", padding: "7px 12px", borderRadius: 9, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)", color: "#c2cbdb", font: `700 11px var(--font-archivo,'Archivo',sans-serif)` }}>Ranks</button>
           <button onClick={() => router.push("/docs")} style={{ cursor: "pointer", padding: "7px 12px", borderRadius: 9, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)", color: "#c2cbdb", font: `700 11px var(--font-archivo,'Archivo',sans-serif)` }}>Guide</button>
+          {isAdmin && (
+            <button onClick={() => router.push("/admin")} style={{ cursor: "pointer", padding: "7px 12px", borderRadius: 9, background: "rgba(231,199,104,.1)", border: "1px solid rgba(231,199,104,.35)", color: "#e7c768", font: `700 11px var(--font-archivo,'Archivo',sans-serif)` }}>Admin</button>
+          )}
           {!isMobile && <SettingsButton />}
           <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 12px", borderRadius: 9, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)" }}>
             <span style={{ width: 7, height: 7, borderRadius: "50%", background: connected ? "#19e08a" : "#ff5555", flexShrink: 0 }} />

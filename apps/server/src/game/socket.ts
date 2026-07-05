@@ -3,7 +3,8 @@ import type { ServerToClientEvents, ClientToServerEvents, GameAction } from "@me
 import { verifyToken } from "../middleware/auth.js";
 import { prisma } from "@memetgc/db";
 import { joinQueue, leaveQueue, tryMatchmake, removeBySocketId, getQueueSize, type QueueEntry } from "../matchmaking/queue.js";
-import { createRoom, getRoom, getRoomByUserId, handlePlayerAction, handlePlayerDisconnect, handlePlayerReconnect, initMulligan, buildSanitizedState, type PlayerInfo } from "./room.js";
+import { createRoom, getRoom, getRoomByUserId, handlePlayerAction, handlePlayerDisconnect, handlePlayerReconnect, initMulligan, buildSanitizedState, buildSpectatorState, addSpectator, removeSpectator, type PlayerInfo } from "./room.js";
+import { isUserAdmin } from "../middleware/admin.js";
 import type { Card, Keyword, CardEffect, HeroPower, Faction } from "@memetgc/types";
 import { randomUUID } from "crypto";
 import { getTokenBalance, MIN_PLAY_TOKENS } from "../lib/solana.js";
@@ -509,6 +510,36 @@ export function registerSocketHandlers(
       }
     });
 
+    socket.on("game:spectate", async ({ gameId }) => {
+      if (!authenticatedUserId) {
+        socket.emit("game:error", "Not authenticated");
+        return;
+      }
+      const admin = await isUserAdmin(authenticatedUserId);
+      if (!admin) {
+        socket.emit("game:error", "Admin access required");
+        return;
+      }
+      if (getRoomByUserId(authenticatedUserId)) {
+        socket.emit("game:error", "Leave your current game first");
+        return;
+      }
+      const room = getRoom(gameId);
+      if (!room || room.state.status === "finished") {
+        socket.emit("game:error", "Game not found or already finished");
+        return;
+      }
+      removeSpectator(authenticatedUserId);
+      addSpectator(room, authenticatedUserId, socket.id);
+      socket.join(gameId);
+      socket.emit("game:spectate_started", buildSpectatorState(room));
+    });
+
+    socket.on("game:spectate_leave", () => {
+      if (!authenticatedUserId) return;
+      removeSpectator(authenticatedUserId);
+    });
+
     socket.on("game:action", (action: GameAction) => {
       if (!authenticatedUserId) return;
 
@@ -534,6 +565,7 @@ export function registerSocketHandlers(
     socket.on("disconnect", () => {
       removeBySocketId(socket.id);
       if (authenticatedUserId) {
+        removeSpectator(authenticatedUserId);
         unregisterUserSocket(authenticatedUserId, socket.id);
         trackUserOffline(authenticatedUserId);
       }

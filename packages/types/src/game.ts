@@ -184,6 +184,7 @@ export interface ServerToClientEvents {
   "game:discover": (options: { cards: Card[]; sourceCardId: string }) => void;
   "game:opponent_status": (status: { connected: boolean; graceMs?: number }) => void;
   "game:error": (message: string) => void;
+  "game:spectate_started": (state: SanitizedGameState) => void;
   "match:found": (matchId: string) => void;
   "queue:status": (status: { queueSize: number; estimatedWait: number }) => void;
   "tournament:match_ready": (payload: import("./tournament.js").TournamentMatchReadyEvent) => void;
@@ -193,6 +194,8 @@ export interface ServerToClientEvents {
 
 export interface ClientToServerEvents {
   "game:action": (action: GameAction) => void;
+  "game:spectate": (opts: { gameId: string }) => void;
+  "game:spectate_leave": () => void;
   "queue:join": (opts: { mode: "practice" | "casual" | "ranked" | "tutorial"; deckId: string; heroId: string }) => void;
   "queue:leave": () => void;
   "tournament:ready": (opts: { matchId: string; deckId: string; heroId: string }) => void;
@@ -213,6 +216,8 @@ export interface SanitizedGameState {
   pendingDiscover: PendingDiscover | null;
   /** Unix ms when the active player's turn auto-ends; null if no timer is running. */
   turnTimerEndsAt: number | null;
+  /** Read-only spectate view — both hands may be visible. */
+  spectator?: boolean;
 }
 
 export interface OpponentView {
@@ -234,6 +239,8 @@ export interface OpponentView {
   locations: LocationSlot[];
   board: (MinionSlot | null)[];
   handCount: number;
+  /** Full hand — only sent to spectators. */
+  hand?: Card[];
   deckCount: number;
   burnPile: Card[];
   secretCount: number;

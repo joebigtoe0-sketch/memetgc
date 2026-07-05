@@ -32,6 +32,8 @@ export interface GameRoom {
   mulliganTimerHandles: Map<string, ReturnType<typeof setTimeout>>;
   disconnectTimers: Map<string, ReturnType<typeof setTimeout>>;
   lastActionAt: number;
+  /** Admin spectators: userId → socketId */
+  spectators: Map<string, string>;
 }
 
 const TURN_TIME_LIMIT_MS = 30_000;
@@ -67,6 +69,7 @@ export function createRoom(
     mulliganTimerHandles: new Map(),
     disconnectTimers: new Map(),
     lastActionAt: Date.now(),
+    spectators: new Map(),
   };
 
   rooms.set(gameId, room);
@@ -348,6 +351,111 @@ function buildSanitizedState(room: GameRoom, playerId: string) {
   };
 }
 
+/** Spectator view: player1 bottom, player2 top, both hands visible. */
+export function buildSpectatorState(room: GameRoom) {
+  const playerIds = Object.keys(room.players);
+  const bottomId = playerIds[0]!;
+  const topId = playerIds[1] ?? playerIds[0]!;
+  const bottom = room.state.players[bottomId]!;
+  const top = room.state.players[topId]!;
+  const topInfo = room.players[topId];
+
+  return {
+    gameId: room.state.gameId,
+    status: room.state.status,
+    phase: room.state.phase,
+    turnNumber: room.state.turnNumber,
+    activePlayerId: room.state.activePlayerId,
+    myState: bottom,
+    opponentState: {
+      playerId: topId,
+      playerName: top.playerName,
+      heroId: top.heroId,
+      heroName: top.heroName,
+      heroFaction: top.heroFaction,
+      hp: top.hp,
+      maxHp: top.maxHp,
+      armor: top.armor,
+      mana: top.mana,
+      maxMana: top.maxMana,
+      heroPowerUsed: top.heroPowerUsed,
+      hasWeapon: top.hasWeapon,
+      weaponAttack: top.weaponAttack,
+      weaponDurability: top.weaponDurability,
+      heroHasAttacked: top.heroHasAttacked,
+      locations: top.locations,
+      board: top.board,
+      handCount: top.hand.length,
+      hand: top.hand,
+      deckCount: top.deckCount,
+      burnPile: top.burnPile,
+      secretCount: top.secrets.length,
+      factionBonusActive: top.factionBonusActive,
+      cardBack: topInfo?.cardBack ?? null,
+    },
+    winner: room.state.winner,
+    endReason: room.state.endReason,
+    pendingTargetAction: null,
+    pendingDiscover: null,
+    turnTimerEndsAt: room.turnTimerEndsAt,
+    spectator: true,
+  };
+}
+
+export interface LiveGameSummary {
+  gameId: string;
+  mode: string;
+  status: string;
+  turnNumber: number;
+  activePlayerId: string;
+  players: { userId: string; username: string; isAI: boolean; isBot: boolean }[];
+}
+
+export function listActiveGames(): LiveGameSummary[] {
+  const out: LiveGameSummary[] = [];
+  for (const room of rooms.values()) {
+    if (room.state.status === "finished") continue;
+    out.push({
+      gameId: room.gameId,
+      mode: room.mode,
+      status: room.state.status,
+      turnNumber: room.state.turnNumber,
+      activePlayerId: room.state.activePlayerId,
+      players: Object.entries(room.players).map(([userId, p]) => ({
+        userId,
+        username: p.username,
+        isAI: p.isAI,
+        isBot: !!p.isBot,
+      })),
+    });
+  }
+  out.sort((a, b) => {
+    const order: Record<string, number> = { in_progress: 0, mulligan: 1, waiting: 2 };
+    return (order[a.status] ?? 9) - (order[b.status] ?? 9);
+  });
+  return out;
+}
+
+const spectatorGameByUser = new Map<string, string>();
+
+export function addSpectator(room: GameRoom, userId: string, socketId: string): void {
+  room.spectators.set(userId, socketId);
+  spectatorGameByUser.set(userId, room.gameId);
+}
+
+export function removeSpectator(userId: string): void {
+  const gameId = spectatorGameByUser.get(userId);
+  if (!gameId) return;
+  const room = rooms.get(gameId);
+  room?.spectators.delete(userId);
+  spectatorGameByUser.delete(userId);
+}
+
+export function getSpectatorRoom(userId: string): GameRoom | undefined {
+  const gameId = spectatorGameByUser.get(userId);
+  return gameId ? rooms.get(gameId) : undefined;
+}
+
 export { buildSanitizedState };
 
 /**
@@ -576,6 +684,16 @@ function cleanupRoom(room: GameRoom, io: Server<ClientToServerEvents, ServerToCl
       fragments,
     });
   }
+  for (const socketId of room.spectators.values()) {
+    io.to(socketId).emit("game:game_over", {
+      winner: winnerId ?? "",
+      reason: endReason,
+    });
+  }
+  for (const uid of room.spectators.keys()) {
+    spectatorGameByUser.delete(uid);
+  }
+  room.spectators.clear();
   // Persist season stats + daily-quest progress (fire-and-forget)
   void recordMatchResults(room, io);
   rooms.delete(room.gameId);
@@ -591,6 +709,13 @@ function broadcastState(
     const sanitized = buildSanitizedState(room, playerId);
     io.to(playerInfo.socketId).emit("game:state_update", sanitized);
     io.to(playerInfo.socketId).emit("game:action_result", { success: true, animations });
+  }
+  if (room.spectators.size > 0) {
+    const spectatorState = buildSpectatorState(room);
+    for (const socketId of room.spectators.values()) {
+      io.to(socketId).emit("game:state_update", spectatorState);
+      io.to(socketId).emit("game:action_result", { success: true, animations });
+    }
   }
 }
 
