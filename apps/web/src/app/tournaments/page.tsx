@@ -10,6 +10,12 @@ import { useAuthStore } from "@/store/authStore";
 import type { TournamentDetail, TournamentListItem, TournamentPrizeTierDto } from "@memetgc/types";
 import { StatusBadge, TournamentBracket, PrizeBreakdown, formatCountdown } from "@/components/Tournaments/tournamentUi";
 
+function formatStartsInDisplay(label: string | null | undefined): string {
+  const v = label ?? "soon";
+  if (v === "starting now") return "starting now";
+  return `starts in ${v}`;
+}
+
 interface ListResponse {
   tournaments: TournamentListItem[];
   liveCount: number;
@@ -75,6 +81,16 @@ export default function TournamentsPage() {
     setActionLoading(null);
   }
 
+  async function claimReward(id: string) {
+    setActionLoading(id);
+    try {
+      await api.post(`/api/tournaments/${id}/claim-reward`, {});
+      const d = await api.get<TournamentDetail>(`/api/tournaments/${id}`);
+      setDetails((prev) => ({ ...prev, [id]: d }));
+    } catch { /* ignore */ }
+    setActionLoading(null);
+  }
+
   function joinMatch(matchId: string) {
     router.push(`/play?mode=tournament&matchId=${matchId}`);
   }
@@ -126,7 +142,7 @@ export default function TournamentsPage() {
                     {!isMobile && (
                       <>
                         <div style={{ textAlign: "right", font: `600 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#cdd4df", minWidth: 90 }}>
-                          {t.status === "live" ? `LIVE round ${t.currentRound} of ${t.totalRounds}` : t.status === "finished" ? new Date(t.startAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }) + " finished" : `${t.startsInLabel ?? "soon"} starts in`}
+                          {t.status === "live" ? `LIVE round ${t.currentRound} of ${t.totalRounds}` : t.status === "finished" ? new Date(t.startAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }) + " finished" : formatStartsInDisplay(t.startsInLabel)}
                         </div>
                         <div style={{ textAlign: "right", font: `700 12px var(--font-mono,'JetBrains Mono',monospace)`, color: "#e7c768", minWidth: 90, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
                           <GameIcon name="fragment" size={14} />
@@ -150,6 +166,7 @@ export default function TournamentsPage() {
                       onRegister={() => register(t.id)}
                       onWithdraw={() => withdraw(t.id)}
                       onJoin={joinMatch}
+                      onClaimReward={() => claimReward(t.id)}
                     />
                   </div>
                 )}
@@ -168,6 +185,7 @@ function ExpandedPanel({
   onRegister,
   onWithdraw,
   onJoin,
+  onClaimReward,
   isMobile,
 }: {
   detail: TournamentDetail;
@@ -175,6 +193,7 @@ function ExpandedPanel({
   onRegister: () => void;
   onWithdraw: () => void;
   onJoin: (matchId: string) => void;
+  onClaimReward: () => void;
   isMobile?: boolean;
 }) {
   const pct = detail.maxSlots > 0 ? Math.round((detail.registeredCount / detail.maxSlots) * 100) : 0;
@@ -182,6 +201,8 @@ function ExpandedPanel({
   const canRegister = detail.status === "upcoming" && !detail.userRegistered;
   const canWithdraw = detail.status === "upcoming" && detail.userRegistered;
   const active = detail.userActiveMatch;
+  const canClaim = detail.status === "finished" && detail.userPayout?.status === "pending_claim" && detail.userPayout.currencyLabel === "fragments";
+  const claimed = detail.status === "finished" && detail.userPayout?.status === "claimed";
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 20, marginTop: 16 }}>
@@ -220,6 +241,24 @@ function ExpandedPanel({
 
         {(detail.status === "live" || detail.status === "finished") && (
           <TournamentBracket matches={detail.matches} totalRounds={detail.totalRounds} championName={detail.winnerName} />
+        )}
+
+        {canClaim && detail.userPayout && (
+          <div style={{ marginTop: 16, padding: 14, borderRadius: 12, background: "rgba(231,199,104,.08)", border: "1px solid rgba(231,199,104,.35)" }}>
+            <div style={{ font: `800 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#e7c768", letterSpacing: "1.5px" }}>PRIZE READY</div>
+            <div style={{ font: `700 13px var(--font-archivo,'Archivo',sans-serif)`, color: "#e7ecf3", marginTop: 8 }}>
+              Rank #{detail.userPayout.rank} · {detail.userPayout.amount.toLocaleString()} fragments
+            </div>
+            <button disabled={actionLoading} onClick={onClaimReward} style={{ ...registerBtn, marginTop: 12, background: "linear-gradient(180deg,#ffe07a,#e0890f)", color: "#2a1a00", boxShadow: "0 8px 24px rgba(224,137,15,.35)" }}>
+              CLAIM REWARD
+            </button>
+          </div>
+        )}
+
+        {claimed && detail.userPayout && (
+          <div style={{ marginTop: 16, padding: 12, borderRadius: 10, background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)", font: `600 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6" }}>
+            Claimed {detail.userPayout.amount.toLocaleString()} fragments (rank #{detail.userPayout.rank})
+          </div>
         )}
       </div>
     </div>

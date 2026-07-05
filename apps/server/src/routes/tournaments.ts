@@ -5,11 +5,13 @@ import { requireAdmin, isUserAdmin } from "../middleware/admin.js";
 import { buildPrizeSummary, formatStartsIn } from "../tournaments/bracket.js";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 import { randomUUID } from "crypto";
 
 const router: ReturnType<typeof Router> = Router();
 
-const TOURNAMENT_IMAGE_DIR = path.resolve(process.cwd(), "../web/public/tournaments");
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const TOURNAMENT_IMAGE_DIR = path.resolve(__dirname, "../../../web/public/tournaments");
 
 function ensureImageDir(): void {
   fs.mkdirSync(TOURNAMENT_IMAGE_DIR, { recursive: true });
@@ -135,22 +137,27 @@ router.get("/admin/check", requireAuth, async (req: AuthRequest, res) => {
 });
 
 router.post("/admin/upload-image", requireAuth, requireAdmin, async (req, res) => {
-  ensureImageDir();
-  const { imageBase64, filename } = req.body as { imageBase64?: string; filename?: string };
-  if (!imageBase64 || typeof imageBase64 !== "string") {
-    res.status(400).json({ error: "imageBase64 required" });
-    return;
+  try {
+    ensureImageDir();
+    const { imageBase64, filename } = req.body as { imageBase64?: string; filename?: string };
+    if (!imageBase64 || typeof imageBase64 !== "string") {
+      res.status(400).json({ error: "imageBase64 required" });
+      return;
+    }
+    const ext = path.extname(filename ?? ".png") || ".png";
+    const safeExt = [".png", ".jpg", ".jpeg", ".webp"].includes(ext.toLowerCase()) ? ext : ".png";
+    const name = `${randomUUID()}${safeExt}`;
+    const buf = Buffer.from(imageBase64.replace(/^data:image\/\w+;base64,/, ""), "base64");
+    if (buf.length > 2 * 1024 * 1024) {
+      res.status(400).json({ error: "Image too large (max 2MB)" });
+      return;
+    }
+    fs.writeFileSync(path.join(TOURNAMENT_IMAGE_DIR, name), buf);
+    res.json({ imagePath: `/tournaments/${name}` });
+  } catch (err) {
+    console.error("[tournaments] image upload failed:", err);
+    res.status(500).json({ error: "Image upload failed" });
   }
-  const ext = path.extname(filename ?? ".png") || ".png";
-  const safeExt = [".png", ".jpg", ".jpeg", ".webp"].includes(ext.toLowerCase()) ? ext : ".png";
-  const name = `${randomUUID()}${safeExt}`;
-  const buf = Buffer.from(imageBase64.replace(/^data:image\/\w+;base64,/, ""), "base64");
-  if (buf.length > 2 * 1024 * 1024) {
-    res.status(400).json({ error: "Image too large (max 2MB)" });
-    return;
-  }
-  fs.writeFileSync(path.join(TOURNAMENT_IMAGE_DIR, name), buf);
-  res.json({ imagePath: `/tournaments/${name}` });
 });
 
 router.post("/admin/create", requireAuth, requireAdmin, async (req, res) => {
@@ -271,6 +278,22 @@ router.get("/:id", optionalAuth, async (req: AuthRequest, res) => {
 
   const base = await mapTournamentListItem(tournament, tournament.prizeTiers, userId);
 
+  let userPayout = null;
+  if (userId) {
+    const payout = await prisma.tournamentPayout.findFirst({
+      where: { tournamentId: id, userId },
+      orderBy: { createdAt: "desc" },
+    });
+    if (payout) {
+      userPayout = {
+        amount: payout.amount,
+        rank: payout.rank,
+        currencyLabel: payout.currencyLabel,
+        status: payout.status as "pending_claim" | "claimed" | "pending_manual" | "paid",
+      };
+    }
+  }
+
   res.json({
     ...base,
     prizeTiers: tournament.prizeTiers.map((t) => ({
@@ -298,7 +321,40 @@ router.get("/:id", optionalAuth, async (req: AuthRequest, res) => {
     })),
     winnerName,
     userActiveMatch,
+    userPayout,
   });
+});
+
+router.post("/:id/claim-reward", requireAuth, async (req: AuthRequest, res) => {
+  const id = String(req.params.id);
+  const userId = req.user!.userId;
+
+  const tournament = await prisma.tournament.findUnique({ where: { id } });
+  if (!tournament || tournament.status !== "finished") {
+    res.status(400).json({ error: "No rewards to claim" });
+    return;
+  }
+
+  const payout = await prisma.tournamentPayout.findFirst({
+    where: { tournamentId: id, userId, status: "pending_claim", currencyLabel: "fragments" },
+  });
+  if (!payout) {
+    res.status(400).json({ error: "Nothing to claim" });
+    return;
+  }
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: userId },
+      data: { fragments: { increment: payout.amount } },
+    }),
+    prisma.tournamentPayout.update({
+      where: { id: payout.id },
+      data: { status: "claimed" },
+    }),
+  ]);
+
+  res.json({ ok: true, amount: payout.amount });
 });
 
 router.post("/:id/register", requireAuth, async (req: AuthRequest, res) => {

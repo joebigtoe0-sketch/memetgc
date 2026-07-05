@@ -58,6 +58,12 @@ export interface TournamentDetail extends TournamentListItem {
     joinDeadline: string;
     round: number;
   } | null;
+  userPayout: {
+    amount: number;
+    rank: number;
+    currencyLabel: string;
+    status: "pending_claim" | "claimed" | "pending_manual" | "paid";
+  } | null;
 }
 
 export interface ActiveTournamentMatch {

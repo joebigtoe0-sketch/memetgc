@@ -339,7 +339,7 @@ model TournamentPayout {
   rank          Int
   amount        Int
   currencyLabel String   @map("currency_label")
-  status        String   @default("pending_manual") // pending_manual | paid
+  status        String   @default("pending_manual") // pending_claim | claimed | pending_manual | paid
   createdAt     DateTime @default(now()) @map("created_at")
 
   tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)

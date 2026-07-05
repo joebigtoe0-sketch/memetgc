@@ -49,7 +49,7 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
 });
 
 app.use(cors({ origin: corsOrigin, credentials: CLIENT_ORIGIN !== "*" }));
-app.use(express.json());
+app.use(express.json({ limit: "3mb" }));
 
 app.use("/api/auth", authRouter);
 app.use("/api/cards", cardsRouter);

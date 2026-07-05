@@ -237,6 +237,9 @@ export async function onTournamentMatchComplete(gameId: string, winnerId: string
 }
 
 async function distributePrizes(tournamentId: string): Promise<void> {
+  const existing = await prisma.tournamentPayout.count({ where: { tournamentId } });
+  if (existing > 0) return;
+
   const [tiers, entries] = await Promise.all([
     prisma.tournamentPrizeTier.findMany({ where: { tournamentId } }),
     prisma.tournamentEntry.findMany({
@@ -250,23 +253,16 @@ async function distributePrizes(tournamentId: string): Promise<void> {
     const tier = tiers.find((t) => rank >= t.rankMin && rank <= t.rankMax && t.amount);
     if (!tier || !tier.amount) continue;
 
-    if (tier.currency === "fragments") {
-      await prisma.user.update({
-        where: { id: entry.userId },
-        data: { fragments: { increment: tier.amount } },
-      });
-    } else {
-      await prisma.tournamentPayout.create({
-        data: {
-          tournamentId,
-          userId: entry.userId,
-          rank,
-          amount: tier.amount,
-          currencyLabel: tier.customLabel ?? "custom",
-          status: "pending_manual",
-        },
-      });
-    }
+    await prisma.tournamentPayout.create({
+      data: {
+        tournamentId,
+        userId: entry.userId,
+        rank,
+        amount: tier.amount,
+        currencyLabel: tier.currency === "fragments" ? "fragments" : tier.customLabel ?? "custom",
+        status: tier.currency === "fragments" ? "pending_claim" : "pending_manual",
+      },
+    });
   }
 }
 

@@ -60,6 +60,7 @@ export default function AdminCreateTournamentPage() {
           filename: file.name,
         });
         setImagePath(res.imagePath);
+        setError("");
       } catch {
         setError("Image upload failed");
       }
@@ -153,7 +154,7 @@ export default function AdminCreateTournamentPage() {
             </div>
           ))}
           <div style={{ marginTop: 12, padding: 12, borderRadius: 10, background: "rgba(25,224,138,.06)", border: "1px solid rgba(25,224,138,.2)", font: `500 11px var(--font-archivo,'Archivo',sans-serif)`, color: "#8a93a6", lineHeight: 1.5 }}>
-            Fragment prizes are sent automatically on tournament end. Custom-currency prizes (e.g. $SOL, $MEMEPOOL) are flagged for manual payout.
+            Fragment prizes must be claimed from the tournament page after it ends. Custom-currency prizes (e.g. $SOL, $MEMEPOOL) are flagged for manual payout.
           </div>
         </Section>
 
