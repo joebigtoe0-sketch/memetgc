@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import { useIsMobile } from "@/hooks/useViewport";
+import { FACTION_LABEL } from "@/lib/factions";
 import type { PrizeCurrency } from "@memetgc/types";
 
 type TierForm = {
@@ -14,6 +15,12 @@ type TierForm = {
   amount: string;
   currency: PrizeCurrency;
   customLabel: string;
+};
+
+type ImageOption = {
+  path: string;
+  label: string;
+  category: "tournament" | "faction";
 };
 
 const DEFAULT_TIERS: TierForm[] = [
@@ -35,8 +42,8 @@ export default function AdminCreateTournamentPage() {
   const [startTime, setStartTime] = useState("19:00");
   const [maxSlots, setMaxSlots] = useState(64);
   const [tiers, setTiers] = useState<TierForm[]>(DEFAULT_TIERS);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imagePath, setImagePath] = useState<string | null>(null);
+  const [images, setImages] = useState<ImageOption[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -47,26 +54,12 @@ export default function AdminCreateTournamentPage() {
       .catch(() => setAuthorized(false));
   }, [token]);
 
-  async function onImageChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const base64 = reader.result as string;
-      setImagePreview(base64);
-      try {
-        const res = await api.post<{ imagePath: string }>("/api/tournaments/admin/upload-image", {
-          imageBase64: base64,
-          filename: file.name,
-        });
-        setImagePath(res.imagePath);
-        setError("");
-      } catch {
-        setError("Image upload failed");
-      }
-    };
-    reader.readAsDataURL(file);
-  }
+  useEffect(() => {
+    if (!token || !authorized) return;
+    api.get<{ images: ImageOption[] }>("/api/tournaments/admin/available-images")
+      .then((d) => setImages(d.images))
+      .catch(() => setImages([]));
+  }, [token, authorized]);
 
   async function submit() {
     setError("");
@@ -102,6 +95,9 @@ export default function AdminCreateTournamentPage() {
   if (authorized === null) return <div style={pageStyle}><div style={{ color: "#6a7488", textAlign: "center", padding: 40 }}>Checking access…</div></div>;
   if (!authorized) return <div style={pageStyle}><div style={{ color: "#ff8a8a", textAlign: "center", padding: 40 }}>Restricted — admin wallet required</div></div>;
 
+  const tournamentImages = images.filter((i) => i.category === "tournament");
+  const factionImages = images.filter((i) => i.category === "faction");
+
   return (
     <div style={pageStyle}>
       <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: isMobile ? "12px 14px" : "14px 26px", borderBottom: "1px solid rgba(255,255,255,.07)" }}>
@@ -120,8 +116,37 @@ export default function AdminCreateTournamentPage() {
           </div>
           <Field label="Max slots"><input type="number" min={4} max={256} value={maxSlots} onChange={(e) => setMaxSlots(parseInt(e.target.value, 10) || 64)} style={inputStyle} /></Field>
           <Field label="Tournament logo">
-            <input type="file" accept="image/png,image/jpeg,image/webp" onChange={onImageChange} style={{ color: "#cdd4df", fontSize: 12 }} />
-            {imagePreview && <img src={imagePreview} alt="" style={{ marginTop: 10, width: 80, height: 80, borderRadius: 10, objectFit: "cover", border: "1px solid rgba(255,255,255,.15)" }} />}
+            <div style={{ font: `500 10px var(--font-archivo,'Archivo',sans-serif)`, color: "#6a7488", marginBottom: 10, lineHeight: 1.5 }}>
+              Drop PNG/JPG files into <code style={{ color: "#cdd4df" }}>apps/web/public/tournament-images/</code>, or pick a faction icon below.
+            </div>
+            {factionImages.length > 0 && (
+              <>
+                <div style={imageGroupLabel}>Faction icons</div>
+                <ImageGrid
+                  images={factionImages}
+                  selected={imagePath}
+                  onSelect={setImagePath}
+                  label={(img) => FACTION_LABEL[img.label as keyof typeof FACTION_LABEL] ?? img.label}
+                />
+              </>
+            )}
+            {tournamentImages.length > 0 && (
+              <>
+                <div style={{ ...imageGroupLabel, marginTop: factionImages.length > 0 ? 14 : 0 }}>Tournament images</div>
+                <ImageGrid images={tournamentImages} selected={imagePath} onSelect={setImagePath} />
+              </>
+            )}
+            {images.length === 0 && (
+              <div style={{ font: `500 11px var(--font-archivo,'Archivo',sans-serif)`, color: "#6a7488", padding: "12px 0" }}>
+                No images found yet. Add files to tournament-images or ensure faction PNGs exist in public/factions.
+              </div>
+            )}
+            {imagePath && (
+              <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 10 }}>
+                <img src={imagePath} alt="" style={{ width: 56, height: 56, borderRadius: 10, objectFit: "cover", border: "1px solid rgba(231,199,104,.5)" }} />
+                <button type="button" onClick={() => setImagePath(null)} style={{ ...backBtn, fontSize: 11 }}>Clear selection</button>
+              </div>
+            )}
           </Field>
         </Section>
 
@@ -169,6 +194,49 @@ export default function AdminCreateTournamentPage() {
   );
 }
 
+function ImageGrid({
+  images,
+  selected,
+  onSelect,
+  label,
+}: {
+  images: ImageOption[];
+  selected: string | null;
+  onSelect: (path: string) => void;
+  label?: (img: ImageOption) => string;
+}) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(72px, 1fr))", gap: 10 }}>
+      {images.map((img) => {
+        const active = selected === img.path;
+        return (
+          <button
+            key={img.path}
+            type="button"
+            onClick={() => onSelect(img.path)}
+            style={{
+              cursor: "pointer",
+              padding: 6,
+              borderRadius: 10,
+              border: active ? "2px solid #e7c768" : "1px solid rgba(255,255,255,.12)",
+              background: active ? "rgba(231,199,104,.12)" : "rgba(0,0,0,.25)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            <img src={img.path} alt="" style={{ width: 48, height: 48, borderRadius: 8, objectFit: "cover" }} />
+            <span style={{ font: `600 8px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6", textTransform: "capitalize", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
+              {label ? label(img) : img.label}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 24, padding: 18, borderRadius: 14, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)" }}>
@@ -190,6 +258,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
+const imageGroupLabel: React.CSSProperties = { font: `700 9px var(--font-mono,'JetBrains Mono',monospace)`, color: "#e7c768", letterSpacing: "1px", marginBottom: 8 };
 const pageStyle: React.CSSProperties = { position: "fixed", inset: 0, display: "flex", flexDirection: "column", background: "radial-gradient(140% 90% at 50% -8%,#141b2a 0%,#090c13 60%,#06080d 100%)", fontFamily: "var(--font-archivo,'Archivo',sans-serif)" };
 const inputStyle: React.CSSProperties = { width: "100%", padding: "10px 12px", borderRadius: 8, background: "rgba(0,0,0,.3)", border: "1px solid rgba(255,255,255,.12)", color: "#e7ecf3", font: `500 13px var(--font-archivo,'Archivo',sans-serif)`, boxSizing: "border-box" };
 const backBtn: React.CSSProperties = { cursor: "pointer", padding: "8px 14px", borderRadius: 10, background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)", color: "#cdd4df", font: `700 12px var(--font-archivo,'Archivo',sans-serif)` };

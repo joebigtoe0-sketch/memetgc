@@ -6,15 +6,32 @@ import { buildPrizeSummary, formatStartsIn } from "../tournaments/bracket.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { randomUUID } from "crypto";
 
 const router: ReturnType<typeof Router> = Router();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const TOURNAMENT_IMAGE_DIR = path.resolve(__dirname, "../../../web/public/tournaments");
+const WEB_PUBLIC_DIR = path.resolve(__dirname, "../../../web/public");
+const TOURNAMENT_IMAGES_DIR = path.join(WEB_PUBLIC_DIR, "tournament-images");
+const FACTION_IMAGES_DIR = path.join(WEB_PUBLIC_DIR, "factions");
 
-function ensureImageDir(): void {
-  fs.mkdirSync(TOURNAMENT_IMAGE_DIR, { recursive: true });
+const FACTION_IDS = ["bitcoin", "ethereum", "solana", "meme", "stable", "degen"] as const;
+const ALLOWED_IMAGE_PREFIXES = ["/tournament-images/", "/factions/"];
+
+function listImageFiles(dir: string, urlPrefix: string): string[] {
+  if (!fs.existsSync(dir)) return [];
+  return fs
+    .readdirSync(dir)
+    .filter((f) => /\.(png|jpe?g)$/i.test(f))
+    .sort((a, b) => a.localeCompare(b))
+    .map((f) => `${urlPrefix}${f}`);
+}
+
+function isAllowedImagePath(imagePath: string): boolean {
+  if (!ALLOWED_IMAGE_PREFIXES.some((p) => imagePath.startsWith(p))) return false;
+  const rel = imagePath.replace(/^\//, "");
+  const abs = path.resolve(WEB_PUBLIC_DIR, rel);
+  if (!abs.startsWith(WEB_PUBLIC_DIR)) return false;
+  return fs.existsSync(abs);
 }
 
 const DEFAULT_TIERS = [
@@ -136,28 +153,21 @@ router.get("/admin/check", requireAuth, async (req: AuthRequest, res) => {
   res.json({ isAdmin });
 });
 
-router.post("/admin/upload-image", requireAuth, requireAdmin, async (req, res) => {
-  try {
-    ensureImageDir();
-    const { imageBase64, filename } = req.body as { imageBase64?: string; filename?: string };
-    if (!imageBase64 || typeof imageBase64 !== "string") {
-      res.status(400).json({ error: "imageBase64 required" });
-      return;
-    }
-    const ext = path.extname(filename ?? ".png") || ".png";
-    const safeExt = [".png", ".jpg", ".jpeg", ".webp"].includes(ext.toLowerCase()) ? ext : ".png";
-    const name = `${randomUUID()}${safeExt}`;
-    const buf = Buffer.from(imageBase64.replace(/^data:image\/\w+;base64,/, ""), "base64");
-    if (buf.length > 2 * 1024 * 1024) {
-      res.status(400).json({ error: "Image too large (max 2MB)" });
-      return;
-    }
-    fs.writeFileSync(path.join(TOURNAMENT_IMAGE_DIR, name), buf);
-    res.json({ imagePath: `/tournaments/${name}` });
-  } catch (err) {
-    console.error("[tournaments] image upload failed:", err);
-    res.status(500).json({ error: "Image upload failed" });
-  }
+router.get("/admin/available-images", requireAuth, requireAdmin, async (_req, res) => {
+  const tournamentImages = listImageFiles(TOURNAMENT_IMAGES_DIR, "/tournament-images/").map((path) => ({
+    path,
+    label: path.split("/").pop() ?? path,
+    category: "tournament" as const,
+  }));
+
+  const factionImages = FACTION_IDS.flatMap((id) => {
+    const file = `${id}.png`;
+    const abs = path.join(FACTION_IMAGES_DIR, file);
+    if (!fs.existsSync(abs)) return [];
+    return [{ path: `/factions/${file}`, label: id, category: "faction" as const }];
+  });
+
+  res.json({ images: [...tournamentImages, ...factionImages] });
 });
 
 router.post("/admin/create", requireAuth, requireAdmin, async (req, res) => {
@@ -179,6 +189,10 @@ router.post("/admin/create", requireAuth, requireAdmin, async (req, res) => {
 
   if (!body.title?.trim() || !body.startAt) {
     res.status(400).json({ error: "title and startAt required" });
+    return;
+  }
+  if (body.imagePath && !isAllowedImagePath(body.imagePath)) {
+    res.status(400).json({ error: "Invalid tournament image" });
     return;
   }
   const startAt = new Date(body.startAt);

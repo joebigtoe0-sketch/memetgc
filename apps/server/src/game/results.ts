@@ -46,6 +46,22 @@ export async function recordMatchResults(
 
     if (room.mode === "tournament") {
       await onTournamentMatchComplete(room.gameId, winnerId);
+
+      const now = new Date();
+      const endReason = room.state.endReason ?? "hero_death";
+      const turnNumber = room.state.turnNumber ?? 0;
+      const trackQuests = shouldTrackQuests(room.mode, endReason, turnNumber);
+      if (trackQuests) {
+        for (const player of humans) {
+          const oppState = Object.values(room.state.players).find((s) => s.playerId !== player.userId);
+          const minionsDestroyed = (oppState?.burnPile ?? []).filter((c: Card) => c.type === "minion").length;
+          await updateQuests(
+            player.userId,
+            { isWinner: winnerId === player.userId, minionsDestroyed, mode: room.mode },
+            now
+          );
+        }
+      }
       return;
     }
 

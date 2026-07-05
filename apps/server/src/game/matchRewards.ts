@@ -80,7 +80,7 @@ export function shouldTrackSeasonStats(mode: string, endReason: string | null, t
  * grant nothing. Per-quest logic decides which quests a given mode advances.
  */
 export function shouldTrackQuests(mode: string, endReason: string | null, turnNumber: number): boolean {
-  return (mode === "practice" || isQuestEligibleMode(mode)) && isMatchRewardEligible(endReason, turnNumber);
+  return (mode === "practice" || mode === "tournament" || isQuestEligibleMode(mode)) && isMatchRewardEligible(endReason, turnNumber);
 }
 
 /**
