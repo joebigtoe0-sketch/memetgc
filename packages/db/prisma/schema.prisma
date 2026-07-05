@@ -98,6 +98,8 @@ model User {
   quests        DailyQuest[]
   packs         PackInventory[]
   cosmetics     UserCosmetic[]
+  tournamentEntries TournamentEntry[]
+  tournamentPayouts TournamentPayout[]
 
   @@map("users")
 }
@@ -244,4 +246,105 @@ model DailyQuest {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("daily_quests")
+}
+
+model Tournament {
+  id           String   @id @default(cuid())
+  title        String
+  description  String   @default("")
+  imagePath    String?  @map("image_path")
+  startAt      DateTime @map("start_at")
+  maxSlots     Int      @default(64) @map("max_slots")
+  status       String   @default("upcoming") // upcoming | live | finished | cancelled
+  bracketSize  Int      @default(0) @map("bracket_size")
+  currentRound Int      @default(0) @map("current_round")
+  totalRounds  Int      @default(0) @map("total_rounds")
+  winnerId     String?  @map("winner_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  prizeTiers TournamentPrizeTier[]
+  entries    TournamentEntry[]
+  matches    TournamentMatch[]
+  payouts    TournamentPayout[]
+
+  @@index([status, startAt])
+  @@map("tournaments")
+}
+
+model TournamentPrizeTier {
+  id           String  @id @default(cuid())
+  tournamentId String  @map("tournament_id")
+  rankLabel    String  @map("rank_label")
+  rankMin      Int     @map("rank_min")
+  rankMax      Int     @map("rank_max")
+  amount       Int?
+  currency     String  @default("fragments") // fragments | custom
+  customLabel  String? @map("custom_label")
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@index([tournamentId])
+  @@map("tournament_prize_tiers")
+}
+
+model TournamentEntry {
+  id           String   @id @default(cuid())
+  tournamentId String   @map("tournament_id")
+  userId       String   @map("user_id")
+  seedIndex    Int?     @map("seed_index")
+  finalRank    Int?     @map("final_rank")
+  registeredAt DateTime @default(now()) @map("registered_at")
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, userId])
+  @@index([tournamentId])
+  @@map("tournament_entries")
+}
+
+model TournamentMatch {
+  id            String    @id @default(cuid())
+  tournamentId  String    @map("tournament_id")
+  round         Int
+  slotIndex     Int       @map("slot_index")
+  player1Id     String?   @map("player1_id")
+  player2Id     String?   @map("player2_id")
+  winnerId      String?   @map("winner_id")
+  status        String    @default("pending") // pending | awaiting_join | live | completed | forfeited
+  joinDeadline  DateTime? @map("join_deadline")
+  gameId        String?   @map("game_id")
+  player1DeckId String?   @map("player1_deck_id")
+  player1HeroId String?   @map("player1_hero_id")
+  player2DeckId String?   @map("player2_deck_id")
+  player2HeroId String?   @map("player2_hero_id")
+  player1Ready  Boolean   @default(false) @map("player1_ready")
+  player2Ready  Boolean   @default(false) @map("player2_ready")
+  player1Score  Int       @default(0) @map("player1_score")
+  player2Score  Int       @default(0) @map("player2_score")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, round, slotIndex])
+  @@index([tournamentId, round])
+  @@index([gameId])
+  @@map("tournament_matches")
+}
+
+model TournamentPayout {
+  id            String   @id @default(cuid())
+  tournamentId  String   @map("tournament_id")
+  userId        String   @map("user_id")
+  rank          Int
+  amount        Int
+  currencyLabel String   @map("currency_label")
+  status        String   @default("pending_manual") // pending_manual | paid
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tournamentId])
+  @@map("tournament_payouts")
 }

@@ -8,7 +8,7 @@ import HeroZone from "../Board/HeroZone";
 import HandZone from "../Board/HandZone";
 import MulliganScreen from "./MulliganScreen";
 import CardComponent from "../Card/CardComponent";
-import { getPlayCardTargets } from "@memetgc/game-engine";
+import { getPlayCardTargets, canPlayCard } from "@memetgc/game-engine";
 import { preloadCardArt, preloadAllCardArt, preloadFactionArt } from "@/lib/preloadArt";
 import { getMatchBoardBackground, getDefaultBoardBackground } from "@/lib/boards";
 import BoardBackground from "./BoardBackground";
@@ -699,6 +699,18 @@ export default function GameBoard() {
   }
   const validPlayTargets = getValidPlayTargets();
 
+  function cardIsPlayable(card: Card & { instanceId?: string }): boolean {
+    if (!canAct || !playerId) return false;
+    return canPlayCard(
+      card,
+      myState,
+      myState.board,
+      opponentState.board,
+      playerId,
+      opponentState.playerId
+    );
+  }
+
   // Some hero powers (e.g. Charge Forward / Turbo) need the player to pick a
   // minion. Detect that from the hero power's effect params.
   function heroPowerTargeting(): { needs: boolean; side: "friendly" | "enemy" } {
@@ -1107,11 +1119,20 @@ export default function GameBoard() {
               actionsEnabled={canAct}
               newCardIds={newCardIds}
               isMobile={isMobile}
+              canPlayInstance={(id) => {
+                const card = myState.hand.find((c) => (c as Card & { instanceId?: string }).instanceId === id) as Card | undefined;
+                return card ? cardIsPlayable(card as Card & { instanceId?: string }) : false;
+              }}
               onCardInspect={(card) => { setZoomedCard(card); setInspectMode(true); }}
               onCardClick={(id) => {
                 if (!canAct) return;
                 const card = myState.hand.find((c) => (c as Card & { instanceId?: string }).instanceId === id) as Card | undefined;
-                if (!card) return;
+                if (!card || !cardIsPlayable(card as Card & { instanceId?: string })) {
+                  const t = card ? getPlayCardTargets(card, myState.board, opponentState.board, "hero_" + playerId, "hero_" + opponentState.playerId) : null;
+                  if (t?.needsTarget && t.validIds.length === 0) setActionError("No valid target");
+                  else playSound("denied");
+                  return;
+                }
                 const t = getPlayCardTargets(card, myState.board, opponentState.board, "hero_" + playerId, "hero_" + opponentState.playerId);
                 if (t.needsTarget && t.validIds.length > 0) {
                   selectCard(id); setPhase("select_play_target");

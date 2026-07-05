@@ -26,9 +26,9 @@ interface Hero {
   hero_power: { name: string; cost: number; description: string };
 }
 interface Deck { id: string; name: string; heroId: string; isStarter?: boolean; faction?: string; factionBonusActive: boolean; cardCount: number; cards: { cardId: string; quantity: number }[]; }
-type GameMode = "practice" | "casual" | "ranked" | "tutorial";
+type GameMode = "practice" | "casual" | "ranked" | "tutorial" | "tournament";
 
-const MODE_LABEL: Record<GameMode, string> = { practice: "PRACTICE", casual: "CASUAL", ranked: "RANKED", tutorial: "TUTORIAL" };
+const MODE_LABEL: Record<GameMode, string> = { practice: "PRACTICE", casual: "CASUAL", ranked: "RANKED", tutorial: "TUTORIAL", tournament: "TOURNAMENT" };
 
 const TIPS = [
   "Swapping high-cost cards in your mulligan for a smoother early curve is usually correct.",
@@ -41,7 +41,10 @@ export default function HeroSelect() {
   const router = useRouter();
   const isMobile = useIsMobile();
   const search = useSearchParams();
-  const mode = (search.get("mode") as GameMode) ?? "practice";
+  const modeParam = search.get("mode");
+  const matchId = search.get("matchId") ?? "";
+  const mode: GameMode = modeParam === "tournament" ? "tournament" : ((modeParam as GameMode) ?? "practice");
+  const isTournament = mode === "tournament";
 
   const [heroes, setHeroes] = useState<Hero[]>([]);
   const [decks, setDecks] = useState<Deck[]>([]);
@@ -80,7 +83,7 @@ export default function HeroSelect() {
       setDecks(deckList);
       setCostMap(Object.fromEntries(cardList.map((c) => [c.id, c.cost])));
       // Ranked requires a custom (non-starter) deck — prefer one if available.
-      const preferred = mode === "ranked" ? deckList.find((d) => !d.isStarter) : deckList[0];
+      const preferred = (mode === "ranked" || mode === "tournament") ? deckList.find((d) => !d.isStarter) : deckList[0];
       if (preferred) { setSelectedDeck(preferred.id); setSelectedHero(preferred.heroId); }
       else if (heroList[0]) setSelectedHero(heroList[0].id);
     })();
@@ -101,9 +104,17 @@ export default function HeroSelect() {
     const socket = getSocket();
     if (!socket) return;
     setQueueing(true);
+    if (isTournament) {
+      if (!matchId) { setStatusMsg("Missing tournament match"); setQueueing(false); return; }
+      setStatusMsg("Joining tournament match…");
+      clearTutorialGame();
+      socket.emit("tournament:ready", { matchId, deckId: selectedDeck, heroId: selectedHero });
+      socket.once("game:error", (msg) => { setStatusMsg(`Error: ${msg}`); setQueueing(false); });
+      return;
+    }
     setStatusMsg(mode === "practice" ? "Starting practice game..." : "Finding a worthy opponent");
-    clearTutorialGame(); // this is a normal game — never show the guide
-    socket.emit("queue:join", { mode, deckId: selectedDeck, heroId: selectedHero });
+    clearTutorialGame();
+    socket.emit("queue:join", { mode: mode as "practice" | "casual" | "ranked" | "tutorial", deckId: selectedDeck, heroId: selectedHero });
     socket.once("game:error", (msg) => { setStatusMsg(`Error: ${msg}`); setQueueing(false); });
   }
 
@@ -143,7 +154,7 @@ export default function HeroSelect() {
         <button onClick={() => router.push("/")} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 7, padding: "8px 16px", borderRadius: 10, background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)", color: "#cdd4df", font: `700 12px var(--font-archivo,'Archivo',sans-serif)` }}>‹ Back</button>
         <div style={{ font: `900 ${isMobile ? 18 : 22}px var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc", letterSpacing: "1px" }}>Battle Setup</div>
         <div style={{ padding: "8px 14px", borderRadius: 10, background: "rgba(247,147,26,.1)", border: "1px solid rgba(247,147,26,.35)", color: "#ffce85", font: `700 11px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "1px" }}>
-          {MODE_LABEL[mode]} · {formatRankTier(tier.rankTier)} {["", "I", "II", "III", "IV", "V"][Math.max(1, 5 - tier.rankStars)]}
+          {MODE_LABEL[mode]}{!isTournament && ` · ${formatRankTier(tier.rankTier)} ${["", "I", "II", "III", "IV", "V"][Math.max(1, 5 - tier.rankStars)]}`}
         </div>
       </div>
 
@@ -194,7 +205,7 @@ export default function HeroSelect() {
           <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
             {decks.map((d) => {
               const active = d.id === selectedDeck;
-              const rankedLocked = mode === "ranked" && d.isStarter;
+              const rankedLocked = (mode === "ranked" || mode === "tournament") && d.isStarter;
               const incomplete = d.cardCount !== 30;
               const locked = rankedLocked || incomplete;
               const hero = heroes.find((h) => h.id === d.heroId);

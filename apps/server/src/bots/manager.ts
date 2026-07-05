@@ -34,6 +34,19 @@ interface BotIdentity {
 
 let bots: BotIdentity[] = [];
 
+export function getBotIdentities(): readonly BotIdentity[] {
+  return bots;
+}
+
+/** Fetch bot deck/hero for tournament auto-ready. */
+export async function getBotDeckHero(userId: string): Promise<{ deckId: string; heroId: string } | null> {
+  const b = bots.find((x) => x.userId === userId);
+  if (b) return { deckId: b.deckId, heroId: b.heroId };
+  const deck = await prisma.deck.findFirst({ where: { userId } });
+  if (!deck) return null;
+  return { deckId: deck.id, heroId: deck.heroId };
+}
+
 /** Create bot accounts, collections and decks if they don't exist yet. Idempotent. */
 export async function ensureBots(): Promise<void> {
   const identities: BotIdentity[] = [];

@@ -766,12 +766,14 @@ function applyKeywordToSlot(slot: MinionSlot, keyword: string): void {
 
 export function drawCard(player: PlayerState, animations: AnimationHint[]): void {
   if (!player.deckPile || player.deckPile.length <= 0) {
-    player.fatigue++;
+    // Next fatigue tick: 1, then 2, 4, 8… (stored as the upcoming damage amount).
+    const damage = player.fatigue <= 0 ? 1 : player.fatigue;
+    player.fatigue = damage * 2;
     player.deckCount = 0;
-    const { hp, armor } = applyDamageWithArmor(player.hp, player.armor, player.fatigue);
+    const { hp, armor } = applyDamageWithArmor(player.hp, player.armor, damage);
     player.hp = hp;
     player.armor = armor;
-    animations.push({ type: "draw", data: { fatigue: player.fatigue, playerId: player.playerId } });
+    animations.push({ type: "draw", data: { fatigue: damage, playerId: player.playerId } });
     return;
   }
   const card = player.deckPile.shift()!;

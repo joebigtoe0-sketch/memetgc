@@ -302,7 +302,10 @@ function handlePlayCard(
     "hero_" + state.activePlayerId,
     "hero_" + opponentId
   );
-  if (targeting.needsTarget && targeting.validIds.length > 0) {
+  if (targeting.needsTarget) {
+    if (targeting.validIds.length === 0) {
+      return { success: false, error: "No valid target" };
+    }
     if (!action.targetInstanceId || !targeting.validIds.includes(action.targetInstanceId)) {
       return { success: false, error: "Invalid target" };
     }

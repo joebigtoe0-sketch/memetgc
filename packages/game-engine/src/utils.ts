@@ -186,6 +186,29 @@ export function getPlayCardTargets(
   return { needsTarget: true, validIds };
 }
 
+/** Whether a card can legally be played right now (mana, board space, targets). */
+export function canPlayCard(
+  card: Card,
+  player: PlayerState,
+  friendlyBoard: (MinionSlot | null)[],
+  enemyBoard: (MinionSlot | null)[],
+  activePlayerId: string,
+  opponentId: string
+): boolean {
+  if (getEffectiveCost(card, player) > player.mana + player.tempMana) return false;
+  if (card.type === "minion" && findEmptySlot(friendlyBoard) === -1) return false;
+
+  const targeting = getPlayCardTargets(
+    card,
+    friendlyBoard,
+    enemyBoard,
+    "hero_" + activePlayerId,
+    "hero_" + opponentId
+  );
+  if (targeting.needsTarget && targeting.validIds.length === 0) return false;
+  return true;
+}
+
 /** Get current effective mana cost of a card for a player */
 export function getEffectiveCost(card: Card, player: PlayerState): number {
   const modifier = (card as Card & { costModifier?: number }).costModifier ?? 0;

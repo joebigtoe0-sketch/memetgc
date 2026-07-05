@@ -13,6 +13,8 @@ interface Props {
   actionsEnabled?: boolean;
   newCardIds?: string[];
   isMobile?: boolean;
+  /** When set, overrides mana-only playability (targets, board space, etc.). */
+  canPlayInstance?: (instanceId: string) => boolean;
   onCardClick?: (instanceId: string) => void;
   onCardHover?: (card: CardData | null) => void;
   onCardInspect?: (card: CardData) => void;
@@ -25,7 +27,7 @@ const PLAY_DRAG_THRESHOLD = 64;
 // Finger jitter below this still counts as a tap-to-inspect on mobile
 const TAP_MOVE_THRESHOLD = 18;
 
-export default function HandZone({ hand, selectedInstanceId, currentMana, actionsEnabled = true, newCardIds = [], isMobile = false, onCardClick, onCardHover, onCardInspect }: Props) {
+export default function HandZone({ hand, selectedInstanceId, currentMana, actionsEnabled = true, newCardIds = [], isMobile = false, canPlayInstance, onCardClick, onCardHover, onCardInspect }: Props) {
   const n = hand.length;
   const mid = (n - 1) / 2;
 
@@ -48,7 +50,8 @@ export default function HandZone({ hand, selectedInstanceId, currentMana, action
         const y = Math.min(26, off * off * 3);
         const isNewCard = newCardIds.includes(instId);
         const costMod = (card as Card & { costModifier?: number }).costModifier ?? 0;
-        const canPlay = (card.cost + costMod) <= currentMana;
+        const hasMana = (card.cost + costMod) <= currentMana;
+        const canPlay = hasMana && (canPlayInstance ? canPlayInstance(instId) : true);
         const isSelected = selectedInstanceId === instId;
         const isDragging = dragId === instId;
         const dragLift = isDragging ? Math.min(0, dragDy) : 0;
@@ -79,7 +82,7 @@ export default function HandZone({ hand, selectedInstanceId, currentMana, action
               if (isMobile) return;
               if (!instId) return;
               if (!actionsEnabled) { playSound("denied"); return; }
-              if (!canPlay) { playSound("noMana"); return; }
+              if (!canPlay) { playSound(hasMana ? "denied" : "noMana"); return; }
               onCardClick?.(instId);
             }}
             onMouseEnter={() => {
@@ -112,7 +115,7 @@ export default function HandZone({ hand, selectedInstanceId, currentMana, action
               dragStart.current = null;
               if (playedByDrag) {
                 if (!actionsEnabled) { playSound("denied"); return; }
-                if (!canPlay) { playSound("noMana"); return; }
+                if (!canPlay) { playSound(hasMana ? "denied" : "noMana"); return; }
                 onCardClick?.(instId);
               } else if (!moved || dragDy > -PLAY_DRAG_THRESHOLD) {
                 // Tap or small wobble → inspect; only upward drags play the card

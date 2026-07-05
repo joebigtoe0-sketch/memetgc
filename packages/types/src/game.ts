@@ -186,12 +186,16 @@ export interface ServerToClientEvents {
   "game:error": (message: string) => void;
   "match:found": (matchId: string) => void;
   "queue:status": (status: { queueSize: number; estimatedWait: number }) => void;
+  "tournament:match_ready": (payload: import("./tournament.js").TournamentMatchReadyEvent) => void;
+  "tournament:bracket_update": (payload: { tournamentId: string }) => void;
+  "tournament:round_start": (payload: { tournamentId: string; round: number }) => void;
 }
 
 export interface ClientToServerEvents {
   "game:action": (action: GameAction) => void;
   "queue:join": (opts: { mode: "practice" | "casual" | "ranked" | "tutorial"; deckId: string; heroId: string }) => void;
   "queue:leave": () => void;
+  "tournament:ready": (opts: { matchId: string; deckId: string; heroId: string }) => void;
 }
 
 /** What the client sees — opponent hand is hidden */

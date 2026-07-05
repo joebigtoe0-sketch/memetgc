@@ -15,9 +15,12 @@ import marketRouter, { startMarketSweeper } from "./routes/market.js";
 import leaderboardRouter from "./routes/leaderboard.js";
 import seasonRouter from "./routes/season.js";
 import onlineRouter from "./routes/online.js";
+import tournamentsRouter from "./routes/tournaments.js";
 import { registerSocketHandlers, loadCardRegistry, startMatchmakingTicker, getCardRegistrySize } from "./game/socket.js";
 import { getSolanaConfigStatus } from "./lib/solana.js";
 import { ensureBots, startBotTicker } from "./bots/manager.js";
+import { startTournamentTicker, setTournamentEngineIo } from "./tournaments/engine.js";
+import { setTournamentIo } from "./tournaments/match.js";
 
 // Bump this string whenever you want to confirm a fresh deploy is live via /health.
 const BUILD_TAG = "2026-07-02-market-disconnect-fixes";
@@ -58,6 +61,7 @@ app.use("/api/market", marketRouter);
 app.use("/api/leaderboard", leaderboardRouter);
 app.use("/api/season", seasonRouter);
 app.use("/api/online", onlineRouter);
+app.use("/api/tournaments", tournamentsRouter);
 
 app.get("/health", (_req, res) => {
   res.json({
@@ -71,11 +75,14 @@ app.get("/health", (_req, res) => {
 });
 
 registerSocketHandlers(io);
+setTournamentEngineIo(io);
+setTournamentIo(io);
 
 async function start(): Promise<void> {
   await loadCardRegistry();
   startMarketSweeper();
   startMatchmakingTicker(io);
+  startTournamentTicker();
 
   // Disguised AI ladder players — seed accounts/decks, then let them fill
   // casual/ranked queues when humans are waiting.

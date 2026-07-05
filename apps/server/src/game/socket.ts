@@ -8,6 +8,8 @@ import type { Card, Keyword, CardEffect, HeroPower, Faction } from "@memetgc/typ
 import { randomUUID } from "crypto";
 import { getTokenBalance, MIN_PLAY_TOKENS } from "../lib/solana.js";
 import { trackUserOnline, trackUserOffline } from "./online.js";
+import { registerUserSocket, unregisterUserSocket } from "./socketRegistry.js";
+import { setPlayerReady } from "../tournaments/match.js";
 
 // In-memory card registry (loaded from DB on startup)
 let cardRegistry: Map<string, Card> = new Map();
@@ -27,6 +29,10 @@ export async function ensureFreshCardRegistry(): Promise<void> {
 /** Number of cards currently loaded — used by the /health version marker. */
 export function getCardRegistrySize(): number {
   return cardRegistry.size;
+}
+
+export function getCardRegistry(): Map<string, Card> {
+  return cardRegistry;
 }
 
 export async function loadCardRegistry(): Promise<void> {
@@ -299,6 +305,7 @@ export function registerSocketHandlers(
         authenticatedUserId = payload.userId;
         authenticatedUsername = payload.username;
         trackUserOnline(payload.userId);
+        registerUserSocket(payload.userId, socket.id);
       }
     }
 
@@ -307,6 +314,7 @@ export function registerSocketHandlers(
       const existingRoom = getRoomByUserId(authenticatedUserId);
       if (existingRoom && existingRoom.players[authenticatedUserId]) {
         existingRoom.players[authenticatedUserId]!.socketId = socket.id;
+        registerUserSocket(authenticatedUserId, socket.id);
         socket.join(existingRoom.gameId);
         socket.emit("match:found", existingRoom.gameId);
         // Cancel any pending forfeit, restart turn timer, and resync state.
@@ -490,6 +498,17 @@ export function registerSocketHandlers(
       if (authenticatedUserId) leaveQueue(authenticatedUserId);
     });
 
+    socket.on("tournament:ready", async ({ matchId, deckId, heroId }) => {
+      if (!authenticatedUserId) {
+        socket.emit("game:error", "Not authenticated");
+        return;
+      }
+      const result = await setPlayerReady(matchId, authenticatedUserId, deckId, heroId);
+      if (!result.ok) {
+        socket.emit("game:error", result.error ?? "Could not join tournament match");
+      }
+    });
+
     socket.on("game:action", (action: GameAction) => {
       if (!authenticatedUserId) return;
 
@@ -514,7 +533,10 @@ export function registerSocketHandlers(
 
     socket.on("disconnect", () => {
       removeBySocketId(socket.id);
-      if (authenticatedUserId) trackUserOffline(authenticatedUserId);
+      if (authenticatedUserId) {
+        unregisterUserSocket(authenticatedUserId, socket.id);
+        trackUserOffline(authenticatedUserId);
+      }
 
       // If the player was in a live game, start the disconnect grace/forfeit
       // flow rather than ending it instantly. The socketId guard prevents a

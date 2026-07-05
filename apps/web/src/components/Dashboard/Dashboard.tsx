@@ -16,7 +16,8 @@ import SettingsButton from "@/components/Settings/SettingsButton";
 import { BRAND, formatRankTier } from "@/lib/brand";
 import { useIsMobile } from "@/hooks/useViewport";
 import { LeaderboardBadge, RankRewardPanel, SeasonPanel, ROMAN, TIER_COLOR } from "@/components/Rank/seasonUi";
-import type { SeasonRewardTier } from "@memetgc/types";
+import type { SeasonRewardTier, ActiveTournamentMatch } from "@memetgc/types";
+import { formatCountdown } from "@/components/Tournaments/tournamentUi";
 
 const RANK_TIERS = ["bronze", "silver", "gold", "platinum", "diamond", "degen"] as const;
 const TIER_FLOORS: Record<string, number> = { bronze: 0, silver: 500, gold: 1000, platinum: 1500, diamond: 2000, degen: 2500 };
@@ -65,6 +66,9 @@ export default function Dashboard() {
   const { degen, packs } = useBalances();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [quests, setQuests] = useState<Quest[]>([]);
+  const [liveTournaments, setLiveTournaments] = useState(0);
+  const [activeTournamentMatch, setActiveTournamentMatch] = useState<ActiveTournamentMatch | null>(null);
+  const [, countdownTick] = useState(0);
   const resetIn = useResetCountdown();
 
   const loadQuests = React.useCallback(() => {
@@ -74,7 +78,17 @@ export default function Dashboard() {
   useEffect(() => {
     api.get<Profile>("/api/economy/profile").then((p) => { setProfile(p); setFragments(p.fragments); }).catch(() => {});
     loadQuests();
+    api.get<{ liveCount: number }>("/api/tournaments").then((d) => setLiveTournaments(d.liveCount)).catch(() => {});
+    api.get<{ match: ActiveTournamentMatch | null }>("/api/tournaments/active-match").then((d) => setActiveTournamentMatch(d.match)).catch(() => {});
   }, [loadQuests, setFragments]);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      countdownTick((t) => t + 1);
+      api.get<{ match: ActiveTournamentMatch | null }>("/api/tournaments/active-match").then((d) => setActiveTournamentMatch(d.match)).catch(() => {});
+    }, 5000);
+    return () => clearInterval(id);
+  }, []);
 
   async function claimQuest(id: string) {
     try {
@@ -211,6 +225,18 @@ export default function Dashboard() {
 
         {/* CENTER — Play + modes */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0, order: isMobile ? 1 : 0 }}>
+          {activeTournamentMatch && (
+            <div style={{ borderRadius: 16, padding: isMobile ? "16px 18px" : "18px 22px", background: "linear-gradient(110deg,rgba(25,224,138,.18),rgba(18,23,35,.55) 62%)", border: "1px solid rgba(25,224,138,.35)", boxShadow: "0 0 28px rgba(25,224,138,.12)" }}>
+              <div style={{ font: `700 10px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "2px", color: "#19e08a" }}>TOURNAMENT MATCH READY</div>
+              <div style={{ font: `800 ${isMobile ? 16 : 18}px var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc", marginTop: 6 }}>{activeTournamentMatch.tournamentTitle}</div>
+              <div style={{ font: `600 12px var(--font-archivo,'Archivo',sans-serif)`, color: "#aeb6c4", marginTop: 4 }}>Round {activeTournamentMatch.round} vs {activeTournamentMatch.opponentName}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 14 }}>
+                <button onClick={() => router.push(`/play?mode=tournament&matchId=${activeTournamentMatch.matchId}`)} style={{ cursor: "pointer", border: "none", padding: "11px 32px", borderRadius: 10, font: `800 14px var(--font-cinzel,'Cinzel',serif)`, color: "#0a1a10", background: "linear-gradient(180deg,#5ad48a,#19e08a)", boxShadow: "0 6px 18px rgba(25,224,138,.35)" }}>JOIN</button>
+                <span style={{ font: `700 12px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6" }}>{formatCountdown(activeTournamentMatch.joinDeadline)} to join</span>
+              </div>
+            </div>
+          )}
+
           <div style={{ position: "relative", borderRadius: 16, overflow: "hidden", padding: isMobile ? "20px 20px" : "26px 30px", minHeight: isMobile ? 130 : 158, display: "flex", flexDirection: "column", justifyContent: "center", background: "linear-gradient(110deg,rgba(247,147,26,.22),rgba(20,26,42,.35) 62%)", border: "1px solid rgba(247,147,26,.3)" }}>
             <img src={factionImageUrl("bitcoin")} alt="" draggable={false} style={{ position: "absolute", top: -20, right: 10, width: 200, height: 200, objectFit: "contain", opacity: 0.09, pointerEvents: "none" }} />
             <div style={{ font: `700 11px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "3px", color: "#ffd187" }}>RANKED LADDER · LIVE</div>
@@ -230,6 +256,7 @@ export default function Dashboard() {
             <ModeCard name="Practice" tag="FREE · VS AI" desc="Learn the ropes against bots. 2 frags per win." badge="Open" badgeColor="#9aa3b2" onClick={() => router.push("/play?mode=practice")} />
             <ModeCard name="Casual" tag="FREE · VS PLAYERS" desc={tutorialPending ? "Finish the tutorial game to unlock." : "No ladder stakes. Earn fragments per match."} badge={tutorialPending ? "Locked" : "Open"} badgeColor={tutorialPending ? "#6a7488" : "#7b8cf4"} disabled={tutorialPending} onClick={() => router.push("/play?mode=casual")} />
             <ModeCard name="Ranked" tag="LADDER · OWN DECK" desc={tutorialPending ? "Finish the tutorial game to unlock." : "Climb the ladder with your own deck. Earn fragments & season rewards."} badge={tutorialPending ? "Locked" : "Unlocked"} badgeColor={tutorialPending ? "#6a7488" : "#f7931a"} highlight={!tutorialPending} disabled={tutorialPending} onClick={() => router.push("/play?mode=ranked")} />
+            <ModeCard name="P2E Tournaments" tag="FREE ENTRY · PRIZE POOLS" desc="Bracket tournaments. Fragment and token prize pools." badge={liveTournaments > 0 ? `${liveTournaments} live` : "Open"} badgeColor="#19e08a" highlight onClick={() => router.push("/tournaments")} />
           </div>
         </div>
 

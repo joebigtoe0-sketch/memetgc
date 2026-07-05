@@ -12,6 +12,7 @@ import {
 import { tierFromPoints } from "./rank.js";
 import { getActiveSeasonId } from "./season.js";
 import { updateQuests } from "./dailyQuests.js";
+import { onTournamentMatchComplete } from "../tournaments/engine.js";
 
 /**
  * Persist season stats, rank points, match fragments and daily-quest progress
@@ -40,6 +41,11 @@ export async function recordMatchResults(
           });
         }
       }
+      return;
+    }
+
+    if (room.mode === "tournament") {
+      await onTournamentMatchComplete(room.gameId, winnerId);
       return;
     }
 
