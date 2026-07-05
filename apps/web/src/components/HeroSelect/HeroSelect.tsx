@@ -205,21 +205,22 @@ export default function HeroSelect() {
           <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
             {decks.map((d) => {
               const active = d.id === selectedDeck;
-              const rankedLocked = (mode === "ranked" || mode === "tournament") && d.isStarter;
+              const customDeckRequired = mode === "ranked" || mode === "tournament";
+              const starterLocked = customDeckRequired && d.isStarter;
               const incomplete = d.cardCount !== 30;
-              const locked = rankedLocked || incomplete;
+              const locked = starterLocked || incomplete;
               const hero = heroes.find((h) => h.id === d.heroId);
               const fc = hero ? factionColor(hero.faction) : factionColor(d.faction ?? "degen");
               const curve = manaCurve(d);
               const maxBar = Math.max(1, ...curve);
-              const sublabel = rankedLocked
-                ? "Not allowed in Ranked"
+              const sublabel = starterLocked
+                ? mode === "tournament" ? "Not allowed in Tournaments" : "Not allowed in Ranked"
                 : incomplete
                 ? `Incomplete · ${d.cardCount}/30 cards`
                 : `${hero?.name ?? "Unknown"} · ${d.cardCount} cards`;
               const borderColor = active ? fc : incomplete ? "rgba(202,162,74,.35)" : "rgba(255,255,255,.08)";
               return (
-                <div key={d.id} role="button" tabIndex={rankedLocked ? -1 : 0} onClick={() => { if (rankedLocked) return; setSelectedDeck(d.id); setSelectedHero(d.heroId); }} onKeyDown={(e) => { if (rankedLocked) return; if (e.key === "Enter" || e.key === " ") { setSelectedDeck(d.id); setSelectedHero(d.heroId); } }} style={{ cursor: rankedLocked ? "not-allowed" : "pointer", opacity: rankedLocked ? 0.45 : 1, padding: 15, borderRadius: 13, background: active ? `linear-gradient(150deg,color-mix(in srgb,${fc} 16%,transparent),rgba(20,26,42,.5))` : "rgba(255,255,255,.03)", border: `1.5px solid ${borderColor}`, boxShadow: active ? `0 0 20px ${fc}33` : "none", transition: "all .15s ease" }}>
+                <div key={d.id} role="button" tabIndex={starterLocked ? -1 : 0} onClick={() => { if (starterLocked) return; setSelectedDeck(d.id); setSelectedHero(d.heroId); }} onKeyDown={(e) => { if (starterLocked) return; if (e.key === "Enter" || e.key === " ") { setSelectedDeck(d.id); setSelectedHero(d.heroId); } }} style={{ cursor: starterLocked ? "not-allowed" : "pointer", opacity: starterLocked ? 0.45 : 1, padding: 15, borderRadius: 13, background: active ? `linear-gradient(150deg,color-mix(in srgb,${fc} 16%,transparent),rgba(20,26,42,.5))` : "rgba(255,255,255,.03)", border: `1.5px solid ${borderColor}`, boxShadow: active ? `0 0 20px ${fc}33` : "none", transition: "all .15s ease" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                     {hero ? <FactionIcon faction={hero.faction} size={32} /> : <span style={{ width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", color: "#888", fontSize: 14 }}>?</span>}
                     <div style={{ flex: 1 }}>
@@ -246,9 +247,11 @@ export default function HeroSelect() {
             )}
           </div>
 
-          {mode === "ranked" && decks.length > 0 && !decks.some((d) => !d.isStarter) && (
+          {(mode === "ranked" || mode === "tournament") && decks.length > 0 && !decks.some((d) => !d.isStarter) && (
             <div style={{ padding: 14, borderRadius: 12, background: "rgba(255,90,90,.07)", border: "1px solid rgba(255,90,90,.28)", textAlign: "center" }}>
-              <div style={{ font: `700 12px var(--font-archivo,'Archivo',sans-serif)`, color: "#ff9a8a" }}>Ranked needs your own custom deck</div>
+              <div style={{ font: `700 12px var(--font-archivo,'Archivo',sans-serif)`, color: "#ff9a8a" }}>
+                {mode === "tournament" ? "Tournaments need your own custom deck" : "Ranked needs your own custom deck"}
+              </div>
               <div style={{ font: `500 11px var(--font-archivo,'Archivo',sans-serif)`, color: "#aeb6c4", marginTop: 4 }}>Build one from cards you own in the Collection.</div>
               <button onClick={() => router.push("/collection")} style={{ marginTop: 10, cursor: "pointer", padding: "8px 16px", borderRadius: 9, border: "none", color: "#2a1a00", background: "linear-gradient(180deg,#ffe07a,#e0890f)", font: `800 11px var(--font-cinzel,'Cinzel',serif)` }}>Build a Deck ›</button>
             </div>
@@ -256,13 +259,13 @@ export default function HeroSelect() {
 
           {(() => {
             const sd = decks.find((x) => x.id === selectedDeck);
-            const rankedBlocked = mode === "ranked" && (!sd || sd.isStarter);
+            const customDeckBlocked = (mode === "ranked" || mode === "tournament") && (!sd || sd.isStarter);
             const incomplete = !sd || sd.cardCount !== 30;
-            const ready = !!selectedHero && !!selectedDeck && connected && !rankedBlocked && !incomplete;
+            const ready = !!selectedHero && !!selectedDeck && connected && !customDeckBlocked && !incomplete;
             return (
               <>
                 <button onClick={handleFindMatch} disabled={!ready} style={{ cursor: ready ? "pointer" : "not-allowed", border: "none", padding: "16px", borderRadius: 13, font: `900 17px var(--font-cinzel,'Cinzel',serif)`, letterSpacing: ".5px", color: "#2a1a00", background: "linear-gradient(180deg,#ffe07a,#e0890f)", boxShadow: "0 10px 24px rgba(224,137,15,.4), inset 0 1px 0 rgba(255,255,255,.5)", opacity: ready ? 1 : 0.5 }}>
-                  FIND MATCH ›
+                  {isTournament ? "JOIN MATCH ›" : "FIND MATCH ›"}
                 </button>
                 {sd && incomplete && (
                   <div style={{ textAlign: "center", font: `600 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#caa24a" }}>
