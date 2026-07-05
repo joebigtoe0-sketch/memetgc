@@ -107,7 +107,7 @@ export default function HandZone({ hand, selectedInstanceId, currentMana, action
               transition: isDragging ? "none" : "transform 0.18s ease",
             }}
             onClick={(e) => {
-              if (touchHandMode || e.nativeEvent.pointerType === "touch") {
+              if (touchHandMode) {
                 e.preventDefault();
                 e.stopPropagation();
                 return;

@@ -167,7 +167,9 @@ export function handlePlayerAction(
   // Snapshot spell card before it leaves hand (for quest tracking).
   let playedSpell = false;
   if (action.type === "play_card" && room.state.activePlayerId === userId) {
-    const card = room.state.players[userId]?.hand.find((c) => c.instanceId === action.cardInstanceId);
+    const card = room.state.players[userId]?.hand.find(
+      (c) => (c as Card & { instanceId?: string }).instanceId === action.cardInstanceId
+    );
     playedSpell = card?.type === "spell";
   }
 
