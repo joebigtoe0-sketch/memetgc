@@ -23,11 +23,19 @@ const TIER_REWARD: Record<QuestTier, number> = {
 const AI_QUEST_POOL: QuestTemplate[] = [
   { type: "play_any", description: "Play 2 games (any mode)", target: 2, tier: "low" },
   { type: "win_any", description: "Win 1 game (any mode)", target: 1, tier: "low" },
+  { type: "open_pack", description: "Open 1 pack", target: 1, tier: "low" },
+  { type: "play_spells_any", description: "Play 3 spells (any mode)", target: 3, tier: "low" },
+  { type: "use_hero_power_any", description: "Use your hero power 2 times (any mode)", target: 2, tier: "low" },
   { type: "play_any", description: "Play 4 games (any mode)", target: 4, tier: "medium" },
   { type: "win_any", description: "Win 2 games (any mode)", target: 2, tier: "medium" },
   { type: "destroy_minions_any", description: "Destroy 10 minions (any mode)", target: 10, tier: "medium" },
+  { type: "play_spells_any", description: "Play 6 spells (any mode)", target: 6, tier: "medium" },
+  { type: "use_hero_power_any", description: "Use your hero power 4 times (any mode)", target: 4, tier: "medium" },
+  { type: "open_pack", description: "Open 3 packs", target: 3, tier: "medium" },
   { type: "win_any", description: "Win 3 games (any mode)", target: 3, tier: "high" },
   { type: "destroy_minions_any", description: "Destroy 20 minions (any mode)", target: 20, tier: "high" },
+  { type: "play_spells_any", description: "Play 10 spells (any mode)", target: 10, tier: "high" },
+  { type: "use_hero_power_any", description: "Use your hero power 6 times (any mode)", target: 6, tier: "high" },
 ];
 
 /**
@@ -38,15 +46,21 @@ const QUEST_POOL: QuestTemplate[] = [
   { type: "play_games", description: "Play 2 games (Casual or Ranked)", target: 2, tier: "low" },
   { type: "play_casual", description: "Play 2 Casual games", target: 2, tier: "low" },
   { type: "win_casual", description: "Win 1 Casual game", target: 1, tier: "low" },
+  { type: "play_spells", description: "Play 4 spells (Casual or Ranked)", target: 4, tier: "low" },
+  { type: "use_hero_power", description: "Use your hero power 3 times (Casual or Ranked)", target: 3, tier: "low" },
   { type: "play_games", description: "Play 4 games (Casual or Ranked)", target: 4, tier: "medium" },
   { type: "win_games", description: "Win 2 games (Casual or Ranked)", target: 2, tier: "medium" },
   { type: "destroy_minions", description: "Destroy 10 minions (Casual or Ranked)", target: 10, tier: "medium" },
   { type: "play_ranked", description: "Play 2 Ranked games", target: 2, tier: "medium" },
   { type: "win_ranked", description: "Win 1 Ranked game", target: 1, tier: "medium" },
+  { type: "play_spells", description: "Play 8 spells (Casual or Ranked)", target: 8, tier: "medium" },
+  { type: "use_hero_power", description: "Use your hero power 5 times (Casual or Ranked)", target: 5, tier: "medium" },
   { type: "win_games", description: "Win 3 games (Casual or Ranked)", target: 3, tier: "high" },
   { type: "destroy_minions", description: "Destroy 20 minions (Casual or Ranked)", target: 20, tier: "high" },
   { type: "win_ranked", description: "Win 2 Ranked games", target: 2, tier: "high" },
   { type: "play_ranked", description: "Play 3 Ranked games", target: 3, tier: "high" },
+  { type: "play_spells", description: "Play 12 spells (Casual or Ranked)", target: 12, tier: "high" },
+  { type: "use_hero_power", description: "Use your hero power 8 times (Casual or Ranked)", target: 8, tier: "high" },
 ];
 
 function dailyRng(userId: string, salt: number): number {
@@ -117,12 +131,28 @@ export async function generateDailyQuests(userId: string): Promise<void> {
   }
 }
 
+export interface QuestProgressUpdate {
+  isWinner?: boolean;
+  minionsDestroyed?: number;
+  mode?: string;
+  spellsPlayed?: number;
+  heroPowersUsed?: number;
+  packsOpened?: number;
+}
+
 export async function updateQuests(
   userId: string,
-  opts: { isWinner: boolean; minionsDestroyed: number; mode: string },
+  opts: QuestProgressUpdate,
   now: Date
 ): Promise<void> {
-  const { isWinner, minionsDestroyed, mode } = opts;
+  const {
+    isWinner = false,
+    minionsDestroyed = 0,
+    mode = "",
+    spellsPlayed = 0,
+    heroPowersUsed = 0,
+    packsOpened = 0,
+  } = opts;
   // Competitive quests (play_games, win_games, destroy_minions) only count
   // Casual/Ranked — practice must not advance them.
   const isCompetitive = mode === "casual" || mode === "ranked";
@@ -133,15 +163,25 @@ export async function updateQuests(
   for (const q of quests) {
     let inc = 0;
     switch (q.type) {
+      // ── Meta: progress outside matches ──
+      case "open_pack":
+        inc = packsOpened;
+        break;
       // ── AI-eligible: progress in any mode, including practice ──
       case "play_any":
-        inc = 1;
+        if (mode) inc = 1;
         break;
       case "win_any":
-        if (isWinner) inc = 1;
+        if (mode && isWinner) inc = 1;
         break;
       case "destroy_minions_any":
         inc = minionsDestroyed;
+        break;
+      case "play_spells_any":
+        inc = spellsPlayed;
+        break;
+      case "use_hero_power_any":
+        inc = heroPowersUsed;
         break;
       // ── Competitive-only ──
       case "play_games":
@@ -152,6 +192,12 @@ export async function updateQuests(
         break;
       case "destroy_minions":
         if (isCompetitive) inc = minionsDestroyed;
+        break;
+      case "play_spells":
+        if (isCompetitive) inc = spellsPlayed;
+        break;
+      case "use_hero_power":
+        if (isCompetitive) inc = heroPowersUsed;
         break;
       case "play_ranked":
         if (mode === "ranked") inc = 1;

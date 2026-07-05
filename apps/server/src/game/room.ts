@@ -34,6 +34,8 @@ export interface GameRoom {
   lastActionAt: number;
   /** Admin spectators: userId → socketId */
   spectators: Map<string, string>;
+  /** Per-player in-match quest counters (human players only). */
+  questStats: Record<string, { spellsPlayed: number; heroPowersUsed: number }>;
 }
 
 const TURN_TIME_LIMIT_MS = 30_000;
@@ -70,6 +72,10 @@ export function createRoom(
     disconnectTimers: new Map(),
     lastActionAt: Date.now(),
     spectators: new Map(),
+    questStats: {
+      [p1.userId]: { spellsPlayed: 0, heroPowersUsed: 0 },
+      [p2.userId]: { spellsPlayed: 0, heroPowersUsed: 0 },
+    },
   };
 
   rooms.set(gameId, room);
@@ -158,6 +164,13 @@ export function handlePlayerAction(
   const turnBefore = room.state.turnNumber;
   const statusBefore = room.state.status;
 
+  // Snapshot spell card before it leaves hand (for quest tracking).
+  let playedSpell = false;
+  if (action.type === "play_card" && room.state.activePlayerId === userId) {
+    const card = room.state.players[userId]?.hand.find((c) => c.instanceId === action.cardInstanceId);
+    playedSpell = card?.type === "spell";
+  }
+
   // For mulligan/surrender, always force the authenticated userId
   const resolvedAction: GameAction = (action.type === "mulligan" || action.type === "surrender")
     ? { ...action, playerId: userId }
@@ -180,6 +193,17 @@ export function handlePlayerAction(
   }
 
   room.state = result.newState;
+
+  if (playedSpell) {
+    const stats = room.questStats[userId] ?? { spellsPlayed: 0, heroPowersUsed: 0 };
+    stats.spellsPlayed += 1;
+    room.questStats[userId] = stats;
+  }
+  if (resolvedAction.type === "hero_power") {
+    const stats = room.questStats[userId] ?? { spellsPlayed: 0, heroPowersUsed: 0 };
+    stats.heroPowersUsed += 1;
+    room.questStats[userId] = stats;
+  }
 
   if (room.state.status === "finished") {
     clearTurnTimer(room);

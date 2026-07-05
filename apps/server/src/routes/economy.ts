@@ -6,7 +6,7 @@ import { getDegenBalance, isDegenConfigured } from "../lib/helius.js";
 import { getTokenBalance, getTokenBalanceForMint, MIN_PLAY_TOKENS } from "../lib/solana.js";
 import { tierFromPoints } from "../game/rank.js";
 import { getLadderStanding } from "../game/leaderboard.js";
-import { generateDailyQuests } from "../game/dailyQuests.js";
+import { generateDailyQuests, updateQuests } from "../game/dailyQuests.js";
 import { CARD_BACKS, getCardBackDef, getSeasonReward, type SeasonRewardTier } from "@memetgc/types";
 
 const router: ReturnType<typeof Router> = Router();
@@ -146,6 +146,8 @@ router.post("/packs/open", requireAuth, async (req: AuthRequest, res) => {
       })
     ),
   ]);
+
+  await updateQuests(userId, { packsOpened: 1 }, new Date());
 
   // Join full card data so the reveal UI can render real cards
   const cardRows = await prisma.card.findMany({ where: { id: { in: cards.map((c) => c.cardId) } } });

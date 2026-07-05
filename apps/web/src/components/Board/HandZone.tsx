@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import CardComponent from "../Card/CardComponent";
 import { playSound } from "@/lib/sounds";
 import type { Card } from "@memetgc/types";
@@ -26,10 +26,34 @@ const CARD_SCALE = 0.50;
 const PLAY_DRAG_THRESHOLD = 64;
 // Finger jitter below this still counts as a tap-to-inspect on mobile
 const TAP_MOVE_THRESHOLD = 18;
+const DOUBLE_TAP_MS = 320;
+
+function readTouchHandMode(isMobile: boolean): boolean {
+  if (typeof window === "undefined") return isMobile;
+  return (
+    isMobile ||
+    window.matchMedia("(pointer: coarse)").matches ||
+    window.matchMedia("(max-width: 768px)").matches
+  );
+}
 
 export default function HandZone({ hand, selectedInstanceId, currentMana, actionsEnabled = true, newCardIds = [], isMobile = false, canPlayInstance, onCardClick, onCardHover, onCardInspect }: Props) {
   const n = hand.length;
   const mid = (n - 1) / 2;
+
+  const [touchHandMode, setTouchHandMode] = useState(() => readTouchHandMode(isMobile));
+  useEffect(() => {
+    setTouchHandMode(readTouchHandMode(isMobile));
+    const coarse = window.matchMedia("(pointer: coarse)");
+    const narrow = window.matchMedia("(max-width: 768px)");
+    const sync = () => setTouchHandMode(readTouchHandMode(isMobile));
+    coarse.addEventListener("change", sync);
+    narrow.addEventListener("change", sync);
+    return () => {
+      coarse.removeEventListener("change", sync);
+      narrow.removeEventListener("change", sync);
+    };
+  }, [isMobile]);
 
   // Fan spacing tightens as the hand grows so cards never spill onto the side
   // columns / board. Kept generous for small hands.
@@ -38,7 +62,15 @@ export default function HandZone({ hand, selectedInstanceId, currentMana, action
   // Mobile drag-to-play state (only one card is ever dragged at a time)
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragDy, setDragDy] = useState(0);
-  const dragStart = React.useRef<{ x: number; y: number; moved: boolean } | null>(null);
+  const dragStart = useRef<{ x: number; y: number; moved: boolean } | null>(null);
+  const lastTap = useRef<{ id: string; t: number } | null>(null);
+  const suppressClickUntil = useRef(0);
+
+  function tryPlayCard(instId: string, canPlay: boolean, hasMana: boolean) {
+    if (!actionsEnabled) { playSound("denied"); return; }
+    if (!canPlay) { playSound(hasMana ? "denied" : "noMana"); return; }
+    onCardClick?.(instId);
+  }
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%", pointerEvents: "none" }}>
@@ -56,9 +88,6 @@ export default function HandZone({ hand, selectedInstanceId, currentMana, action
         const isDragging = dragId === instId;
         const dragLift = isDragging ? Math.min(0, dragDy) : 0;
         const willPlay = isDragging && dragDy <= -PLAY_DRAG_THRESHOLD && canPlay;
-        // Scale lives on the OUTER wrapper so the clickable/hover hitbox shrinks
-        // to the visible card size (CSS transforms scale hit-testing, but do not
-        // change an inner element's layout box — which is what made the hitbox huge).
         const baseScale = willPlay ? CARD_SCALE * 1.08 : CARD_SCALE;
 
         return (
@@ -74,56 +103,73 @@ export default function HandZone({ hand, selectedInstanceId, currentMana, action
               zIndex: isDragging ? 60 : isSelected ? 50 : 10 + i,
               pointerEvents: "auto",
               cursor: canPlay ? "pointer" : "default",
-              touchAction: isMobile ? "none" : "auto",
+              touchAction: touchHandMode ? "none" : "auto",
               transition: isDragging ? "none" : "transform 0.18s ease",
             }}
-            // ── Desktop: click to play, hover to preview ──
-            onClick={() => {
-              if (isMobile) return;
+            onClick={(e) => {
+              if (touchHandMode || e.nativeEvent.pointerType === "touch") {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+              }
+              if (Date.now() < suppressClickUntil.current) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+              }
               if (!instId) return;
-              if (!actionsEnabled) { playSound("denied"); return; }
-              if (!canPlay) { playSound(hasMana ? "denied" : "noMana"); return; }
-              onCardClick?.(instId);
+              tryPlayCard(instId, canPlay, hasMana);
             }}
             onMouseEnter={() => {
-              if (isMobile) return;
+              if (touchHandMode) return;
               playSound("cardHover", 0.5);
               onCardHover?.(card as CardData);
             }}
-            onMouseLeave={() => { if (!isMobile) onCardHover?.(null); }}
-            // ── Mobile: tap to inspect, drag upward to play ──
+            onMouseLeave={() => { if (!touchHandMode) onCardHover?.(null); }}
             onPointerDown={(e) => {
-              if (!isMobile) return;
+              if (!touchHandMode && e.pointerType !== "touch") return;
+              e.preventDefault();
               (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
               dragStart.current = { x: e.clientX, y: e.clientY, moved: false };
               setDragId(instId);
               setDragDy(0);
             }}
             onPointerMove={(e) => {
-              if (!isMobile || dragId !== instId || !dragStart.current) return;
+              if ((!touchHandMode && e.pointerType !== "touch") || dragId !== instId || !dragStart.current) return;
               const dy = e.clientY - dragStart.current.y;
               const dx = e.clientX - dragStart.current.x;
               if (Math.abs(dy) > TAP_MOVE_THRESHOLD || Math.abs(dx) > TAP_MOVE_THRESHOLD) dragStart.current.moved = true;
               setDragDy(dy);
             }}
-            onPointerUp={() => {
-              if (!isMobile || dragId !== instId) return;
+            onPointerUp={(e) => {
+              if ((!touchHandMode && e.pointerType !== "touch") || dragId !== instId) return;
+              e.preventDefault();
+              suppressClickUntil.current = Date.now() + 400;
               const moved = dragStart.current?.moved;
               const playedByDrag = dragDy <= -PLAY_DRAG_THRESHOLD;
               setDragId(null);
               setDragDy(0);
               dragStart.current = null;
+
               if (playedByDrag) {
-                if (!actionsEnabled) { playSound("denied"); return; }
-                if (!canPlay) { playSound(hasMana ? "denied" : "noMana"); return; }
-                onCardClick?.(instId);
-              } else if (!moved || dragDy > -PLAY_DRAG_THRESHOLD) {
-                // Tap or small wobble → inspect; only upward drags play the card
-                onCardInspect?.(card as CardData);
+                tryPlayCard(instId, canPlay, hasMana);
+                return;
+              }
+
+              if (!moved) {
+                const now = Date.now();
+                const prev = lastTap.current;
+                if (prev?.id === instId && now - prev.t < DOUBLE_TAP_MS) {
+                  lastTap.current = null;
+                  tryPlayCard(instId, canPlay, hasMana);
+                } else {
+                  lastTap.current = { id: instId, t: now };
+                  onCardInspect?.(card as CardData);
+                }
               }
             }}
             onPointerCancel={() => {
-              if (!isMobile || dragId !== instId) return;
+              if (dragId !== instId) return;
               setDragId(null);
               setDragDy(0);
               dragStart.current = null;
@@ -139,11 +185,11 @@ export default function HandZone({ hand, selectedInstanceId, currentMana, action
                 animation: isNewCard ? "drawCardIn 0.55s cubic-bezier(0.22,1,0.36,1) forwards" : "none",
               }}
               onMouseEnter={(e) => {
-                if (isMobile) return;
+                if (touchHandMode) return;
                 if (canPlay) (e.currentTarget as HTMLDivElement).style.transform = `translateY(-18px)`;
               }}
               onMouseLeave={(e) => {
-                if (isMobile) return;
+                if (touchHandMode) return;
                 (e.currentTarget as HTMLDivElement).style.transform = `translateY(0)`;
               }}
             >

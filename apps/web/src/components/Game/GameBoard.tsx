@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useGameStore } from "@/store/gameStore";
-import { sendAction } from "@/hooks/useSocket";
+import { sendAction, leaveSpectate } from "@/hooks/useSocket";
+import { useRouter } from "next/navigation";
 import MinionCard from "../Board/MinionCard";
 import HeroZone from "../Board/HeroZone";
 import HandZone from "../Board/HandZone";
@@ -58,6 +59,13 @@ export default function GameBoard() {
   const [frameTiers, setFrameTiers] = useState<Map<string, "default" | "silver" | "gold">>(new Map());
   const [myCardBack, setMyCardBack] = useState<string>(CARD_BACK_DEFAULT);
   const isMobile = useIsMobile();
+  const router = useRouter();
+
+  function exitSpectate() {
+    leaveSpectate();
+    useGameStore.getState().reset();
+    router.push("/admin");
+  }
 
   const toggleFullscreen = useCallback(() => {
     const doc = document as Document & { webkitFullscreenElement?: Element; webkitExitFullscreen?: () => void };
@@ -632,7 +640,7 @@ export default function GameBoard() {
         <div style={{ position: "absolute", inset: 0, zIndex: 50, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, background: "rgba(6,8,13,.96)" }}>
           <div style={{ font: `900 48px/1 var(--font-cinzel,'Cinzel',serif)`, color: "#e7c768" }}>MATCH OVER</div>
           <div style={{ font: `700 18px var(--font-archivo,'Archivo',sans-serif)`, color: "#e7ecf3" }}>{winnerName} wins</div>
-          <button onClick={() => window.history.back()} style={{ marginTop: 12, cursor: "pointer", padding: "10px 20px", borderRadius: 10, border: "1px solid rgba(255,255,255,.15)", background: "rgba(255,255,255,.06)", color: "#cdd4df", font: `700 12px var(--font-archivo,'Archivo',sans-serif)` }}>Back to admin</button>
+          <button type="button" onClick={exitSpectate} style={{ marginTop: 12, cursor: "pointer", padding: "10px 20px", borderRadius: 10, border: "1px solid rgba(255,255,255,.15)", background: "rgba(255,255,255,.06)", color: "#cdd4df", font: `700 12px var(--font-archivo,'Archivo',sans-serif)` }}>Exit spectate</button>
         </div>
       );
     }
@@ -770,7 +778,9 @@ export default function GameBoard() {
   }
 
   function beginAttackDrag(attackerId: string, e: React.PointerEvent) {
-    if (!canAct || phase !== "idle") return;
+    if (!canAct) return;
+    const inTargeting = phase === "select_attack_target" && selectedAttackerId === attackerId;
+    if (phase !== "idle" && !inTargeting) return;
     const slot = myState.board.find((s): s is MinionSlot => s !== null && s.instanceId === attackerId);
     if (!slot || !canMinionAttack(slot)) return;
     e.preventDefault();
@@ -892,7 +902,11 @@ export default function GameBoard() {
               heroName={opponentState.heroName} playerName={opponentState.playerName} faction={opponentState.heroFaction} heroId={opponentState.heroId}
               hp={opponentState.hp} armor={opponentState.armor} isEnemy
               attackTargetId={opponentHeroIsAttackTarget ? opponentHeroTargetId : undefined}
-              isValidTarget={(phase === "select_attack_target" && validTargets.includes(opponentHeroTargetId)) || (phase === "select_play_target" && validPlayTargets.includes(opponentHeroTargetId))}
+              isValidTarget={
+                (phase === "select_attack_target" && validTargets.includes(opponentHeroTargetId)) ||
+                (!!attackDrag && validTargets.includes(opponentHeroTargetId)) ||
+                (phase === "select_play_target" && validPlayTargets.includes(opponentHeroTargetId))
+              }
               onHeroClick={() => handleHeroClick(true)}
               secretCount={opponentState.secretCount}
               hasWeapon={opponentState.hasWeapon} weaponAttack={opponentState.weaponAttack} weaponDurability={opponentState.weaponDurability}
@@ -1017,7 +1031,7 @@ export default function GameBoard() {
             {phase === "select_hero_power_target" && "→ SELECT MINION FOR HERO POWER"}
           </div>
         )}
-        {attackDrag && phase === "idle" && (
+        {attackDrag && (phase === "idle" || phase === "select_attack_target") && (
           <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", zIndex: 20, padding: "6px 16px", borderRadius: 20, background: "rgba(60,50,0,.95)", border: "1px solid #e0c040", color: "#ffe060", font: `700 10px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "1px", whiteSpace: "nowrap", boxShadow: "0 0 16px rgba(224,192,64,.3)" }}>
             → DRAG TO ATTACK TARGET
           </div>

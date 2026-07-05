@@ -55,9 +55,16 @@ export async function recordMatchResults(
         for (const player of humans) {
           const oppState = Object.values(room.state.players).find((s) => s.playerId !== player.userId);
           const minionsDestroyed = (oppState?.burnPile ?? []).filter((c: Card) => c.type === "minion").length;
+          const questStats = room.questStats[player.userId] ?? { spellsPlayed: 0, heroPowersUsed: 0 };
           await updateQuests(
             player.userId,
-            { isWinner: winnerId === player.userId, minionsDestroyed, mode: room.mode },
+            {
+              isWinner: winnerId === player.userId,
+              minionsDestroyed,
+              mode: room.mode,
+              spellsPlayed: questStats.spellsPlayed,
+              heroPowersUsed: questStats.heroPowersUsed,
+            },
             now
           );
         }
@@ -100,6 +107,7 @@ export async function recordMatchResults(
 
       const oppState = Object.values(room.state.players).find((s) => s.playerId !== userId);
       const minionsDestroyed = (oppState?.burnPile ?? []).filter((c: Card) => c.type === "minion").length;
+      const questStats = room.questStats[userId] ?? { spellsPlayed: 0, heroPowersUsed: 0 };
 
       const matchFragments = computeMatchFragments({
         mode: room.mode,
@@ -178,7 +186,13 @@ export async function recordMatchResults(
       }
 
       if (trackQuests && !isBotPlayer) {
-        await updateQuests(userId, { isWinner, minionsDestroyed, mode: room.mode }, now);
+        await updateQuests(userId, {
+          isWinner,
+          minionsDestroyed,
+          mode: room.mode,
+          spellsPlayed: questStats.spellsPlayed,
+          heroPowersUsed: questStats.heroPowersUsed,
+        }, now);
       }
     }
 

@@ -37,7 +37,9 @@ export function useViewportSize(): ViewportSize {
 
 /** True when the viewport is phone-sized (<= 768px wide). SSR-safe (false). */
 export function useIsMobile(maxWidth = MOBILE_MAX_WIDTH): boolean {
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined" && window.matchMedia(`(max-width: ${maxWidth}px)`).matches
+  );
 
   useEffect(() => {
     const mql = window.matchMedia(`(max-width: ${maxWidth}px)`);

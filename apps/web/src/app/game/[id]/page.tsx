@@ -34,6 +34,12 @@ export default function GamePage() {
     };
   }, [spectateMode, routeGameId]);
 
+  function exitSpectate() {
+    leaveSpectate();
+    useGameStore.getState().reset();
+    router.push("/admin");
+  }
+
   useEffect(() => {
     if (!gameId && !gameState && !spectateMode) {
       router.push("/");
@@ -56,8 +62,15 @@ export default function GamePage() {
   return (
     <>
       {isSpectator && (
-        <div style={{ position: "fixed", top: 12, left: "50%", transform: "translateX(-50%)", zIndex: 100, padding: "6px 14px", borderRadius: 8, background: "rgba(231,199,104,.15)", border: "1px solid rgba(231,199,104,.45)", font: `800 10px var(--font-mono,'JetBrains Mono',monospace)`, color: "#e7c768", letterSpacing: "2px", pointerEvents: "none" }}>
-          SPECTATING
+        <div style={{ position: "fixed", top: 12, left: "50%", transform: "translateX(-50%)", zIndex: 100, display: "flex", alignItems: "center", gap: 10, padding: "6px 10px 6px 14px", borderRadius: 8, background: "rgba(231,199,104,.15)", border: "1px solid rgba(231,199,104,.45)", font: `800 10px var(--font-mono,'JetBrains Mono',monospace)`, color: "#e7c768", letterSpacing: "2px" }}>
+          <span>SPECTATING</span>
+          <button
+            type="button"
+            onClick={exitSpectate}
+            style={{ cursor: "pointer", padding: "4px 10px", borderRadius: 6, border: "1px solid rgba(231,199,104,.55)", background: "rgba(231,199,104,.12)", color: "#f3e8cc", font: `800 10px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "1px" }}
+          >
+            EXIT
+          </button>
         </div>
       )}
       <div
