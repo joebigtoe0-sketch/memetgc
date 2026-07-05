@@ -23,6 +23,14 @@ type ImageOption = {
   category: "tournament" | "faction";
 };
 
+/** Strip commas/spaces so "3,000,000" parses as 3000000, not 3. */
+function parsePrizeAmount(raw: string): number | null {
+  const cleaned = raw.replace(/[,\s_]/g, "");
+  if (!cleaned) return null;
+  const n = Number.parseInt(cleaned, 10);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
 const DEFAULT_TIERS: TierForm[] = [
   { rankLabel: "1st", rankMin: 1, rankMax: 1, amount: "", currency: "fragments", customLabel: "" },
   { rankLabel: "2nd", rankMin: 2, rankMax: 2, amount: "", currency: "fragments", customLabel: "" },
@@ -80,7 +88,7 @@ export default function AdminCreateTournamentPage() {
           rankLabel: t.rankLabel,
           rankMin: t.rankMin,
           rankMax: t.rankMax,
-          amount: t.amount ? parseInt(t.amount, 10) : null,
+          amount: t.amount ? parsePrizeAmount(t.amount) : null,
           currency: t.currency,
           customLabel: t.currency === "custom" ? t.customLabel : null,
         })),

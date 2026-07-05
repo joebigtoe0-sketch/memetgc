@@ -94,7 +94,7 @@ export function PrizeBreakdown({ tiers }: { tiers: { rankLabel: string; amount: 
           <div key={t.rankLabel} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", borderRadius: 8, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.06)" }}>
             <span style={{ font: `700 12px var(--font-cinzel,'Cinzel',serif)`, color: "#e7ecf3" }}>{t.rankLabel}</span>
             <span style={{ font: `600 11px var(--font-mono,'JetBrains Mono',monospace)`, color: t.amount ? "#e7c768" : "#6a7488" }}>
-              {!t.amount ? "No prize" : t.currency === "custom" ? `${t.amount} ${t.customLabel ?? ""}` : `${t.amount.toLocaleString()} frags`}
+              {!t.amount ? "No prize" : t.currency === "custom" ? `${t.amount.toLocaleString()} ${t.customLabel ?? ""}` : `${t.amount.toLocaleString()} frags`}
             </span>
           </div>
         ))}

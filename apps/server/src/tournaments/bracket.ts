@@ -55,7 +55,7 @@ export function buildPrizeSummary(
     .filter((t) => t.currency === "fragments" && t.amount)
     .reduce((s, t) => s + (t.amount ?? 0), 0);
   const custom = tiers.find((t) => t.currency === "custom" && t.amount);
-  if (custom?.customLabel) return `${custom.amount} ${custom.customLabel}`;
+  if (custom?.customLabel) return `${(custom.amount ?? 0).toLocaleString()} ${custom.customLabel}`;
   if (fragTotal > 0) return `${fragTotal.toLocaleString()} frags`;
   return "TBD";
 }
