@@ -75,6 +75,15 @@ async function mapTournamentListItem(
         })
       : 0;
 
+  let claimableReward: { amount: number; rank: number } | null = null;
+  if (userId && t.status === "finished") {
+    const payout = await prisma.tournamentPayout.findFirst({
+      where: { tournamentId: t.id, userId, status: "pending_claim", currencyLabel: "fragments" },
+      select: { amount: true, rank: true },
+    });
+    if (payout) claimableReward = { amount: payout.amount, rank: payout.rank };
+  }
+
   return {
     id: t.id,
     title: t.title,
@@ -92,6 +101,7 @@ async function mapTournamentListItem(
     totalPrizeSummary: buildPrizeSummary(prizeTiers),
     userRegistered,
     liveMatchCount,
+    claimableReward,
   };
 }
 
@@ -145,6 +155,26 @@ router.get("/active-match", requireAuth, async (req: AuthRequest, res) => {
       joinDeadline: match.joinDeadline.toISOString(),
       round: match.round,
     },
+  });
+});
+
+router.get("/pending-claims", requireAuth, async (req: AuthRequest, res) => {
+  const userId = req.user!.userId;
+  const payouts = await prisma.tournamentPayout.findMany({
+    where: { userId, status: "pending_claim", currencyLabel: "fragments" },
+    include: { tournament: { select: { id: true, title: true, status: true } } },
+    orderBy: { createdAt: "desc" },
+  });
+
+  res.json({
+    claims: payouts
+      .filter((p) => p.tournament.status === "finished")
+      .map((p) => ({
+        tournamentId: p.tournamentId,
+        tournamentTitle: p.tournament.title,
+        amount: p.amount,
+        rank: p.rank,
+      })),
   });
 });
 
@@ -368,7 +398,8 @@ router.post("/:id/claim-reward", requireAuth, async (req: AuthRequest, res) => {
     }),
   ]);
 
-  res.json({ ok: true, amount: payout.amount });
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { fragments: true } });
+  res.json({ ok: true, amount: payout.amount, fragments: payout.amount, newBalance: user?.fragments ?? 0 });
 });
 
 router.post("/:id/register", requireAuth, async (req: AuthRequest, res) => {

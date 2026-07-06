@@ -28,6 +28,8 @@ export interface TournamentListItem {
   totalPrizeSummary: string;
   userRegistered: boolean;
   liveMatchCount: number;
+  /** Set when the user has unclaimed fragment prizes from a finished tournament. */
+  claimableReward?: { amount: number; rank: number } | null;
 }
 
 export interface TournamentMatchDto {
@@ -73,6 +75,13 @@ export interface ActiveTournamentMatch {
   opponentName: string;
   joinDeadline: string;
   round: number;
+}
+
+export interface TournamentPendingClaim {
+  tournamentId: string;
+  tournamentTitle: string;
+  amount: number;
+  rank: number;
 }
 
 export interface TournamentMatchReadyEvent {

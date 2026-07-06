@@ -16,7 +16,7 @@ import SettingsButton from "@/components/Settings/SettingsButton";
 import { BRAND, formatRankTier } from "@/lib/brand";
 import { useIsMobile } from "@/hooks/useViewport";
 import { LeaderboardBadge, RankRewardPanel, SeasonPanel, ROMAN, TIER_COLOR } from "@/components/Rank/seasonUi";
-import type { SeasonRewardTier, ActiveTournamentMatch } from "@memetgc/types";
+import type { SeasonRewardTier, ActiveTournamentMatch, TournamentPendingClaim } from "@memetgc/types";
 import { formatCountdown } from "@/components/Tournaments/tournamentUi";
 
 const RANK_TIERS = ["bronze", "silver", "gold", "platinum", "diamond", "degen"] as const;
@@ -68,6 +68,7 @@ export default function Dashboard() {
   const [quests, setQuests] = useState<Quest[]>([]);
   const [liveTournaments, setLiveTournaments] = useState(0);
   const [activeTournamentMatch, setActiveTournamentMatch] = useState<ActiveTournamentMatch | null>(null);
+  const [tournamentClaims, setTournamentClaims] = useState<TournamentPendingClaim[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [, countdownTick] = useState(0);
   const resetIn = useResetCountdown();
@@ -83,6 +84,7 @@ export default function Dashboard() {
     api.get<{ match: ActiveTournamentMatch | null }>("/api/tournaments/active-match").then((d) => setActiveTournamentMatch(d.match)).catch(() => {});
     if (token) {
       api.get<{ isAdmin: boolean }>("/api/admin/check").then((d) => setIsAdmin(d.isAdmin)).catch(() => {});
+      api.get<{ claims: TournamentPendingClaim[] }>("/api/tournaments/pending-claims").then((d) => setTournamentClaims(d.claims)).catch(() => setTournamentClaims([]));
     }
   }, [loadQuests, setFragments, token]);
 
@@ -90,6 +92,7 @@ export default function Dashboard() {
     const id = setInterval(() => {
       countdownTick((t) => t + 1);
       api.get<{ match: ActiveTournamentMatch | null }>("/api/tournaments/active-match").then((d) => setActiveTournamentMatch(d.match)).catch(() => {});
+      api.get<{ claims: TournamentPendingClaim[] }>("/api/tournaments/pending-claims").then((d) => setTournamentClaims(d.claims)).catch(() => setTournamentClaims([]));
     }, 5000);
     return () => clearInterval(id);
   }, []);
@@ -99,6 +102,14 @@ export default function Dashboard() {
       const res = await api.post<{ reward: { fragments?: number } }>(`/api/economy/quests/${id}/claim`, {});
       if (res.reward?.fragments) setFragments(fragments + res.reward.fragments);
       loadQuests();
+    } catch { /* ignore */ }
+  }
+
+  async function claimTournamentReward(tournamentId: string) {
+    try {
+      const res = await api.post<{ fragments: number; newBalance: number }>(`/api/tournaments/${tournamentId}/claim-reward`, {});
+      setFragments(res.newBalance);
+      setTournamentClaims((prev) => prev.filter((c) => c.tournamentId !== tournamentId));
     } catch { /* ignore */ }
   }
 
@@ -232,6 +243,18 @@ export default function Dashboard() {
 
         {/* CENTER — Play + modes */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0, order: isMobile ? 1 : 0 }}>
+          {tournamentClaims.map((claim) => (
+            <div key={claim.tournamentId} style={{ borderRadius: 16, padding: isMobile ? "16px 18px" : "18px 22px", background: "linear-gradient(110deg,rgba(231,199,104,.16),rgba(18,23,35,.55) 62%)", border: "1px solid rgba(231,199,104,.4)", boxShadow: "0 0 28px rgba(231,199,104,.1)" }}>
+              <div style={{ font: `700 10px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "2px", color: "#e7c768" }}>TOURNAMENT PRIZE</div>
+              <div style={{ font: `800 ${isMobile ? 16 : 18}px var(--font-cinzel,'Cinzel',serif)`, color: "#f3e8cc", marginTop: 6 }}>{claim.tournamentTitle}</div>
+              <div style={{ font: `600 12px var(--font-archivo,'Archivo',sans-serif)`, color: "#aeb6c4", marginTop: 4 }}>Rank #{claim.rank} · {claim.amount.toLocaleString()} fragments</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 14, flexWrap: "wrap" }}>
+                <button onClick={() => claimTournamentReward(claim.tournamentId)} style={{ cursor: "pointer", border: "none", padding: "11px 32px", borderRadius: 10, font: `800 14px var(--font-cinzel,'Cinzel',serif)`, color: "#2a1a00", background: "linear-gradient(180deg,#ffe07a,#e0890f)", boxShadow: "0 6px 18px rgba(224,137,15,.35)" }}>CLAIM</button>
+                <button onClick={() => router.push("/tournaments")} style={{ cursor: "pointer", padding: "11px 18px", borderRadius: 10, font: `700 12px var(--font-archivo,'Archivo',sans-serif)`, color: "#cdd4df", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)" }}>View bracket</button>
+              </div>
+            </div>
+          ))}
+
           {activeTournamentMatch && (
             <div style={{ borderRadius: 16, padding: isMobile ? "16px 18px" : "18px 22px", background: "linear-gradient(110deg,rgba(25,224,138,.18),rgba(18,23,35,.55) 62%)", border: "1px solid rgba(25,224,138,.35)", boxShadow: "0 0 28px rgba(25,224,138,.12)" }}>
               <div style={{ font: `700 10px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "2px", color: "#19e08a" }}>TOURNAMENT MATCH READY</div>

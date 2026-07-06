@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import Logo from "@/components/Brand/Logo";
@@ -32,6 +32,7 @@ export default function TournamentsPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [, tick] = useState(0);
+  const didAutoExpandClaim = useRef(false);
 
   const loadList = useCallback(() => {
     api.get<ListResponse>("/api/tournaments")
@@ -45,6 +46,14 @@ export default function TournamentsPage() {
     if (!token) return;
     api.get<{ isAdmin: boolean }>("/api/tournaments/admin/check").then((d) => setIsAdmin(d.isAdmin)).catch(() => {});
   }, [token]);
+  useEffect(() => {
+    if (didAutoExpandClaim.current || list.length === 0) return;
+    const withClaim = list.find((t) => t.claimableReward);
+    if (withClaim) {
+      didAutoExpandClaim.current = true;
+      void expand(withClaim.id);
+    }
+  }, [list]);
   useEffect(() => {
     const id = setInterval(() => tick((t) => t + 1), 1000);
     return () => clearInterval(id);
@@ -87,6 +96,7 @@ export default function TournamentsPage() {
       await api.post(`/api/tournaments/${id}/claim-reward`, {});
       const d = await api.get<TournamentDetail>(`/api/tournaments/${id}`);
       setDetails((prev) => ({ ...prev, [id]: d }));
+      loadList();
     } catch { /* ignore */ }
     setActionLoading(null);
   }
@@ -125,8 +135,13 @@ export default function TournamentsPage() {
           {list.map((t) => {
             const open = expandedId === t.id;
             const detail = details[t.id];
+            const claimable =
+              t.claimableReward ??
+              (detail?.userPayout?.status === "pending_claim" && detail.userPayout.currencyLabel === "fragments"
+                ? { amount: detail.userPayout.amount, rank: detail.userPayout.rank }
+                : null);
             return (
-              <div key={t.id} style={{ borderRadius: 14, border: `1px solid ${open ? "rgba(231,199,104,.35)" : "rgba(255,255,255,.08)"}`, background: "linear-gradient(150deg,rgba(255,255,255,.04),rgba(18,23,35,.65))", overflow: "hidden" }}>
+              <div key={t.id} style={{ borderRadius: 14, border: `1px solid ${claimable ? "rgba(231,199,104,.45)" : open ? "rgba(231,199,104,.35)" : "rgba(255,255,255,.08)"}`, background: "linear-gradient(150deg,rgba(255,255,255,.04),rgba(18,23,35,.65))", overflow: "hidden" }}>
                 <button type="button" onClick={() => expand(t.id)} style={{ width: "100%", cursor: "pointer", border: "none", background: "transparent", padding: isMobile ? "14px 12px" : "16px 18px", textAlign: "left", color: "inherit" }}>
                   <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr auto" : "auto 1fr auto auto auto auto", gap: 12, alignItems: "center" }}>
                     <div style={{ width: 40, height: 40, borderRadius: 10, background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
@@ -136,6 +151,11 @@ export default function TournamentsPage() {
                       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                         <span style={{ font: `800 15px var(--font-cinzel,'Cinzel',serif)`, color: "#f1f4f9" }}>{t.title}</span>
                         <StatusBadge status={t.status} />
+                        {claimable && (
+                          <span style={{ font: `800 8px var(--font-mono,'JetBrains Mono',monospace)`, padding: "3px 8px", borderRadius: 5, color: "#2a1a00", background: "linear-gradient(180deg,#ffe07a,#e0890f)", letterSpacing: "1px" }}>
+                            CLAIM {claimable.amount.toLocaleString()} FRAGS
+                          </span>
+                        )}
                       </div>
                       <div style={{ font: `500 11px var(--font-archivo,'Archivo',sans-serif)`, color: "#8a93a6", marginTop: 4, lineHeight: 1.4 }}>{t.description}</div>
                     </div>
@@ -209,6 +229,24 @@ function ExpandedPanel({
       <PrizeBreakdown tiers={tiers} />
 
       <div>
+        {canClaim && detail.userPayout && (
+          <div style={{ marginBottom: 16, padding: 14, borderRadius: 12, background: "rgba(231,199,104,.08)", border: "1px solid rgba(231,199,104,.35)" }}>
+            <div style={{ font: `800 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#e7c768", letterSpacing: "1.5px" }}>PRIZE READY</div>
+            <div style={{ font: `700 13px var(--font-archivo,'Archivo',sans-serif)`, color: "#e7ecf3", marginTop: 8 }}>
+              Rank #{detail.userPayout.rank} · {detail.userPayout.amount.toLocaleString()} fragments
+            </div>
+            <button disabled={actionLoading} onClick={onClaimReward} style={{ ...registerBtn, marginTop: 12, background: "linear-gradient(180deg,#ffe07a,#e0890f)", color: "#2a1a00", boxShadow: "0 8px 24px rgba(224,137,15,.35)" }}>
+              CLAIM REWARD
+            </button>
+          </div>
+        )}
+
+        {claimed && detail.userPayout && (
+          <div style={{ marginBottom: 16, padding: 12, borderRadius: 10, background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)", font: `600 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6" }}>
+            Claimed {detail.userPayout.amount.toLocaleString()} fragments (rank #{detail.userPayout.rank})
+          </div>
+        )}
+
         {detail.status === "upcoming" && (
           <>
             <div style={{ display: "flex", justifyContent: "space-between", font: `600 10px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6", marginBottom: 6 }}>
@@ -241,24 +279,6 @@ function ExpandedPanel({
 
         {(detail.status === "live" || detail.status === "finished") && (
           <TournamentBracket matches={detail.matches} totalRounds={detail.totalRounds} championName={detail.winnerName} />
-        )}
-
-        {canClaim && detail.userPayout && (
-          <div style={{ marginTop: 16, padding: 14, borderRadius: 12, background: "rgba(231,199,104,.08)", border: "1px solid rgba(231,199,104,.35)" }}>
-            <div style={{ font: `800 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#e7c768", letterSpacing: "1.5px" }}>PRIZE READY</div>
-            <div style={{ font: `700 13px var(--font-archivo,'Archivo',sans-serif)`, color: "#e7ecf3", marginTop: 8 }}>
-              Rank #{detail.userPayout.rank} · {detail.userPayout.amount.toLocaleString()} fragments
-            </div>
-            <button disabled={actionLoading} onClick={onClaimReward} style={{ ...registerBtn, marginTop: 12, background: "linear-gradient(180deg,#ffe07a,#e0890f)", color: "#2a1a00", boxShadow: "0 8px 24px rgba(224,137,15,.35)" }}>
-              CLAIM REWARD
-            </button>
-          </div>
-        )}
-
-        {claimed && detail.userPayout && (
-          <div style={{ marginTop: 16, padding: 12, borderRadius: 10, background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)", font: `600 11px var(--font-mono,'JetBrains Mono',monospace)`, color: "#8a93a6" }}>
-            Claimed {detail.userPayout.amount.toLocaleString()} fragments (rank #{detail.userPayout.rank})
-          </div>
         )}
       </div>
     </div>
