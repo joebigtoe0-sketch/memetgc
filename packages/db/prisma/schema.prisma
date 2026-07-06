@@ -348,3 +348,11 @@ model TournamentPayout {
   @@index([tournamentId])
   @@map("tournament_payouts")
 }
+
+/** Cumulative platform counters (pack buys, etc.) — incremented at event time. */
+model PlatformStat {
+  key   String @id
+  value BigInt @default(0)
+
+  @@map("platform_stats")
+}

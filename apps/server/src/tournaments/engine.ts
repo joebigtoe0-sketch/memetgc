@@ -4,12 +4,12 @@ import type { Server } from "socket.io";
 import { getBotIdentities } from "../bots/manager.js";
 import { getSocketIdForUser } from "../game/socketRegistry.js";
 import {
+  buildRound1Seeds,
   computeBracketSize,
   eliminationRank,
   JOIN_WINDOW_MS,
   parentSlot,
   parentSlotSide,
-  shuffleInPlace,
   totalRoundsForBracket,
 } from "./bracket.js";
 import { beginTournamentMatch } from "./match.js";
@@ -32,7 +32,7 @@ async function getBotPool(): Promise<string[]> {
   return pool;
 }
 
-/** Gradually register ladder bots into upcoming tournaments (1 every 5 min, up to 5 total). */
+/** Gradually register ladder bots into upcoming tournaments (1 every 5 min, up to 5 bots). */
 async function processBotRegistrations(): Promise<void> {
   const now = Date.now();
   const upcoming = await prisma.tournament.findMany({
@@ -43,17 +43,19 @@ async function processBotRegistrations(): Promise<void> {
   const botPool = await getBotPool();
   if (botPool.length === 0) return;
 
+  const botSet = new Set(botPool);
+
   for (const t of upcoming) {
-    const current = t.entries.length;
-    if (current >= BOT_FILL_TARGET) continue;
+    const registered = new Set(t.entries.map((e) => e.userId));
+    const botCount = t.entries.filter((e) => botSet.has(e.userId)).length;
+    if (botCount >= BOT_FILL_TARGET) continue;
 
     const elapsed = now - t.createdAt.getTime();
-    const desiredTotal = Math.min(BOT_FILL_TARGET, Math.floor(elapsed / BOT_REGISTER_INTERVAL_MS) + 1);
-    if (current >= desiredTotal) continue;
+    const desiredBots = Math.min(BOT_FILL_TARGET, Math.floor(elapsed / BOT_REGISTER_INTERVAL_MS) + 1);
+    if (botCount >= desiredBots) continue;
 
-    const registered = new Set(t.entries.map((e) => e.userId));
     const available = botPool.filter((id) => !registered.has(id));
-    const toAdd = Math.min(desiredTotal - current, available.length);
+    const toAdd = Math.min(desiredBots - botCount, available.length);
 
     for (let i = 0; i < toAdd; i++) {
       const botId = available[i]!;
@@ -163,13 +165,46 @@ async function forfeitMatch(matchId: string, winnerId: string, loserId: string):
   await markEliminated(tm.tournamentId, loserId, tm.round, tm.tournament.totalRounds, tm.tournament.bracketSize);
 }
 
-async function openMatch(matchId: string): Promise<void> {
-  const tm = await prisma.tournamentMatch.findUnique({ where: { id: matchId } });
-  if (!tm || !tm.player1Id || !tm.player2Id) return;
-  if (tm.status !== "pending") return;
+async function advanceByeMatch(
+  tm: { id: string; tournamentId: string; round: number; slotIndex: number; player1Id: string | null; player2Id: string | null },
+  winnerId: string,
+  tournament: { totalRounds: number; bracketSize: number }
+): Promise<void> {
+  await prisma.tournamentMatch.update({
+    where: { id: tm.id },
+    data: {
+      status: "completed",
+      winnerId,
+      player1Score: winnerId === tm.player1Id ? 2 : 0,
+      player2Score: winnerId === tm.player2Id ? 2 : 0,
+    },
+  });
+  await propagateWinner(tm.tournamentId, tm.round, tm.slotIndex, winnerId, tournament.totalRounds);
+}
 
-  const p1Bot = await isBot(tm.player1Id);
-  const p2Bot = await isBot(tm.player2Id);
+async function openMatch(matchId: string): Promise<void> {
+  const tm = await prisma.tournamentMatch.findUnique({
+    where: { id: matchId },
+    include: { tournament: true },
+  });
+  if (!tm || tm.status !== "pending") return;
+
+  if (!tm.player1Id && !tm.player2Id) {
+    await prisma.tournamentMatch.update({ where: { id: tm.id }, data: { status: "completed" } });
+    return;
+  }
+
+  if (tm.player1Id && !tm.player2Id) {
+    await advanceByeMatch(tm, tm.player1Id, tm.tournament);
+    return;
+  }
+  if (!tm.player1Id && tm.player2Id) {
+    await advanceByeMatch(tm, tm.player2Id, tm.tournament);
+    return;
+  }
+
+  const p1Bot = await isBot(tm.player1Id!);
+  const p2Bot = await isBot(tm.player2Id!);
 
   if (p1Bot && p2Bot) {
     await resolveBotOnlyMatch(matchId);
@@ -182,10 +217,13 @@ async function openMatch(matchId: string): Promise<void> {
     data: { status: "awaiting_join", joinDeadline: deadline },
   });
 
+  const p1Id = tm.player1Id!;
+  const p2Id = tm.player2Id!;
+
   // Notify human participants
-  for (const uid of [tm.player1Id, tm.player2Id]) {
+  for (const uid of [p1Id, p2Id]) {
     if (await isBot(uid)) continue;
-    const oppId = uid === tm.player1Id ? tm.player2Id : tm.player1Id;
+    const oppId = uid === p1Id ? p2Id : p1Id;
     const [tournament, opp] = await Promise.all([
       prisma.tournament.findUnique({ where: { id: tm.tournamentId } }),
       prisma.user.findUnique({ where: { id: oppId }, select: { username: true } }),
@@ -319,24 +357,38 @@ export async function startTournament(tournamentId: string): Promise<void> {
     select: { userId: true, id: true },
   });
 
-  const humanIds = entries.map((e) => e.userId);
+  if (entries.length < 1) {
+    await prisma.tournament.update({ where: { id: tournamentId }, data: { status: "cancelled" } });
+    return;
+  }
+
+  const entryIds = entries.map((e) => e.userId);
+  const users = await prisma.user.findMany({
+    where: { id: { in: entryIds } },
+    select: { id: true, isBot: true },
+  });
+  const humanIds = users.filter((u) => !u.isBot).map((u) => u.id);
+  const registeredBotIds = users.filter((u) => u.isBot).map((u) => u.id);
+
   if (humanIds.length < 1) {
     await prisma.tournament.update({ where: { id: tournamentId }, data: { status: "cancelled" } });
     return;
   }
 
-  const bracketSize = computeBracketSize(humanIds.length, tournament.maxSlots);
-  const botsNeeded = bracketSize - humanIds.length;
+  const participantCount = humanIds.length + registeredBotIds.length;
+  const bracketSize = computeBracketSize(participantCount, tournament.maxSlots);
 
-  let botPool = await getBotPool();
-
-  const botIds: string[] = [];
-  for (let i = 0; i < botsNeeded && botPool.length > 0; i++) {
-    botIds.push(botPool[i % botPool.length]!);
+  // Only pad with extra unique bots if the bracket has empty slots — never duplicate.
+  const usedIds = new Set([...humanIds, ...registeredBotIds]);
+  const botPool = (await getBotPool()).filter((id) => !usedIds.has(id));
+  const fillBotIds: string[] = [];
+  for (let i = 0; i < bracketSize - participantCount && i < botPool.length; i++) {
+    fillBotIds.push(botPool[i]!);
+    usedIds.add(botPool[i]!);
   }
 
-  const seeds = [...humanIds, ...botIds];
-  shuffleInPlace(seeds);
+  const allBotIds = [...registeredBotIds, ...fillBotIds];
+  const seeds = buildRound1Seeds(humanIds, allBotIds, bracketSize);
 
   const totalRounds = totalRoundsForBracket(bracketSize);
 
@@ -350,16 +402,14 @@ export async function startTournament(tournamentId: string): Promise<void> {
     },
   });
 
-  // Assign seed indices to human entries
   seeds.forEach((uid, idx) => {
-    if (!humanIds.includes(uid)) return;
+    if (!uid) return;
     void prisma.tournamentEntry.updateMany({
       where: { tournamentId, userId: uid },
       data: { seedIndex: idx },
     });
   });
 
-  // Create round 1 matches
   const round1Count = bracketSize / 2;
   for (let slot = 0; slot < round1Count; slot++) {
     await prisma.tournamentMatch.create({

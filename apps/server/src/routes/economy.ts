@@ -7,6 +7,7 @@ import { getTokenBalance, getTokenBalanceForMint, MIN_PLAY_TOKENS } from "../lib
 import { tierFromPoints } from "../game/rank.js";
 import { getLadderStanding } from "../game/leaderboard.js";
 import { generateDailyQuests, updateQuests } from "../game/dailyQuests.js";
+import { bumpPlatformStat } from "../admin/platformStats.js";
 import { CARD_BACKS, getCardBackDef, getSeasonReward, type SeasonRewardTier } from "@memetgc/types";
 
 const router: ReturnType<typeof Router> = Router();
@@ -117,6 +118,9 @@ router.post("/packs/buy", requireAuth, async (req: AuthRequest, res) => {
       create: { userId, packType: grantPackType, quantity: qty },
     }),
   ]);
+
+  void bumpPlatformStat("packs_bought", qty);
+  void bumpPlatformStat("fragments_spent_packs", totalCost);
 
   res.json({ success: true, packType: grantPackType, quantity: qty, newBalance: user.fragments - totalCost });
 });

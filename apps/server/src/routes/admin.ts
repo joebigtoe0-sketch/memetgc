@@ -4,6 +4,7 @@ import { requireAuth, type AuthRequest } from "../middleware/auth.js";
 import { isUserAdmin, requireAdmin } from "../middleware/admin.js";
 import { listActiveGames } from "../game/room.js";
 import { getPublicOnlineCount } from "../game/online.js";
+import { getAdminEconomyStats } from "../admin/stats.js";
 
 const router: ReturnType<typeof Router> = Router();
 
@@ -51,6 +52,16 @@ router.get("/live-games", requireAuth, requireAdmin, async (_req, res) => {
     liveTournamentCount,
     onlineCount: getPublicOnlineCount().display,
   });
+});
+
+router.get("/stats", requireAuth, requireAdmin, async (_req, res) => {
+  try {
+    const stats = await getAdminEconomyStats();
+    res.json(stats);
+  } catch (err) {
+    console.error("[admin/stats]", err);
+    res.status(500).json({ error: "Failed to load economy stats" });
+  }
 });
 
 export default router;

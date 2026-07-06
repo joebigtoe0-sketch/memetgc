@@ -7,13 +7,52 @@ export function nextPowerOf2(n: number): number {
   return p;
 }
 
-/** Bracket size: min 4, pad humans with bots, double if > half bracket would be humans. */
-export function computeBracketSize(humanCount: number, maxSlots: number): number {
-  if (humanCount < 1) return 0;
-  let size = nextPowerOf2(Math.max(4, humanCount));
-  if (humanCount > size / 2) size = Math.min(maxSlots, size * 2);
-  else size = Math.max(4, size);
-  return Math.min(maxSlots, size);
+/** Bracket size: next power of 2 ≥ participant count (min 4), capped at maxSlots. */
+export function computeBracketSize(participantCount: number, maxSlots: number): number {
+  if (participantCount < 1) return 0;
+  return Math.min(maxSlots, nextPowerOf2(Math.max(4, participantCount)));
+}
+
+export type SeedSlot = string | null;
+
+/**
+ * Fill round-1 seed positions (length = bracketSize).
+ * Humans are paired with bots whenever possible; bot-vs-bot only after humans
+ * are exhausted. Unused slots stay null (bye / empty bracket position).
+ */
+export function buildRound1Seeds(
+  humanIds: string[],
+  botIds: string[],
+  bracketSize: number,
+  rng: () => number = Math.random
+): SeedSlot[] {
+  const humans = [...humanIds];
+  const bots = [...botIds];
+  shuffleInPlace(humans, rng);
+  shuffleInPlace(bots, rng);
+
+  const seeds: SeedSlot[] = Array.from({ length: bracketSize }, () => null);
+  let i = 0;
+
+  while (humans.length > 0 && bots.length > 0 && i + 1 < bracketSize) {
+    seeds[i++] = humans.shift()!;
+    seeds[i++] = bots.shift()!;
+  }
+
+  while (humans.length > 0 && i < bracketSize) {
+    seeds[i++] = humans.shift()!;
+    if (i < bracketSize) i++; // bye opponent
+  }
+
+  while (bots.length >= 2 && i + 1 < bracketSize) {
+    seeds[i++] = bots.shift()!;
+    seeds[i++] = bots.shift()!;
+  }
+  if (bots.length === 1 && i < bracketSize) {
+    seeds[i++] = bots.shift()!;
+  }
+
+  return seeds;
 }
 
 export function totalRoundsForBracket(bracketSize: number): number {
