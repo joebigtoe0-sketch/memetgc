@@ -49,7 +49,7 @@ interface FxSnapshot {
 }
 
 export default function GameBoard() {
-  const { gameState, isMyTurn, selectedCardInstanceId, selectedAttackerId, lastActionError, playerId, pendingAnimations, matchReward, rankUpdate, opponentDisconnected, isSpectator } = useGameStore();
+  const { gameState, isMyTurn, selectedCardInstanceId, selectedAttackerId, lastActionError, playerId, pendingAnimations, matchReward, rankUpdate, opponentDisconnected, isSpectator, tutorialHighlight } = useGameStore();
   const { selectCard, selectAttacker, setActionError, clearAnimations } = useGameStore();
   const [phase, setPhase] = useState<PhaseAction>("idle");
   const [zoomedCard, setZoomedCard] = useState<CardData | null>(null);
@@ -898,6 +898,21 @@ export default function GameBoard() {
         {/* Opponent left: hero */}
         <div style={{ width: 130, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", padding: "8px 4px 4px", gap: 8, flexShrink: 0 }}>
           <div data-entity-id={"hero_" + opponentState.playerId} style={{ position: "relative", ...moveStyle("hero_" + opponentState.playerId) }}>
+            {tutorialHighlight === "enemy_hero" && (
+              <div
+                aria-hidden
+                style={{
+                  position: "absolute",
+                  inset: -10,
+                  borderRadius: "50%",
+                  border: "3px solid #f7931a",
+                  boxShadow: "0 0 18px rgba(247,147,26,.75), 0 0 36px rgba(247,147,26,.35)",
+                  animation: "tutorialHeroPulse 1.4s ease-in-out infinite",
+                  pointerEvents: "none",
+                  zIndex: 5,
+                }}
+              />
+            )}
             <HeroZone
               heroName={opponentState.heroName} playerName={opponentState.playerName} faction={opponentState.heroFaction} heroId={opponentState.heroId}
               hp={opponentState.hp} armor={opponentState.armor} isEnemy
@@ -1478,6 +1493,7 @@ export default function GameBoard() {
       )}
 
       <style>{`
+        @keyframes tutorialHeroPulse { 0%,100%{opacity:1;transform:scale(1);}50%{opacity:.65;transform:scale(1.08);} }
         @keyframes pulseEndTurn { 0%,100%{box-shadow:0 0 18px rgba(231,199,104,.3),inset 0 1px 0 rgba(255,240,190,.25);}50%{box-shadow:0 0 30px rgba(231,199,104,.55),inset 0 1px 0 rgba(255,240,190,.45);} }
         @keyframes urgentPulse { 0%,100%{opacity:1;}50%{opacity:0.55;} }
         @keyframes cardZoomIn { from{transform:scale(0.82) translateY(12px);opacity:0;}to{transform:scale(1) translateY(0);opacity:1;} }

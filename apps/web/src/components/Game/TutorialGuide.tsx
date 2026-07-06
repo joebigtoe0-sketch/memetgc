@@ -15,22 +15,40 @@ import type { SanitizedGameState } from "@memetgc/types";
 
 type StepId =
   | "mulligan"
+  | "objective"
   | "mana"
   | "play"
   | "endturn"
   | "enemyturn"
-  | "attack"
+  | "attack_minion"
+  | "attack_hero"
   | "heropower"
   | "finish"
   | "victory";
 
+interface StepContext {
+  gs: SanitizedGameState;
+  myTurn: boolean;
+  selectedAttackerId: string | null;
+}
+
 interface Step {
   id: StepId;
-  text: (gs: SanitizedGameState) => string;
+  text: (ctx: StepContext) => string;
   /** Auto-advance when this returns true. Omit for button-advanced steps. */
-  advanceWhen?: (gs: SanitizedGameState, myTurn: boolean) => boolean;
+  advanceWhen?: (ctx: StepContext) => boolean;
   /** Show a "Got it" button instead of waiting on game state. */
   button?: string;
+  /** Pulse-highlight the enemy hero portrait while this step is active. */
+  highlightEnemyHero?: boolean;
+}
+
+function opponentHeroDamaged(gs: SanitizedGameState): boolean {
+  return gs.opponentState.hp < gs.opponentState.maxHp;
+}
+
+function attackedMinionNotHero(gs: SanitizedGameState): boolean {
+  return gs.myState.board.some((s) => s?.hasAttacked) && !opponentHeroDamaged(gs);
 }
 
 const STEPS: Step[] = [
@@ -38,11 +56,17 @@ const STEPS: Step[] = [
     id: "mulligan",
     text: () =>
       "Welcome to the Memepool! I'm your guide for this one. These are your starting cards — you could swap any you don't like, but these are solid. Hit CONFIRM to keep them!",
-    advanceWhen: (gs) => gs.status !== "mulligan",
+    advanceWhen: ({ gs }) => gs.status !== "mulligan",
+  },
+  {
+    id: "objective",
+    text: () =>
+      "First, the win condition: destroy the enemy HERO. Their portrait is at the top of the board with a red HP number — bring it to 0 and you win. Minions are just obstacles; the hero is the target.",
+    button: "Got it",
   },
   {
     id: "mana",
-    text: (gs) =>
+    text: ({ gs }) =>
       `It's your turn! See the blue crystals at the bottom? That's your GAS — you have ${gs.myState.maxMana} right now and get 1 more every turn. Every card costs gas to play (the number in its top-left corner).`,
     button: "Got it",
   },
@@ -50,39 +74,50 @@ const STEPS: Step[] = [
     id: "play",
     text: () =>
       "Let's summon your first minion! Tap a card in your hand that you can afford, then tap the board to play it (you can also drag it up). Glowing cards are playable.",
-    advanceWhen: (gs) => gs.myState.board.some((s) => s !== null),
+    advanceWhen: ({ gs }) => gs.myState.board.some((s) => s !== null),
   },
   {
     id: "endturn",
     text: () =>
       "Summoned! Fresh minions are sleepy (summoning sickness) and can't attack until next turn. Press the END TURN button on the right to pass the turn.",
-    advanceWhen: (gs, myTurn) => !myTurn && gs.status === "in_progress",
+    advanceWhen: ({ gs, myTurn }) => !myTurn && gs.status === "in_progress",
   },
   {
     id: "enemyturn",
     text: () =>
-      "The Training Bot is taking its turn. Don't worry — this one couldn't hit water if it fell out of a boat. You literally can't lose this game.",
-    advanceWhen: (gs, myTurn) => myTurn && gs.status === "in_progress",
+      "The Training Bot played some minions. You can trade into them later, but remember — only damage to the enemy HERO wins the game. The bot won't attack you, so no rush.",
+    advanceWhen: ({ gs, myTurn }) => myTurn && gs.status === "in_progress",
   },
   {
-    id: "attack",
+    id: "attack_minion",
     text: () =>
-      "Your minion is awake and ready! Tap your minion, then tap the enemy hero (or an enemy minion) to attack. On mobile you can also drag your minion onto the target.",
-    advanceWhen: (gs) =>
-      gs.myState.board.some((s) => s !== null && s.hasAttacked) ||
-      gs.opponentState.hp + gs.opponentState.armor < gs.opponentState.maxHp + 5,
+      "Your minion is awake! Tap one of YOUR minions on the board (bottom area) to select it as the attacker. On mobile you can also drag it upward toward the enemy.",
+    advanceWhen: ({ gs, selectedAttackerId }) =>
+      !!selectedAttackerId || opponentHeroDamaged(gs),
+  },
+  {
+    id: "attack_hero",
+    text: ({ gs }) => {
+      if (attackedMinionNotHero(gs)) {
+        return "That hit an enemy minion — nice, but minions don't win games! Now attack the ENEMY HERO: tap their glowing portrait at the top (red HP number), or drag your minion straight onto them.";
+      }
+      return "Now strike the ENEMY HERO! Tap their portrait at the top — look for the pulsing highlight and the red HP number. That's how you win.";
+    },
+    highlightEnemyHero: true,
+    advanceWhen: ({ gs }) => opponentHeroDamaged(gs),
   },
   {
     id: "heropower",
     text: () =>
-      "One more trick: your HERO POWER (next to your hero portrait) costs 2 gas and can be used once per turn. Satoshi's grants armor to protect your hero. Use it whenever you have spare gas!",
+      "Direct hero damage — that's the stuff! One more trick: your HERO POWER (next to your hero portrait) costs 2 gas and can be used once per turn. Satoshi's grants armor to protect your hero.",
     button: "Got it",
   },
   {
     id: "finish",
     text: () =>
-      "That's everything you need! Keep playing minions, keep attacking — bring the enemy hero to 0 HP and the win is yours. Finish them!",
-    advanceWhen: (gs) => gs.status === "finished",
+      "Keep going! Play minions, then attack the enemy HERO every turn you can. Race their HP to zero — ignore their minions if you want. Finish them!",
+    highlightEnemyHero: true,
+    advanceWhen: ({ gs }) => gs.status === "finished",
   },
   {
     id: "victory",
@@ -93,7 +128,7 @@ const STEPS: Step[] = [
 ];
 
 export default function TutorialGuide() {
-  const { gameState, playerId, isMyTurn } = useGameStore();
+  const { gameState, playerId, isMyTurn, selectedAttackerId, setTutorialHighlight } = useGameStore();
   const isMobile = useIsMobile();
   const [active] = useState(() => isTutorialGame());
   const [stepIdx, setStepIdx] = useState(0);
@@ -101,13 +136,23 @@ export default function TutorialGuide() {
 
   const step = STEPS[stepIdx];
 
+  // Pulse the enemy hero during attack / finish steps.
+  useEffect(() => {
+    if (!active || dismissed) {
+      setTutorialHighlight(null);
+      return;
+    }
+    setTutorialHighlight(step?.highlightEnemyHero ? "enemy_hero" : null);
+    return () => setTutorialHighlight(null);
+  }, [active, dismissed, step?.highlightEnemyHero, setTutorialHighlight]);
+
   // Auto-advance steps as the game state moves forward.
   useEffect(() => {
     if (!active || !gameState || !step?.advanceWhen) return;
-    if (step.advanceWhen(gameState, isMyTurn)) {
+    if (step.advanceWhen({ gs: gameState, myTurn: isMyTurn, selectedAttackerId })) {
       setStepIdx((i) => Math.min(i + 1, STEPS.length - 1));
     }
-  }, [active, gameState, isMyTurn, step]);
+  }, [active, gameState, isMyTurn, selectedAttackerId, step]);
 
   // Game ended: jump straight to the victory (or retry) message.
   useEffect(() => {
@@ -122,8 +167,8 @@ export default function TutorialGuide() {
     if (gameState.status === "finished" && !iWon) {
       return "Ouch — that wasn't supposed to happen! No worries, just start the tutorial again from the home screen.";
     }
-    return step.text(gameState);
-  }, [gameState, step, iWon]);
+    return step.text({ gs: gameState, myTurn: isMyTurn, selectedAttackerId });
+  }, [gameState, step, isMyTurn, selectedAttackerId, iWon]);
 
   if (!active || dismissed || !gameState || !step) return null;
 

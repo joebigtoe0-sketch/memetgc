@@ -281,7 +281,7 @@ export default function Dashboard() {
 
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14 }}>
             {tutorialPending && (
-              <ModeCard name="Tutorial" tag="GUIDED · FIRST GAME" desc="Play a guided practice game with our mascot. Win it to unlock Casual & Ranked." badge="Start here" badgeColor="#5ad48a" highlight onClick={() => router.push("/play?mode=tutorial")} />
+              <ModeCard name="Tutorial" tag="GUIDED · FIRST GAME" desc="Play a guided practice game. Learn to attack the enemy hero and win to unlock Casual & Ranked." badge="Start here" badgeColor="#5ad48a" highlight onClick={() => router.push("/play?mode=tutorial")} />
             )}
             <ModeCard name="Practice" tag="FREE · VS AI" desc="Learn the ropes against bots. 2 frags per win." badge="Open" badgeColor="#9aa3b2" onClick={() => router.push("/play?mode=practice")} />
             <ModeCard name="Casual" tag="FREE · VS PLAYERS" desc={tutorialPending ? "Finish the tutorial game to unlock." : "No ladder stakes. Earn fragments per match."} badge={tutorialPending ? "Locked" : "Open"} badgeColor={tutorialPending ? "#6a7488" : "#7b8cf4"} disabled={tutorialPending} onClick={() => router.push("/play?mode=casual")} />

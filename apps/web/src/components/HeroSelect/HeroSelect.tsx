@@ -135,7 +135,7 @@ export default function HeroSelect() {
           {tutorialError ? "Couldn't start the tutorial" : "Preparing your first game…"}
         </div>
         <div style={{ font: `500 13px var(--font-archivo,'Archivo',sans-serif)`, color: tutorialError ? "#ff9a8a" : "#aeb6c4", textAlign: "center", maxWidth: 420, lineHeight: 1.5 }}>
-          {tutorialError || "I'll walk you through everything — you can't lose this one. Promise."}
+          {tutorialError || "I'll walk you through the basics — play cards, then attack the enemy hero to win. You can't lose this one!"}
         </div>
         {tutorialError && (
           <button onClick={() => router.push("/")} style={{ cursor: "pointer", padding: "10px 24px", borderRadius: 10, border: "1px solid rgba(255,255,255,.15)", background: "rgba(255,255,255,.05)", color: "#cdd4df", font: `700 13px var(--font-archivo,'Archivo',sans-serif)` }}>‹ Back home</button>

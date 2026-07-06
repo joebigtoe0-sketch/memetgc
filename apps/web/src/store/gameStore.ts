@@ -24,6 +24,8 @@ interface GameStore {
   selectedAttackerId: string | null;
   zoomedCard: SanitizedGameState["myState"]["hand"][0] | null;
   isMyTurn: boolean;
+  /** Tutorial-only: pulse-highlight a board target (e.g. enemy hero). */
+  tutorialHighlight: "enemy_hero" | null;
 
   // Actions
   setConnected: (connected: boolean) => void;
@@ -40,6 +42,7 @@ interface GameStore {
   selectCard: (instanceId: string | null) => void;
   selectAttacker: (instanceId: string | null) => void;
   setZoomedCard: (card: SanitizedGameState["myState"]["hand"][0] | null) => void;
+  setTutorialHighlight: (target: "enemy_hero" | null) => void;
   reset: () => void;
 }
 
@@ -58,6 +61,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   selectedAttackerId: null,
   zoomedCard: null,
   isMyTurn: false,
+  tutorialHighlight: null,
 
   setConnected: (connected) => set({ connected }),
   setGameId: (gameId) => set({ gameId }),
@@ -87,6 +91,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   setZoomedCard: (zoomedCard) => set({ zoomedCard }),
 
+  setTutorialHighlight: (tutorialHighlight) => set({ tutorialHighlight }),
+
   reset: () => {
     resetMatchBoardBackground();
     set({
@@ -102,6 +108,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       selectedAttackerId: null,
       zoomedCard: null,
       isMyTurn: false,
+      tutorialHighlight: null,
     });
   },
 }));
