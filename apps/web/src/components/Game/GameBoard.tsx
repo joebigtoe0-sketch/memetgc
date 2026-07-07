@@ -16,7 +16,7 @@ import BoardBackground from "./BoardBackground";
 import { CARD_BACK_DEFAULT, CARD_BACK_RADIUS, cardBackImage } from "@/lib/cardBacks";
 import GameIcon from "@/components/UI/GameIcon";
 import { playSound } from "@/lib/sounds";
-import { burstAtClient, burstAtElement, shockwaveAtClient, entityElement, centerOf, type BurstKind } from "./fx";
+import { burstAtClient, burstAtElement, shockwaveAtClient, entityElement, centerOf, setFxSnapshotCenters, travelBetweenEntities, travelKindForDamage, travelKindForBuff, runTravelImpact, type BurstKind, type TravelKind } from "./fx";
 import { api } from "@/lib/api";
 import { useIsMobile } from "@/hooks/useViewport";
 import MusicSettings from "@/components/Music/MusicSettings";
@@ -301,6 +301,26 @@ export default function GameBoard() {
    * then the attacker returns. Falls back to particles-only when the
    * attacker has already left the board.
    */
+  const runSkillFx = useCallback((
+    sourceId: string | undefined,
+    targetId: string,
+    kind: TravelKind,
+    intensity = 1,
+    fallbackCasterId?: string,
+  ) => {
+    const layer = fxLayerRef.current;
+    if (!layer) return;
+    const src = sourceId ?? fallbackCasterId;
+    if (!src) {
+      runTravelImpact(layer, targetId, kind, intensity);
+      return;
+    }
+    const ok = travelBetweenEntities(layer, src, targetId, kind, () => {
+      runTravelImpact(layer, targetId, kind, intensity);
+    });
+    if (!ok) runTravelImpact(layer, targetId, kind, intensity);
+  }, []);
+
   const runAttackFx = useCallback((data: { attackerId?: string; defenderId?: string; attackerDamage?: number; defenderDamage?: number; damage?: number }, delayMs: number) => {
     const { attackerId, defenderId } = data;
     if (!attackerId || !defenderId) return;
@@ -387,8 +407,6 @@ export default function GameBoard() {
           playSound(side === "my" ? "takingDamage" : "dealDamage", 0.75);
         } else if (delta < 0) {
           addFloat(`${side}_slot_${idx}`, Math.abs(delta), true);
-          const el = entityElement(slot.instanceId);
-          if (fxLayerRef.current && el) burstAtElement(fxLayerRef.current, el, "heal");
         }
       }
       prevMinionHp.current[slot.instanceId] = slot.currentHealth;
@@ -406,8 +424,6 @@ export default function GameBoard() {
       playSound("takingDamage", 0.75);
     } else if (prevMyHp !== undefined && myHp > prevMyHp) {
       addFloat("my_hero", myHp - prevMyHp, true);
-      const el = entityElement("hero_" + gameState.myState.playerId);
-      if (fxLayerRef.current && el) burstAtElement(fxLayerRef.current, el, "heal");
     }
     if (prevOppHp !== undefined && oppHp < prevOppHp) {
       flashIds.push("hero_opp");
@@ -416,8 +432,6 @@ export default function GameBoard() {
       playSound("dealDamage", 0.75);
     } else if (prevOppHp !== undefined && oppHp > prevOppHp) {
       addFloat("opp_hero", oppHp - prevOppHp, true);
-      const el = entityElement("hero_" + gameState.opponentState.playerId);
-      if (fxLayerRef.current && el) burstAtElement(fxLayerRef.current, el, "heal");
     }
     prevHeroHp.current["my"] = myHp;
     prevHeroHp.current["opp"] = oppHp;
@@ -458,16 +472,13 @@ export default function GameBoard() {
           else addLog("Opponent's Meme bonus: free hero power", gameState?.turnNumber ?? 0);
         }
         // Spell impact particles on the struck target
-        const spell = anim.data as { targetId?: string; damage?: number };
-        if (spell.targetId && (spell.damage ?? 0) > 0 && fxLayerRef.current) {
-          const el = entityElement(spell.targetId);
-          if (el) {
-            const snap = fxSnapshotRef.current;
-            const armored = spell.targetId.startsWith("hero_")
-              ? (snap.armor[spell.targetId.slice(5)] ?? 0) > 0
-              : snap.shields.has(spell.targetId);
-            burstAtElement(fxLayerRef.current, el, armored ? "spark" : "blood", Math.min(1.5, 0.8 + (spell.damage ?? 0) * 0.08));
-          }
+        const spell = anim.data as { targetId?: string; damage?: number; sourceId?: string; card?: CardData; playerId?: string };
+        if (spell.targetId && (spell.damage ?? 0) > 0) {
+          const faction = spell.card?.faction;
+          const travel = travelKindForDamage(spell.damage ?? 0, faction);
+          const intensity = Math.min(1.5, 0.8 + (spell.damage ?? 0) * 0.08);
+          const casterHero = spell.playerId ? `hero_${spell.playerId}` : undefined;
+          runSkillFx(spell.sourceId, spell.targetId, travel, intensity, casterHero);
         }
         // Show the spell card on the table briefly before it heads to the burn pile.
         if (d.card && d.cardId !== "coin") {
@@ -496,6 +507,22 @@ export default function GameBoard() {
       } else if (anim.type === "heal") {
         playSound("heal", 0.7);
         addToast("💚 Healed", "#66ee88");
+        const d = anim.data as { targetId?: string; sourceId?: string; playerId?: string; amount?: number };
+        const targetId = d.targetId ?? (d.playerId ? `hero_${d.playerId}` : undefined);
+        if (targetId) {
+          runSkillFx(d.sourceId, targetId, "nature", Math.min(1.4, 0.9 + (d.amount ?? 1) * 0.06), d.playerId ? `hero_${d.playerId}` : undefined);
+        }
+      } else if (anim.type === "armor_gain") {
+        const d = anim.data as { playerId?: string; amount?: number; sourceId?: string };
+        if (d.playerId) {
+          const targetId = `hero_${d.playerId}`;
+          runSkillFx(d.sourceId, targetId, "steel", Math.min(1.3, 0.85 + (d.amount ?? 1) * 0.05), targetId);
+        }
+      } else if (anim.type === "effect_vfx") {
+        const d = anim.data as { kind?: string; sourceId?: string; targetId?: string };
+        if (d.targetId) {
+          runSkillFx(d.sourceId, d.targetId, travelKindForBuff(d.kind));
+        }
       } else if (anim.type === "peek") {
         const d = anim.data as { cardName?: string; playerId?: string; from?: string };
         if (d.playerId === playerId) {
@@ -530,7 +557,7 @@ export default function GameBoard() {
       }
     }
     clearAnimations();
-  }, [pendingAnimations, playerId, addToast, addLog, clearAnimations, gameState?.turnNumber, runAttackFx]);
+  }, [pendingAnimations, playerId, addToast, addLog, clearAnimations, gameState?.turnNumber, runAttackFx, runSkillFx]);
 
   // FX snapshot + state-diff visuals. Runs AFTER the animation effect so the
   // handlers above still see the pre-update snapshot (armor, shields, board
@@ -557,16 +584,12 @@ export default function GameBoard() {
           }
           const prevAtk = snap.atk.get(slot.instanceId);
           if (prevAtk !== undefined && atkNow > prevAtk) {
-            // Pumped! Gold glitter + pulse + "+X ATK" floater
-            if (el) burstAtElement(layer, el, "buff");
             addFloat(`${prefix}_slot_${idx}`, atkNow - prevAtk, true, { text: `+${atkNow - prevAtk} ATK`, color: "#ffd75e" });
             triggerBuffPulse(slot.instanceId);
           }
         });
         const prevArmor = snap.armor[st.playerId] ?? 0;
         if (st.armor > prevArmor) {
-          const el = entityElement("hero_" + st.playerId);
-          if (el) burstAtElement(layer, el, "armor");
           addFloat(`${prefix}_hero`, st.armor - prevArmor, true, { text: `+${st.armor - prevArmor} armor`, color: "#b9c6da" });
         }
       }
@@ -592,7 +615,8 @@ export default function GameBoard() {
       if (hel) rects.set("hero_" + st.playerId, centerOf(hel));
     }
     fxSnapshotRef.current = { armor, shields, rects, atk, boardIds, init: true };
-  }, [gameState, addFloat, triggerBuffPulse]);
+    setFxSnapshotCenters(rects);
+  }, [gameState, addFloat, triggerBuffPulse, runSkillFx]);
 
   useEffect(() => {
     if (gameState?.status !== "finished") {

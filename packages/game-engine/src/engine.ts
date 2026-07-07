@@ -375,7 +375,11 @@ function handlePlayCard(
       const actualSlot = findEmptySlot(activePlayer.board);
       activePlayer.board[actualSlot !== -1 ? actualSlot : boardPosition] = slot;
 
-      animations.push({ type: "play_card", data: { cardId: card.id, boardIndex: actualSlot } });
+      ctx.sourceInstanceId = slot.instanceId;
+      animations.push({
+        type: "play_card",
+        data: { cardId: card.id, boardIndex: actualSlot, playerId: activePlayer.playerId, instanceId: slot.instanceId },
+      });
 
       // Battlecry
       if (card.keywords?.some((k) => k.id === "battlecry")) {
@@ -460,6 +464,12 @@ function handlePlayCard(
       // Hero card played mid-game — replaces the player's hero identity (portrait,
       // name, faction) and hero power, grants armor, and keeps current HP.
       activePlayer.armor += card.armor ?? 0;
+      if ((card.armor ?? 0) > 0) {
+        animations.push({
+          type: "armor_gain",
+          data: { playerId: activePlayer.playerId, amount: card.armor ?? 0, sourceId: "hero_" + activePlayer.playerId },
+        });
+      }
       activePlayer.heroId = card.id;
       activePlayer.heroName = card.name;
       activePlayer.heroFaction = card.faction;
@@ -660,7 +670,15 @@ function handleHeroPower(
     case "heal": {
       const amount = hp.effect_params.amount as number;
       activePlayer.hp = Math.min(activePlayer.maxHp, activePlayer.hp + amount);
-      animations.push({ type: "heal", data: { playerId: activePlayer.playerId, amount } });
+      animations.push({
+        type: "heal",
+        data: {
+          playerId: activePlayer.playerId,
+          amount,
+          targetId: "hero_" + activePlayer.playerId,
+          sourceId: "hero_" + activePlayer.playerId,
+        },
+      });
       break;
     }
     case "buff_attack": {
@@ -674,6 +692,14 @@ function handleHeroPower(
           } else {
             slot.currentAttack += amount;
           }
+          animations.push({
+            type: "effect_vfx",
+            data: {
+              kind: "buff",
+              sourceId: "hero_" + activePlayer.playerId,
+              targetId: action.targetInstanceId,
+            },
+          });
         }
       }
       break;

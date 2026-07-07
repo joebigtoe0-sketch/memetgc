@@ -8,6 +8,8 @@ export interface EffectContext {
   state: GameState;
   activePlayerId: string;
   sourceCard: Card;
+  /** Minion on board triggering the effect (battlecry, triggers, etc.). */
+  sourceInstanceId?: string;
   targetInstanceId?: string;
   animations: AnimationHint[];
   rng: () => number;
@@ -101,6 +103,10 @@ function effectGatePasses(effect: CardEffect, ctx: EffectContext): boolean {
   }
 }
 
+function fxSourceId(ctx: EffectContext): string {
+  return ctx.sourceInstanceId ?? "hero_" + ctx.activePlayerId;
+}
+
 function resolveEffect(effect: CardEffect, ctx: EffectContext): void {
   if (!effectGatePasses(effect, ctx)) return;
 
@@ -135,9 +141,16 @@ function resolveEffect(effect: CardEffect, ctx: EffectContext): void {
         if (t.type === "hero") {
           const player = ctx.state.players[t.playerId]!;
           player.hp = Math.min(player.maxHp, player.hp + amount);
-          ctx.animations.push({ type: "heal", data: { targetId: "hero_" + t.playerId, amount } });
+          ctx.animations.push({
+            type: "heal",
+            data: { targetId: "hero_" + t.playerId, amount, sourceId: fxSourceId(ctx), fxKind: "nature" },
+          });
         } else if (t.type === "minion") {
           t.slot.currentHealth = Math.min(t.slot.maxHealth, t.slot.currentHealth + amount);
+          ctx.animations.push({
+            type: "heal",
+            data: { targetId: t.slot.instanceId, amount, sourceId: fxSourceId(ctx), fxKind: "nature" },
+          });
         }
       }
       break;
@@ -159,6 +172,10 @@ function resolveEffect(effect: CardEffect, ctx: EffectContext): void {
           } else {
             t.slot.currentAttack = Math.max(0, t.slot.currentAttack + amount);
           }
+          ctx.animations.push({
+            type: "effect_vfx",
+            data: { kind: "buff", sourceId: fxSourceId(ctx), targetId: t.slot.instanceId },
+          });
         }
       }
       break;
@@ -171,6 +188,10 @@ function resolveEffect(effect: CardEffect, ctx: EffectContext): void {
         if (t.type === "minion") {
           t.slot.maxHealth += amount;
           t.slot.currentHealth += amount;
+          ctx.animations.push({
+            type: "effect_vfx",
+            data: { kind: "buff_health", sourceId: fxSourceId(ctx), targetId: t.slot.instanceId },
+          });
         }
       }
       break;
@@ -184,6 +205,10 @@ function resolveEffect(effect: CardEffect, ctx: EffectContext): void {
           t.slot.currentAttack += amount;
           t.slot.maxHealth += amount;
           t.slot.currentHealth += amount;
+          ctx.animations.push({
+            type: "effect_vfx",
+            data: { kind: "buff", sourceId: fxSourceId(ctx), targetId: t.slot.instanceId },
+          });
         }
       }
       break;
@@ -311,7 +336,7 @@ function resolveEffect(effect: CardEffect, ctx: EffectContext): void {
     case "give_armor": {
       const amount = (params.amount as number) ?? 0;
       activePlayer.armor += amount;
-      ctx.animations.push({ type: "armor_gain", data: { playerId: ctx.activePlayerId, amount } });
+      ctx.animations.push({ type: "armor_gain", data: { playerId: ctx.activePlayerId, amount, sourceId: fxSourceId(ctx) } });
       break;
     }
 
@@ -721,11 +746,17 @@ function applyDamageToTarget(
   if (target.type === "hero") {
     const player = ctx.state.players[target.playerId]!;
     damageHero(player, amount);
-    ctx.animations.push({ type: "spell_cast", data: { targetId: "hero_" + target.playerId, damage: amount } });
+    ctx.animations.push({
+      type: "spell_cast",
+      data: { targetId: "hero_" + target.playerId, damage: amount, sourceId: fxSourceId(ctx) },
+    });
   } else {
     const result = damageMinionSlot(target.slot, amount);
     if (!result.absorbed) {
-      ctx.animations.push({ type: "spell_cast", data: { targetId: target.slot.instanceId, damage: amount } });
+      ctx.animations.push({
+        type: "spell_cast",
+        data: { targetId: target.slot.instanceId, damage: amount, sourceId: fxSourceId(ctx) },
+      });
       // "Whenever this takes damage and survives…" reactions (e.g. Wojak).
       fireTakeDamageTriggers(
         ctx.state,

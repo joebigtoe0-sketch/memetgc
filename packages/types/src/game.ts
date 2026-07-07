@@ -172,7 +172,8 @@ export interface AnimationHint {
     | "coin_flip"
     | "shuffle_to_deck"
     | "secret_trigger"
-    | "game_over";
+    | "game_over"
+    | "effect_vfx";
   data: Record<string, unknown>;
 }
 
