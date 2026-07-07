@@ -38,7 +38,7 @@ export interface GameRoom {
   questStats: Record<string, { spellsPlayed: number; heroPowersUsed: number }>;
 }
 
-const TURN_TIME_LIMIT_MS = 30_000;
+const TURN_TIME_LIMIT_MS = 45_000;
 const MULLIGAN_TIME_LIMIT_MS = 30_000;
 // Grace period after a player disconnects before they forfeit the match. Long
 // enough to survive a page refresh / brief network blip + socket reconnect, but

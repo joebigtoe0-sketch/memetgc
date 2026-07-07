@@ -114,6 +114,29 @@ export function shockwaveAtClient(layer: HTMLElement, clientX: number, clientY: 
   setTimeout(() => ring.remove(), 900);
 }
 
+/**
+ * Floating combat number anchored to a client-space point (works even when the
+ * underlying minion is about to be removed from the board).
+ */
+export function floatTextAtClient(layer: HTMLElement, clientX: number, clientY: number, text: string, color = "#ff6a5c"): void {
+  const { x, y, ok } = toLocal(layer, clientX, clientY);
+  if (!ok) return;
+  const el = document.createElement("div");
+  el.textContent = text;
+  el.style.cssText = `position:absolute;left:${x}px;top:${y}px;transform:translate(-50%,-50%);font:900 22px/1 'Cinzel',serif;color:${color};text-shadow:0 2px 4px rgba(0,0,0,.85),0 0 10px ${color};pointer-events:none;white-space:nowrap;z-index:95;`;
+  layer.appendChild(el);
+  el.animate(
+    [
+      { transform: "translate(-50%,-50%) scale(.6)", opacity: 0 },
+      { transform: "translate(-50%,-90%) scale(1.15)", opacity: 1, offset: 0.25 },
+      { transform: "translate(-50%,-150%) scale(1)", opacity: 1, offset: 0.7 },
+      { transform: "translate(-50%,-210%) scale(.85)", opacity: 0 },
+    ],
+    { duration: 850, easing: "cubic-bezier(.2,.7,.4,1)", fill: "forwards" },
+  ).onfinish = () => el.remove();
+  setTimeout(() => el.remove(), 1100);
+}
+
 /** Find the board element for a game entity (minion instanceId or "hero_<playerId>"). */
 export function entityElement(entityId: string): HTMLElement | null {
   try {

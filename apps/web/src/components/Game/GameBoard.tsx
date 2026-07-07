@@ -16,14 +16,14 @@ import BoardBackground from "./BoardBackground";
 import { CARD_BACK_DEFAULT, CARD_BACK_RADIUS, cardBackImage } from "@/lib/cardBacks";
 import GameIcon from "@/components/UI/GameIcon";
 import { playSound } from "@/lib/sounds";
-import { burstAtClient, burstAtElement, shockwaveAtClient, entityElement, centerOf, setFxSnapshotCenters, travelBetweenEntities, travelKindForDamage, travelKindForBuff, runTravelImpact, type BurstKind, type TravelKind } from "./fx";
+import { burstAtClient, burstAtElement, shockwaveAtClient, floatTextAtClient, entityElement, centerOf, setFxSnapshotCenters, travelBetweenEntities, travelKindForDamage, travelKindForBuff, runTravelImpact, type BurstKind, type TravelKind } from "./fx";
 import { api } from "@/lib/api";
 import { useIsMobile } from "@/hooks/useViewport";
 import MusicSettings from "@/components/Music/MusicSettings";
 import type { MinionSlot, Card } from "@memetgc/types";
 import type { CardData } from "../Card/CardComponent";
 
-const TURN_SECONDS = 30;
+const TURN_SECONDS = 45;
 type PhaseAction = "idle" | "select_play_target" | "select_attack_target" | "select_hero_power_target";
 
 /** Legal attack targets against an opponent (taunt minions force targeting). */
@@ -107,6 +107,9 @@ export default function GameBoard() {
   const [buffPulseIds, setBuffPulseIds] = useState<Set<string>>(new Set());
   const fxLayerRef = useRef<HTMLDivElement | null>(null);
   const fxSnapshotRef = useRef<FxSnapshot>({ armor: {}, shields: new Set(), rects: new Map(), atk: new Map(), boardIds: new Set(), init: false });
+  // Entities that already got a combat damage number at impact time, so the
+  // state-diff pass doesn't render a duplicate floater when the board updates.
+  const combatFloatSuppress = useRef<Set<string>>(new Set());
   const [boardBg, setBoardBg] = useState<string>(getDefaultBoardBackground);
   // Draw animation
   const [newCardIds, setNewCardIds] = useState<string[]>([]);
@@ -376,8 +379,18 @@ export default function GameBoard() {
         playSound("attack", 0.75);
         burstAtClient(layer, defPos.x, defPos.y, kind, intensity);
         shockwaveAtClient(layer, defPos.x, defPos.y, ringColor);
-        // Retaliation damage sprays at the attacker's (moved) position
-        if (atkDmg > 0 && atkPos) burstAtClient(layer, atkPos.x, atkPos.y, "blood", 0.7);
+        // Damage number on the defender at the moment of impact — works even for
+        // a lethal blow where the minion is about to leave the board.
+        if (defDmg > 0) {
+          floatTextAtClient(layer, defPos.x, defPos.y - 10, `-${defDmg}`, "#ff6a5c");
+          combatFloatSuppress.current.add(defenderId);
+        }
+        // Retaliation damage sprays + number at the attacker's (moved) position
+        if (atkDmg > 0 && atkPos) {
+          burstAtClient(layer, atkPos.x, atkPos.y, "blood", 0.7);
+          floatTextAtClient(layer, atkPos.x, atkPos.y - 10, `-${atkDmg}`, "#ff6a5c");
+          combatFloatSuppress.current.add(attackerId);
+        }
       };
 
       if (!attackerEl) {
@@ -399,8 +412,8 @@ export default function GameBoard() {
         if (attackMoveSeq.current === moveId) setAttackMove({ entityId: attackerId, dx, dy, returning: true });
         setTimeout(() => {
           if (attackMoveSeq.current === moveId) setAttackMove(null);
-        }, 380);
-      }, 270);
+        }, 420);
+      }, 340);
     }, delayMs);
   }, []);
 
@@ -427,7 +440,10 @@ export default function GameBoard() {
         const delta = prev - slot.currentHealth;
         if (delta > 0) {
           flashIds.push(slot.instanceId);
-          addFloat(`${side}_slot_${idx}`, delta, false);
+          // Skip the floater if the impact pass already showed this hit's number.
+          if (!combatFloatSuppress.current.delete(slot.instanceId)) {
+            addFloat(`${side}_slot_${idx}`, delta, false);
+          }
           addLog(`${slot.card.name} took ${delta} damage (${slot.currentHealth} HP left)`, gameState.turnNumber);
           playSound(side === "my" ? "takingDamage" : "dealDamage", 0.75);
         } else if (delta < 0) {
@@ -444,7 +460,9 @@ export default function GameBoard() {
     const prevOppHp = prevHeroHp.current["opp"];
     if (prevMyHp !== undefined && myHp < prevMyHp) {
       flashIds.push("hero_my");
-      addFloat("my_hero", prevMyHp - myHp, false);
+      if (!combatFloatSuppress.current.delete("hero_" + gameState.myState.playerId)) {
+        addFloat("my_hero", prevMyHp - myHp, false);
+      }
       addLog(`${gameState.myState.heroName} took ${prevMyHp - myHp} damage`, gameState.turnNumber);
       playSound("takingDamage", 0.75);
     } else if (prevMyHp !== undefined && myHp > prevMyHp) {
@@ -452,7 +470,9 @@ export default function GameBoard() {
     }
     if (prevOppHp !== undefined && oppHp < prevOppHp) {
       flashIds.push("hero_opp");
-      addFloat("opp_hero", prevOppHp - oppHp, false);
+      if (!combatFloatSuppress.current.delete("hero_" + gameState.opponentState.playerId)) {
+        addFloat("opp_hero", prevOppHp - oppHp, false);
+      }
       addLog(`${gameState.opponentState.heroName} took ${prevOppHp - oppHp} damage`, gameState.turnNumber);
       playSound("dealDamage", 0.75);
     } else if (prevOppHp !== undefined && oppHp > prevOppHp) {
@@ -477,6 +497,9 @@ export default function GameBoard() {
   useEffect(() => {
     if (!pendingAnimations?.length) return;
     let attackIdx = 0;
+    // Tracks when the most recent combat hit lands so deaths play *after* the
+    // strike (minion travels, hits, particles + damage number, THEN it dies).
+    let combatImpactMs = 0;
     for (const anim of pendingAnimations) {
       if (anim.type === "draw") {
         const d = anim.data as { overdraw?: boolean; fatigue?: number; playerId?: string; memeBonus?: string };
@@ -503,6 +526,8 @@ export default function GameBoard() {
           const travel = travelKindForDamage(spell.damage ?? 0, faction);
           const intensity = Math.min(1.5, 0.8 + (spell.damage ?? 0) * 0.08);
           runEffectFx(spell.sourceId, spell.targetId, travel, intensity);
+          // Projectile is deferred ~230ms then travels ~400ms before landing.
+          combatImpactMs = Math.max(combatImpactMs, 640);
         }
         // Show the spell card on the table briefly before it heads to the burn pile.
         if (d.card && d.cardId !== "coin") {
@@ -516,17 +541,26 @@ export default function GameBoard() {
       } else if (anim.type === "attack") {
         const d = anim.data as { attackerId?: string; defenderId?: string; attackerDamage?: number; defenderDamage?: number; damage?: number };
         // Stagger so multi-attack batches (AI turns) play out one at a time
-        runAttackFx(d, attackIdx * 620);
+        const startAt = attackIdx * 720;
+        runAttackFx(d, startAt);
+        // Impact lands ~340ms into each attack's travel.
+        combatImpactMs = Math.max(combatImpactMs, startAt + 340);
         attackIdx++;
       } else if (anim.type === "death") {
         const d = anim.data as { cardId?: string; instanceId?: string };
-        playSound("destroy", 0.8);
         const spot = d.instanceId ? fxSnapshotRef.current.rects.get(d.instanceId) : undefined;
-        if (fxLayerRef.current && spot) {
-          burstAtClient(fxLayerRef.current, spot.x, spot.y, "death", 1.2);
-          shockwaveAtClient(fxLayerRef.current, spot.x, spot.y, "rgba(130,130,150,.5)", 44);
-        }
-        addToast("💀 Minion destroyed", "#ff8888");
+        // Delay the death burst so the killing blow visibly lands first.
+        const deathAt = combatImpactMs > 0 ? combatImpactMs + 140 : 0;
+        const fireDeath = () => {
+          playSound("destroy", 0.8);
+          if (fxLayerRef.current && spot) {
+            burstAtClient(fxLayerRef.current, spot.x, spot.y, "death", 1.2);
+            shockwaveAtClient(fxLayerRef.current, spot.x, spot.y, "rgba(130,130,150,.5)", 44);
+          }
+          addToast("💀 Minion destroyed", "#ff8888");
+        };
+        if (deathAt > 0) setTimeout(fireDeath, deathAt);
+        else fireDeath();
         addLog(`Minion destroyed (${d.cardId ?? "?"})`, gameState?.turnNumber ?? 0);
       } else if (anim.type === "heal") {
         playSound("heal", 0.7);
@@ -924,7 +958,7 @@ export default function GameBoard() {
     if (attackMove?.entityId === entityId) {
       return {
         transform: attackMove.returning ? "translate(0,0) scale(1)" : `translate(${attackMove.dx}px,${attackMove.dy}px) scale(1.12)`,
-        transition: attackMove.returning ? "transform .36s cubic-bezier(.25,.6,.35,1)" : "transform .27s cubic-bezier(.5,.05,.7,.9)",
+        transition: attackMove.returning ? "transform .40s cubic-bezier(.25,.6,.35,1)" : "transform .34s cubic-bezier(.5,.05,.7,.9)",
         zIndex: 60,
       };
     }
