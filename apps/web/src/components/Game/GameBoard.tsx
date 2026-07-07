@@ -321,6 +321,31 @@ export default function GameBoard() {
     if (!ok) runTravelImpact(layer, targetId, kind, intensity);
   }, []);
 
+  /**
+   * Route a card effect's energy projectile. Minion-sourced effects (battlecries,
+   * triggers) fly straight from the minion. Spell / hero-power effects fly from
+   * the spell-card overlay (once it mounts) so it reads as "the card shoots at
+   * the target"; falls back to the caster's hero portrait.
+   */
+  const runEffectFx = useCallback((
+    sourceId: string | undefined,
+    targetId: string,
+    kind: TravelKind,
+    intensity = 1,
+  ) => {
+    const fromMinion = !!sourceId && !sourceId.startsWith("hero_");
+    if (fromMinion) {
+      runSkillFx(sourceId, targetId, kind, intensity);
+      return;
+    }
+    // Spell / hero: wait a beat for the spell-card overlay to mount, then launch
+    // from the card itself when present.
+    setTimeout(() => {
+      const origin = entityElement("spell_cast_origin") ? "spell_cast_origin" : sourceId;
+      runSkillFx(origin ?? undefined, targetId, kind, intensity, sourceId);
+    }, 230);
+  }, [runSkillFx]);
+
   const runAttackFx = useCallback((data: { attackerId?: string; defenderId?: string; attackerDamage?: number; defenderDamage?: number; damage?: number }, delayMs: number) => {
     const { attackerId, defenderId } = data;
     if (!attackerId || !defenderId) return;
@@ -477,8 +502,7 @@ export default function GameBoard() {
           const faction = spell.card?.faction;
           const travel = travelKindForDamage(spell.damage ?? 0, faction);
           const intensity = Math.min(1.5, 0.8 + (spell.damage ?? 0) * 0.08);
-          const casterHero = spell.playerId ? `hero_${spell.playerId}` : undefined;
-          runSkillFx(spell.sourceId, spell.targetId, travel, intensity, casterHero);
+          runEffectFx(spell.sourceId, spell.targetId, travel, intensity);
         }
         // Show the spell card on the table briefly before it heads to the burn pile.
         if (d.card && d.cardId !== "coin") {
@@ -510,18 +534,18 @@ export default function GameBoard() {
         const d = anim.data as { targetId?: string; sourceId?: string; playerId?: string; amount?: number };
         const targetId = d.targetId ?? (d.playerId ? `hero_${d.playerId}` : undefined);
         if (targetId) {
-          runSkillFx(d.sourceId, targetId, "nature", Math.min(1.4, 0.9 + (d.amount ?? 1) * 0.06), d.playerId ? `hero_${d.playerId}` : undefined);
+          runEffectFx(d.sourceId, targetId, "nature", Math.min(1.4, 0.9 + (d.amount ?? 1) * 0.06));
         }
       } else if (anim.type === "armor_gain") {
         const d = anim.data as { playerId?: string; amount?: number; sourceId?: string };
         if (d.playerId) {
           const targetId = `hero_${d.playerId}`;
-          runSkillFx(d.sourceId, targetId, "steel", Math.min(1.3, 0.85 + (d.amount ?? 1) * 0.05), targetId);
+          runEffectFx(d.sourceId ?? targetId, targetId, "steel", Math.min(1.3, 0.85 + (d.amount ?? 1) * 0.05));
         }
       } else if (anim.type === "effect_vfx") {
         const d = anim.data as { kind?: string; sourceId?: string; targetId?: string };
         if (d.targetId) {
-          runSkillFx(d.sourceId, d.targetId, travelKindForBuff(d.kind));
+          runEffectFx(d.sourceId, d.targetId, travelKindForBuff(d.kind));
         }
       } else if (anim.type === "peek") {
         const d = anim.data as { cardName?: string; playerId?: string; from?: string };
@@ -557,7 +581,7 @@ export default function GameBoard() {
       }
     }
     clearAnimations();
-  }, [pendingAnimations, playerId, addToast, addLog, clearAnimations, gameState?.turnNumber, runAttackFx, runSkillFx]);
+  }, [pendingAnimations, playerId, addToast, addLog, clearAnimations, gameState?.turnNumber, runAttackFx, runSkillFx, runEffectFx]);
 
   // FX snapshot + state-diff visuals. Runs AFTER the animation effect so the
   // handlers above still see the pre-update snapshot (armor, shields, board
@@ -1400,7 +1424,7 @@ export default function GameBoard() {
 
       {/* Coin flip reveal */}
       {spellCast && (
-        <div key={spellCast.id} style={{ position: "absolute", left: "50%", top: spellCast.mine ? "57%" : "41%", zIndex: 82, pointerEvents: "none", animation: "spellCastPop 1.6s ease-out forwards", filter: "drop-shadow(0 14px 34px rgba(0,0,0,.65))" }}>
+        <div key={spellCast.id} data-entity-id="spell_cast_origin" style={{ position: "absolute", left: "50%", top: spellCast.mine ? "57%" : "41%", zIndex: 82, pointerEvents: "none", animation: "spellCastPop 1.6s ease-out forwards", filter: "drop-shadow(0 14px 34px rgba(0,0,0,.65))" }}>
           <div style={{ position: "relative" }}>
             <div style={{ position: "absolute", top: -24, left: "50%", transform: "translateX(-50%)", padding: "3px 12px", borderRadius: 20, background: "rgba(6,8,13,.85)", border: `1px solid ${spellCast.mine ? "rgba(127,232,189,.5)" : "rgba(255,154,138,.5)"}`, font: `800 9px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "1.5px", color: spellCast.mine ? "#7fe8bd" : "#ff9a8a", whiteSpace: "nowrap" }}>
               {spellCast.mine ? "YOU CAST" : "OPPONENT CASTS"}
