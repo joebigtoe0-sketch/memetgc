@@ -16,7 +16,9 @@ import BoardBackground from "./BoardBackground";
 import { CARD_BACK_DEFAULT, CARD_BACK_RADIUS, cardBackImage } from "@/lib/cardBacks";
 import GameIcon from "@/components/UI/GameIcon";
 import { playSound } from "@/lib/sounds";
-import { burstAtClient, burstAtElement, shockwaveAtClient, floatTextAtClient, entityElement, centerOf, setFxSnapshotCenters, travelBetweenEntities, travelKindForDamage, travelKindForBuff, runTravelImpact, type BurstKind, type TravelKind } from "./fx";
+import { playSynth } from "@/lib/synthSfx";
+import { burstAtClient, burstAtElement, shockwaveAtClient, floatTextAtClient, entityElement, centerOf, setFxSnapshotCenters, travelBetweenEntities, travelKindForDamage, travelKindForBuff, runTravelImpact, pulseRingAtEntity, slashAtClient, type BurstKind, type TravelKind } from "./fx";
+import { shakeElement, flashScreen } from "./screenFx";
 import { api } from "@/lib/api";
 import { useIsMobile } from "@/hooks/useViewport";
 import MusicSettings from "@/components/Music/MusicSettings";
@@ -25,6 +27,38 @@ import type { CardData } from "../Card/CardComponent";
 
 const TURN_SECONDS = 45;
 type PhaseAction = "idle" | "select_play_target" | "select_attack_target" | "select_hero_power_target";
+
+/** Synth SFX to play when a projectile/beam of this kind lands. */
+const IMPACT_SYNTH: Record<TravelKind, Parameters<typeof playSynth>[0]> = {
+  fire: "fireImpact",
+  lightning: "zap",
+  arcane: "arcaneChime",
+  nature: "natureChime",
+  holy: "holyShimmer",
+  frost: "iceShatter",
+  shadow: "shadowHit",
+  steel: "steelClang",
+};
+
+/** Whoosh-on-launch only reads well for projectiles with visible travel time. */
+const LAUNCH_WHOOSH: Partial<Record<TravelKind, boolean>> = {
+  fire: true,
+  arcane: true,
+  frost: true,
+  shadow: true,
+};
+
+/** Screen-flash tint for big damage hits, keyed by element. */
+const FLASH_COLOR: Record<TravelKind, string> = {
+  fire: "rgba(255,100,40,.4)",
+  lightning: "rgba(190,230,255,.4)",
+  arcane: "rgba(190,130,255,.35)",
+  nature: "rgba(100,255,160,.3)",
+  holy: "rgba(255,225,130,.3)",
+  frost: "rgba(190,230,255,.4)",
+  shadow: "rgba(130,80,210,.4)",
+  steel: "rgba(180,200,230,.3)",
+};
 
 /** Legal attack targets against an opponent (taunt minions force targeting). */
 function attackTargetsFor(opponentState: { board: (MinionSlot | null)[]; playerId: string }): string[] {
@@ -106,6 +140,8 @@ export default function GameBoard() {
   const attackMoveSeq = useRef(0);
   const [buffPulseIds, setBuffPulseIds] = useState<Set<string>>(new Set());
   const fxLayerRef = useRef<HTMLDivElement | null>(null);
+  const flashLayerRef = useRef<HTMLDivElement | null>(null);
+  const boardRootRef = useRef<HTMLDivElement | null>(null);
   const fxSnapshotRef = useRef<FxSnapshot>({ armor: {}, shields: new Set(), rects: new Map(), atk: new Map(), boardIds: new Set(), init: false });
   // Entities that already got a combat damage number at impact time, so the
   // state-diff pass doesn't render a duplicate floater when the board updates.
@@ -310,18 +346,23 @@ export default function GameBoard() {
     kind: TravelKind,
     intensity = 1,
     fallbackCasterId?: string,
+    onLand?: () => void,
   ) => {
     const layer = fxLayerRef.current;
     if (!layer) return;
     const src = sourceId ?? fallbackCasterId;
-    if (!src) {
+    const impact = () => {
       runTravelImpact(layer, targetId, kind, intensity);
+      playSynth(IMPACT_SYNTH[kind], Math.min(1, 0.55 + intensity * 0.3));
+      onLand?.();
+    };
+    if (!src) {
+      impact();
       return;
     }
-    const ok = travelBetweenEntities(layer, src, targetId, kind, () => {
-      runTravelImpact(layer, targetId, kind, intensity);
-    });
-    if (!ok) runTravelImpact(layer, targetId, kind, intensity);
+    if (LAUNCH_WHOOSH[kind]) playSynth("whoosh", 0.45);
+    const ok = travelBetweenEntities(layer, src, targetId, kind, impact);
+    if (!ok) impact();
   }, []);
 
   /**
@@ -335,17 +376,18 @@ export default function GameBoard() {
     targetId: string,
     kind: TravelKind,
     intensity = 1,
+    onLand?: () => void,
   ) => {
     const fromMinion = !!sourceId && !sourceId.startsWith("hero_");
     if (fromMinion) {
-      runSkillFx(sourceId, targetId, kind, intensity);
+      runSkillFx(sourceId, targetId, kind, intensity, undefined, onLand);
       return;
     }
     // Spell / hero: wait a beat for the spell-card overlay to mount, then launch
     // from the card itself when present.
     setTimeout(() => {
       const origin = entityElement("spell_cast_origin") ? "spell_cast_origin" : sourceId;
-      runSkillFx(origin ?? undefined, targetId, kind, intensity, sourceId);
+      runSkillFx(origin ?? undefined, targetId, kind, intensity, sourceId, onLand);
     }, 230);
   }, [runSkillFx]);
 
@@ -379,6 +421,8 @@ export default function GameBoard() {
         playSound("attack", 0.75);
         burstAtClient(layer, defPos.x, defPos.y, kind, intensity);
         shockwaveAtClient(layer, defPos.x, defPos.y, ringColor);
+        slashAtClient(layer, defPos.x, defPos.y, kind === "blood" ? "#ffb199" : "#eef4ff");
+        playSynth(kind === "blood" ? "fireImpact" : "steelClang", Math.min(1, 0.5 + intensity * 0.3));
         // Damage number on the defender at the moment of impact — works even for
         // a lethal blow where the minion is about to leave the board.
         if (defDmg > 0) {
@@ -388,9 +432,12 @@ export default function GameBoard() {
         // Retaliation damage sprays + number at the attacker's (moved) position
         if (atkDmg > 0 && atkPos) {
           burstAtClient(layer, atkPos.x, atkPos.y, "blood", 0.7);
+          slashAtClient(layer, atkPos.x, atkPos.y, "#ffb199");
           floatTextAtClient(layer, atkPos.x, atkPos.y - 10, `-${atkDmg}`, "#ff6a5c");
           combatFloatSuppress.current.add(attackerId);
         }
+        if (defDmg >= 3 || atkDmg >= 3) shakeElement(boardRootRef.current, intensity);
+        if (defDmg >= 6) flashScreen(flashLayerRef.current, kind === "blood" ? "rgba(255,80,60,.4)" : "rgba(220,230,245,.35)", Math.min(0.4, 0.15 + defDmg * 0.03));
       };
 
       if (!attackerEl) {
@@ -524,8 +571,13 @@ export default function GameBoard() {
         if (spell.targetId && (spell.damage ?? 0) > 0) {
           const faction = spell.card?.faction;
           const travel = travelKindForDamage(spell.damage ?? 0, faction);
-          const intensity = Math.min(1.5, 0.8 + (spell.damage ?? 0) * 0.08);
-          runEffectFx(spell.sourceId, spell.targetId, travel, intensity);
+          const dmg = spell.damage ?? 0;
+          const intensity = Math.min(1.5, 0.8 + dmg * 0.08);
+          const targetId = spell.targetId;
+          runEffectFx(spell.sourceId, targetId, travel, intensity, () => {
+            if (dmg >= 3) shakeElement(boardRootRef.current, intensity);
+            if (dmg >= 5) flashScreen(flashLayerRef.current, FLASH_COLOR[travel], Math.min(0.4, 0.15 + dmg * 0.03));
+          });
           // Projectile is deferred ~230ms then travels ~400ms before landing.
           combatImpactMs = Math.max(combatImpactMs, 640);
         }
@@ -553,10 +605,12 @@ export default function GameBoard() {
         const deathAt = combatImpactMs > 0 ? combatImpactMs + 140 : 0;
         const fireDeath = () => {
           playSound("destroy", 0.8);
+          playSynth("fireImpact", 0.7);
           if (fxLayerRef.current && spot) {
-            burstAtClient(fxLayerRef.current, spot.x, spot.y, "death", 1.2);
-            shockwaveAtClient(fxLayerRef.current, spot.x, spot.y, "rgba(130,130,150,.5)", 44);
+            burstAtClient(fxLayerRef.current, spot.x, spot.y, "death", 1.3);
+            shockwaveAtClient(fxLayerRef.current, spot.x, spot.y, "rgba(130,130,150,.5)", 52);
           }
+          shakeElement(boardRootRef.current, 0.9);
           addToast("💀 Minion destroyed", "#ff8888");
         };
         if (deathAt > 0) setTimeout(fireDeath, deathAt);
@@ -568,18 +622,25 @@ export default function GameBoard() {
         const d = anim.data as { targetId?: string; sourceId?: string; playerId?: string; amount?: number };
         const targetId = d.targetId ?? (d.playerId ? `hero_${d.playerId}` : undefined);
         if (targetId) {
-          runEffectFx(d.sourceId, targetId, "nature", Math.min(1.4, 0.9 + (d.amount ?? 1) * 0.06));
+          runEffectFx(d.sourceId, targetId, "nature", Math.min(1.4, 0.9 + (d.amount ?? 1) * 0.06), () => {
+            if (fxLayerRef.current) pulseRingAtEntity(fxLayerRef.current, targetId, "#5ff09a");
+          });
         }
       } else if (anim.type === "armor_gain") {
         const d = anim.data as { playerId?: string; amount?: number; sourceId?: string };
         if (d.playerId) {
           const targetId = `hero_${d.playerId}`;
-          runEffectFx(d.sourceId ?? targetId, targetId, "steel", Math.min(1.3, 0.85 + (d.amount ?? 1) * 0.05));
+          runEffectFx(d.sourceId ?? targetId, targetId, "steel", Math.min(1.3, 0.85 + (d.amount ?? 1) * 0.05), () => {
+            if (fxLayerRef.current) pulseRingAtEntity(fxLayerRef.current, targetId, "#b9c6da");
+          });
         }
       } else if (anim.type === "effect_vfx") {
         const d = anim.data as { kind?: string; sourceId?: string; targetId?: string };
         if (d.targetId) {
-          runEffectFx(d.sourceId, d.targetId, travelKindForBuff(d.kind));
+          const targetId = d.targetId;
+          runEffectFx(d.sourceId, targetId, travelKindForBuff(d.kind), 1, () => {
+            if (fxLayerRef.current) pulseRingAtEntity(fxLayerRef.current, targetId, "#ffd75e");
+          });
         }
       } else if (anim.type === "peek") {
         const d = anim.data as { cardName?: string; playerId?: string; from?: string };
@@ -969,7 +1030,7 @@ export default function GameBoard() {
   };
 
   return (
-    <div style={{ position: "relative", width: "100%", height: "100%", display: "flex", flexDirection: "column", overflow: "hidden", fontFamily: "var(--font-archivo,'Archivo',sans-serif)" }}>
+    <div ref={boardRootRef} style={{ position: "relative", width: "100%", height: "100%", display: "flex", flexDirection: "column", overflow: "hidden", fontFamily: "var(--font-archivo,'Archivo',sans-serif)" }}>
       <BoardBackground url={boardBg} />
 
       <div style={{ position: "relative", zIndex: 1, flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
@@ -1593,6 +1654,8 @@ export default function GameBoard() {
 
       {/* Particle / FX overlay — always on top, never intercepts input */}
       <div ref={fxLayerRef} style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 90, overflow: "hidden" }} />
+      {/* Full-bleed color flash overlay for big/lethal hits — above particles */}
+      <div ref={flashLayerRef} style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 91, overflow: "hidden" }} />
     </div>
   );
 }

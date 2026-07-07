@@ -2,12 +2,14 @@
 
 import { useEffect } from "react";
 import { preloadSounds, resolveClickSound, playSound } from "@/lib/sounds";
+import { primeSynthAudio } from "@/lib/synthSfx";
 
 export default function ClickSoundLayer() {
   useEffect(() => {
     preloadSounds();
 
     function onPointerDown(e: PointerEvent) {
+      primeSynthAudio();
       if (e.button !== 0) return;
       const decision = resolveClickSound(e.target);
       if (decision === "none") return;

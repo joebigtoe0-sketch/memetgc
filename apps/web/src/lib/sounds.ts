@@ -80,6 +80,10 @@ export function setSoundEnabled(on: boolean): void {
   enabled = on;
 }
 
+export function isSoundEnabled(): boolean {
+  return enabled;
+}
+
 export function getMasterVolume(): number {
   return masterVolume;
 }
