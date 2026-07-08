@@ -557,7 +557,7 @@ function handleAttack(
       // Lifesteal
       for (const lh of result.lifestealHealing) {
         activePlayer.hp = Math.min(activePlayer.maxHp, activePlayer.hp + lh.amount);
-        animations.push({ type: "heal", data: { playerId: activePlayer.playerId, amount: lh.amount } });
+        animations.push({ type: "heal", data: { playerId: activePlayer.playerId, amount: lh.amount, sourceId: attackerSlot.instanceId, targetId: `hero_${activePlayer.playerId}` } });
       }
     } else {
       const defenderSlot = findMinionOnBoard(action.defenderInstanceId, opponent.board);
@@ -573,7 +573,8 @@ function handleAttack(
         const player = state.players[lh.playerId];
         if (player) {
           player.hp = Math.min(player.maxHp, player.hp + lh.amount);
-          animations.push({ type: "heal", data: { playerId: lh.playerId, amount: lh.amount } });
+          const lifestealSourceId = lh.playerId === activePlayer.playerId ? attackerSlot.instanceId : defenderSlot.instanceId;
+          animations.push({ type: "heal", data: { playerId: lh.playerId, amount: lh.amount, sourceId: lifestealSourceId, targetId: `hero_${lh.playerId}` } });
         }
       }
 
@@ -827,6 +828,7 @@ function handleEndTurn(
       state,
       activePlayerId: state.activePlayerId,
       sourceCard: slot.card,
+      sourceInstanceId: slot.instanceId,
       animations,
       rng,
       cardRegistry,
@@ -922,6 +924,7 @@ function startTurn(state: GameState, animations: AnimationHint[], rng: () => num
       state,
       activePlayerId: state.activePlayerId,
       sourceCard: slot.card,
+      sourceInstanceId: slot.instanceId,
       animations,
       rng,
     };
@@ -999,6 +1002,7 @@ function processDeaths(
         state,
         activePlayerId: playerId,
         sourceCard: slot.card,
+        sourceInstanceId: slot.instanceId,
         animations,
         rng,
         cardRegistry,
@@ -1013,6 +1017,7 @@ function processDeaths(
         state,
         activePlayerId: playerId,
         sourceCard: survivor.card,
+        sourceInstanceId: survivor.instanceId,
         targetInstanceId: survivor.instanceId,
         animations,
         rng,

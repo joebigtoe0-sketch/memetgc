@@ -20,6 +20,8 @@ interface Props {
   weaponAttack?: number;
   weaponDurability?: number;
   isEnemy?: boolean;
+  /** Yellow attack-target highlight (same as minion valid targets). */
+  isAttackTarget?: boolean;
   isValidTarget?: boolean;
   onHeroClick?: () => void;
   onHeroPowerClick?: () => void;
@@ -43,6 +45,7 @@ export default function HeroZone({
   weaponAttack,
   weaponDurability,
   isEnemy,
+  isAttackTarget,
   isValidTarget,
   onHeroClick,
   onHeroPowerClick,
@@ -80,10 +83,31 @@ export default function HeroZone({
         style={{
           position: "relative",
           cursor: onHeroClick ? "pointer" : "default",
-          transform: isValidTarget ? "scale(1.06)" : "scale(1)",
-          transition: "transform 0.15s",
+          transform: isAttackTarget ? "scale(1.1) translateY(-3px)" : isValidTarget ? "scale(1.06)" : "scale(1)",
+          transition: "transform 0.15s ease, box-shadow 0.15s ease",
+          borderRadius: "50%",
+          boxShadow: isAttackTarget
+            ? "0 0 0 3px #e0e040, 0 0 18px 6px rgba(224,224,64,0.75), 0 0 32px rgba(224,224,64,0.35)"
+            : isValidTarget
+            ? "0 0 0 2px rgba(127,232,189,.7), 0 0 14px rgba(127,232,189,.4)"
+            : undefined,
+          animation: isAttackTarget ? "heroAttackTargetPulse 1.2s ease-in-out infinite" : "none",
         }}
       >
+        {isAttackTarget && (
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              inset: -8,
+              borderRadius: "50%",
+              border: "2px solid rgba(224,224,64,.85)",
+              boxShadow: "0 0 20px rgba(224,224,64,.5)",
+              pointerEvents: "none",
+              zIndex: 2,
+            }}
+          />
+        )}
         <FactionIcon faction={faction} heroId={heroId} size={portraitSize} />
 
         {/* HP bubble (bottom-right of portrait) */}
@@ -238,6 +262,10 @@ export default function HeroZone({
         @keyframes pulseGlow {
           0%, 100% { opacity: .55; }
           50% { opacity: 1; }
+        }
+        @keyframes heroAttackTargetPulse {
+          0%, 100% { box-shadow: 0 0 0 3px #e0e040, 0 0 18px 6px rgba(224,224,64,0.75), 0 0 32px rgba(224,224,64,0.35); }
+          50% { box-shadow: 0 0 0 4px #fff176, 0 0 24px 10px rgba(255,241,118,0.9), 0 0 40px rgba(224,224,64,0.5); }
         }
       `}</style>
     </div>

@@ -873,6 +873,7 @@ export default function GameBoard() {
     ).validIds;
   }
   const validPlayTargets = getValidPlayTargets();
+  const opponentHeroIsPlayTarget = validPlayTargets.includes(opponentHeroTargetId);
 
   function cardIsPlayable(card: Card & { instanceId?: string }): boolean {
     if (!canAct || !playerId) return false;
@@ -1040,7 +1041,12 @@ export default function GameBoard() {
 
         {/* Opponent left: hero */}
         <div style={{ width: 130, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", padding: "8px 4px 4px", gap: 8, flexShrink: 0 }}>
-          <div data-entity-id={"hero_" + opponentState.playerId} style={{ position: "relative", ...moveStyle("hero_" + opponentState.playerId) }}>
+          <div data-entity-id={"hero_" + opponentState.playerId} style={{
+            position: "relative",
+            opacity: (phase === "select_attack_target" || !!attackDrag) && !opponentHeroIsAttackTarget ? 0.5 : 1,
+            transition: "opacity 0.15s ease",
+            ...moveStyle("hero_" + opponentState.playerId),
+          }}>
             {tutorialHighlight === "enemy_hero" && (
               <div
                 aria-hidden
@@ -1060,11 +1066,11 @@ export default function GameBoard() {
               heroName={opponentState.heroName} playerName={opponentState.playerName} faction={opponentState.heroFaction} heroId={opponentState.heroId}
               hp={opponentState.hp} armor={opponentState.armor} isEnemy
               attackTargetId={opponentHeroIsAttackTarget ? opponentHeroTargetId : undefined}
-              isValidTarget={
-                (phase === "select_attack_target" && validTargets.includes(opponentHeroTargetId)) ||
-                (!!attackDrag && validTargets.includes(opponentHeroTargetId)) ||
-                (phase === "select_play_target" && validPlayTargets.includes(opponentHeroTargetId))
+              isAttackTarget={
+                (phase === "select_attack_target" && opponentHeroIsAttackTarget) ||
+                (!!attackDrag && opponentHeroIsAttackTarget)
               }
+              isValidTarget={opponentHeroIsPlayTarget}
               onHeroClick={() => handleHeroClick(true)}
               secretCount={opponentState.secretCount}
               hasWeapon={opponentState.hasWeapon} weaponAttack={opponentState.weaponAttack} weaponDurability={opponentState.weaponDurability}
@@ -1185,7 +1191,7 @@ export default function GameBoard() {
         {phase !== "idle" && (
           <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", zIndex: 20, padding: "6px 16px", borderRadius: 20, background: "rgba(60,50,0,.95)", border: "1px solid #e0c040", color: "#ffe060", font: `700 10px var(--font-mono,'JetBrains Mono',monospace)`, letterSpacing: "1px", whiteSpace: "nowrap", boxShadow: "0 0 16px rgba(224,192,64,.3)" }}>
             {phase === "select_play_target" && "→ SELECT TARGET FOR SPELL"}
-            {phase === "select_attack_target" && "→ SELECT ATTACK TARGET"}
+            {phase === "select_attack_target" && "→ TAP ENEMY MINION OR HERO"}
             {phase === "select_hero_power_target" && "→ SELECT MINION FOR HERO POWER"}
           </div>
         )}
