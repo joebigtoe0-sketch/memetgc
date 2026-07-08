@@ -37,16 +37,16 @@ interface KindSpec {
 }
 
 const KINDS: Record<BurstKind, KindSpec> = {
-  blood:      { colors: ["#ff4433", "#d92818", "#a01208", "#ff7a5c"], count: 24, size: [3, 8], speed: [35, 130], gravity: 100, dur: [450, 850] },
-  spark:      { colors: ["#e8edf5", "#aab4c5", "#8d97a8", "#f8fbff"], count: 22, size: [2, 5], speed: [70, 170], gravity: 35, dur: [300, 620], glow: true },
-  shield:     { colors: ["#fff8d8", "#ffe9a0", "#fffef5", "#ffd75e"], count: 22, size: [3, 7], speed: [55, 150], gravity: 0, dur: [350, 680], glow: true },
-  heal:       { colors: ["#5ff09a", "#a8ffcf", "#2ecf74", "#d8ffe9"], count: 20, size: [3, 7], speed: [22, 70], gravity: -75, dur: [650, 1050], glow: true, up: true },
-  buff:       { colors: ["#ffd75e", "#ffedb0", "#ffb42e", "#fff6d8"], count: 20, size: [3, 7], speed: [22, 72], gravity: -80, dur: [650, 1050], glow: true, up: true },
-  armor:      { colors: ["#b9c6da", "#8fa3c0", "#e3eaf5", "#6e82a0"], count: 16, size: [3, 6], speed: [22, 60], gravity: -58, dur: [550, 920], up: true },
-  death:      { colors: ["#4a4f5a", "#23272f", "#767f8e", "#963f28", "#151920"], count: 32, size: [3, 8], speed: [35, 120], gravity: 28, dur: [520, 1000], glow: true },
-  summon:     { colors: ["#c9b48a", "#8d7f5f", "#efe6cc", "#a99a76"], count: 18, size: [2, 6], speed: [30, 90], gravity: -10, dur: [400, 780] },
-  iceShatter: { colors: ["#b8e8ff", "#e8f8ff", "#7ec8ff", "#ffffff"], count: 16, size: [4, 10], speed: [80, 190], gravity: 70, dur: [350, 620], glow: true, shape: "shard" },
-  emberSmoke: { colors: ["#6a4a32", "#8a5a38", "#4a3222", "#c97a3a"], count: 9, size: [12, 26], speed: [8, 26], gravity: -45, dur: [900, 1500], up: true, shape: "smoke" },
+  blood:      { colors: ["#ff4433", "#d92818", "#a01208", "#ff7a5c"], count: 36, size: [4, 11], speed: [45, 175], gravity: 110, dur: [480, 950], glow: true },
+  spark:      { colors: ["#e8edf5", "#aab4c5", "#8d97a8", "#f8fbff"], count: 32, size: [3, 7], speed: [90, 230], gravity: 40, dur: [320, 700], glow: true },
+  shield:     { colors: ["#fff8d8", "#ffe9a0", "#fffef5", "#ffd75e"], count: 30, size: [4, 9], speed: [70, 200], gravity: 0, dur: [380, 760], glow: true },
+  heal:       { colors: ["#5ff09a", "#a8ffcf", "#2ecf74", "#d8ffe9"], count: 28, size: [4, 9], speed: [26, 90], gravity: -85, dur: [700, 1200], glow: true, up: true },
+  buff:       { colors: ["#ffd75e", "#ffedb0", "#ffb42e", "#fff6d8"], count: 28, size: [4, 9], speed: [26, 92], gravity: -90, dur: [700, 1200], glow: true, up: true },
+  armor:      { colors: ["#b9c6da", "#8fa3c0", "#e3eaf5", "#6e82a0"], count: 22, size: [4, 8], speed: [26, 78], gravity: -62, dur: [600, 1000], glow: true, up: true },
+  death:      { colors: ["#4a4f5a", "#23272f", "#767f8e", "#963f28", "#ff7a3a", "#151920"], count: 44, size: [4, 10], speed: [45, 160], gravity: 30, dur: [550, 1150], glow: true },
+  summon:     { colors: ["#c9b48a", "#8d7f5f", "#efe6cc", "#a99a76"], count: 24, size: [3, 8], speed: [38, 115], gravity: -12, dur: [420, 850] },
+  iceShatter: { colors: ["#b8e8ff", "#e8f8ff", "#7ec8ff", "#ffffff"], count: 24, size: [5, 13], speed: [100, 250], gravity: 80, dur: [380, 700], glow: true, shape: "shard" },
+  emberSmoke: { colors: ["#6a4a32", "#8a5a38", "#4a3222", "#c97a3a"], count: 12, size: [16, 34], speed: [10, 34], gravity: -55, dur: [1000, 1700], up: true, shape: "smoke" },
 };
 
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
@@ -117,17 +117,68 @@ export function shockwaveAtClient(layer: HTMLElement, clientX: number, clientY: 
   const { x, y, ok } = toLocal(layer, clientX, clientY);
   if (!ok) return;
   const ring = document.createElement("div");
-  ring.style.cssText = `position:absolute;left:${x}px;top:${y}px;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;border:3px solid ${color};pointer-events:none;will-change:transform,opacity;`;
+  ring.style.cssText = `position:absolute;left:${x}px;top:${y}px;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;border:4px solid ${color};box-shadow:0 0 14px ${color},inset 0 0 10px ${color};pointer-events:none;will-change:transform,opacity;`;
   layer.appendChild(ring);
   const anim = ring.animate(
     [
       { transform: "scale(1)", opacity: 1 },
       { transform: `scale(${maxRadius / 6})`, opacity: 0 },
     ],
-    { duration: 420, easing: "cubic-bezier(.15,.6,.4,1)", fill: "forwards" },
+    { duration: 460, easing: "cubic-bezier(.15,.6,.4,1)", fill: "forwards" },
   );
   anim.onfinish = () => ring.remove();
   setTimeout(() => ring.remove(), 900);
+}
+
+/** Bright radial flash right at the impact point — the "pop" that sells a hit. */
+export function flareAtClient(layer: HTMLElement, clientX: number, clientY: number, color = "rgba(255,255,255,.9)", size = 90): void {
+  const { x, y, ok } = toLocal(layer, clientX, clientY);
+  if (!ok) return;
+  const flare = document.createElement("div");
+  flare.style.cssText = `position:absolute;left:${x}px;top:${y}px;width:${size}px;height:${size}px;margin:-${size / 2}px 0 0 -${size / 2}px;border-radius:50%;background:radial-gradient(circle,#ffffff 0%,${color} 30%,transparent 70%);pointer-events:none;will-change:transform,opacity;mix-blend-mode:screen;`;
+  layer.appendChild(flare);
+  flare.animate(
+    [
+      { transform: "scale(0.2)", opacity: 0 },
+      { transform: "scale(1.15)", opacity: 1, offset: 0.2 },
+      { transform: "scale(1.45)", opacity: 0 },
+    ],
+    { duration: 340, easing: "cubic-bezier(.15,.7,.35,1)", fill: "forwards" },
+  ).onfinish = () => flare.remove();
+  setTimeout(() => flare.remove(), 550);
+
+  // Crossed anamorphic light streaks through the flare center.
+  for (const ang of [0, 90]) {
+    const streak = document.createElement("div");
+    const w = size * 1.7;
+    streak.style.cssText = `position:absolute;left:${x}px;top:${y}px;width:${w}px;height:3px;margin:-1.5px 0 0 -${w / 2}px;transform:rotate(${ang}deg);background:linear-gradient(90deg,transparent,#ffffff,transparent);pointer-events:none;opacity:0;mix-blend-mode:screen;`;
+    layer.appendChild(streak);
+    streak.animate(
+      [
+        { transform: `rotate(${ang}deg) scaleX(0.1)`, opacity: 0 },
+        { transform: `rotate(${ang}deg) scaleX(1)`, opacity: 0.95, offset: 0.25 },
+        { transform: `rotate(${ang}deg) scaleX(1.2)`, opacity: 0 },
+      ],
+      { duration: 320, easing: "ease-out", fill: "forwards" },
+    ).onfinish = () => streak.remove();
+    setTimeout(() => streak.remove(), 520);
+  }
+}
+
+/** Physical scale-punch on the struck entity — squashes in, springs back. */
+export function punchEntity(entityId: string, strength = 1): void {
+  const el = entityElement(entityId);
+  if (!el) return;
+  const squash = Math.min(0.22, 0.08 + strength * 0.07);
+  el.animate(
+    [
+      { transform: "scale(1)" },
+      { transform: `scale(${1 - squash}) rotate(${(Math.random() * 2 - 1) * 3}deg)`, offset: 0.25 },
+      { transform: `scale(${1 + squash * 0.5})`, offset: 0.6 },
+      { transform: "scale(1)" },
+    ],
+    { duration: 300, easing: "cubic-bezier(.3,.7,.4,1.4)" },
+  );
 }
 
 /** Bright weapon-clash streak at a melee impact point. */
@@ -154,23 +205,24 @@ export function slashAtClient(layer: HTMLElement, clientX: number, clientY: numb
  * Floating combat number anchored to a client-space point (works even when the
  * underlying minion is about to be removed from the board).
  */
-export function floatTextAtClient(layer: HTMLElement, clientX: number, clientY: number, text: string, color = "#ff6a5c"): void {
+export function floatTextAtClient(layer: HTMLElement, clientX: number, clientY: number, text: string, color = "#ff6a5c", sizePx = 26): void {
   const { x, y, ok } = toLocal(layer, clientX, clientY);
   if (!ok) return;
   const el = document.createElement("div");
   el.textContent = text;
-  el.style.cssText = `position:absolute;left:${x}px;top:${y}px;transform:translate(-50%,-50%);font:900 22px/1 'Cinzel',serif;color:${color};text-shadow:0 2px 4px rgba(0,0,0,.85),0 0 10px ${color};pointer-events:none;white-space:nowrap;z-index:95;`;
+  el.style.cssText = `position:absolute;left:${x}px;top:${y}px;transform:translate(-50%,-50%);font:900 ${sizePx}px/1 'Cinzel',serif;color:${color};text-shadow:0 2px 4px rgba(0,0,0,.9),0 0 14px ${color},0 0 26px ${color};pointer-events:none;white-space:nowrap;z-index:95;`;
   layer.appendChild(el);
   el.animate(
     [
-      { transform: "translate(-50%,-50%) scale(.6)", opacity: 0 },
-      { transform: "translate(-50%,-90%) scale(1.15)", opacity: 1, offset: 0.25 },
-      { transform: "translate(-50%,-150%) scale(1)", opacity: 1, offset: 0.7 },
-      { transform: "translate(-50%,-210%) scale(.85)", opacity: 0 },
+      { transform: "translate(-50%,-50%) scale(.5)", opacity: 0 },
+      { transform: "translate(-50%,-90%) scale(1.35)", opacity: 1, offset: 0.22 },
+      { transform: "translate(-50%,-120%) scale(1.05)", opacity: 1, offset: 0.42 },
+      { transform: "translate(-50%,-165%) scale(1)", opacity: 1, offset: 0.72 },
+      { transform: "translate(-50%,-225%) scale(.85)", opacity: 0 },
     ],
-    { duration: 850, easing: "cubic-bezier(.2,.7,.4,1)", fill: "forwards" },
+    { duration: 950, easing: "cubic-bezier(.2,.7,.4,1)", fill: "forwards" },
   ).onfinish = () => el.remove();
-  setTimeout(() => el.remove(), 1100);
+  setTimeout(() => el.remove(), 1250);
 }
 
 /** Find the board element for a game entity (minion instanceId or "hero_<playerId>"). */
@@ -238,14 +290,14 @@ interface TravelSpec {
 }
 
 const TRAVEL: Record<TravelKind, TravelSpec> = {
-  fire:      { core: "#ff6a28", glow: "rgba(255,120,40,.85)",  trail: ["#ff9a44", "#ff4a12", "#ffd080"], mode: "projectile", dur: 440, size: 20, impact: "blood",  ring: "rgba(255,90,40,.7)" },
-  lightning: { core: "#d8f0ff", glow: "rgba(140,210,255,.95)", trail: ["#ffffff", "#7ec8ff", "#b8e8ff"], mode: "beam",      dur: 280, size: 15, impact: "spark",  ring: "rgba(180,230,255,.8)" },
-  arcane:    { core: "#c88cff", glow: "rgba(170,110,255,.9)",  trail: ["#e8c8ff", "#9b5dff", "#f0d8ff"], mode: "projectile", dur: 400, size: 17, impact: "spark",  ring: "rgba(180,120,255,.75)" },
-  nature:    { core: "#5ff09a", glow: "rgba(80,240,150,.9)",   trail: ["#a8ffcf", "#2ecf74", "#d8ffe9"], mode: "beam",      dur: 540, size: 15, impact: "heal",   ring: "rgba(90,255,160,.7)" },
-  holy:      { core: "#ffe9a0", glow: "rgba(255,230,150,.9)",  trail: ["#fff8d8", "#ffd75e", "#fffef5"], mode: "beam",      dur: 500, size: 15, impact: "buff",   ring: "rgba(255,220,120,.75)" },
-  frost:     { core: "#b8e8ff", glow: "rgba(160,220,255,.9)",  trail: ["#e8f8ff", "#7ec8ff", "#ffffff"], mode: "projectile", dur: 380, size: 16, impact: "iceShatter", ring: "rgba(180,230,255,.7)" },
-  steel:     { core: "#c5d4ea", glow: "rgba(150,175,210,.9)",  trail: ["#e3eaf5", "#8fa3c0", "#b9c6da"], mode: "beam",      dur: 460, size: 14, impact: "armor",  ring: "rgba(170,195,230,.75)" },
-  shadow:    { core: "#8a5fd8", glow: "rgba(120,70,200,.85)",  trail: ["#b08cff", "#4a2878", "#d8b8ff"], mode: "projectile", dur: 420, size: 17, impact: "death",  ring: "rgba(120,70,200,.65)" },
+  fire:      { core: "#ff6a28", glow: "rgba(255,120,40,.85)",  trail: ["#ff9a44", "#ff4a12", "#ffd080"], mode: "projectile", dur: 460, size: 26, impact: "blood",  ring: "rgba(255,90,40,.7)" },
+  lightning: { core: "#d8f0ff", glow: "rgba(140,210,255,.95)", trail: ["#ffffff", "#7ec8ff", "#b8e8ff"], mode: "beam",      dur: 300, size: 19, impact: "spark",  ring: "rgba(180,230,255,.8)" },
+  arcane:    { core: "#c88cff", glow: "rgba(170,110,255,.9)",  trail: ["#e8c8ff", "#9b5dff", "#f0d8ff"], mode: "projectile", dur: 420, size: 22, impact: "spark",  ring: "rgba(180,120,255,.75)" },
+  nature:    { core: "#5ff09a", glow: "rgba(80,240,150,.9)",   trail: ["#a8ffcf", "#2ecf74", "#d8ffe9"], mode: "beam",      dur: 560, size: 19, impact: "heal",   ring: "rgba(90,255,160,.7)" },
+  holy:      { core: "#ffe9a0", glow: "rgba(255,230,150,.9)",  trail: ["#fff8d8", "#ffd75e", "#fffef5"], mode: "beam",      dur: 520, size: 19, impact: "buff",   ring: "rgba(255,220,120,.75)" },
+  frost:     { core: "#b8e8ff", glow: "rgba(160,220,255,.9)",  trail: ["#e8f8ff", "#7ec8ff", "#ffffff"], mode: "projectile", dur: 400, size: 21, impact: "iceShatter", ring: "rgba(180,230,255,.7)" },
+  steel:     { core: "#c5d4ea", glow: "rgba(150,175,210,.9)",  trail: ["#e3eaf5", "#8fa3c0", "#b9c6da"], mode: "beam",      dur: 480, size: 18, impact: "armor",  ring: "rgba(170,195,230,.75)" },
+  shadow:    { core: "#8a5fd8", glow: "rgba(120,70,200,.85)",  trail: ["#b08cff", "#4a2878", "#d8b8ff"], mode: "projectile", dur: 440, size: 22, impact: "death",  ring: "rgba(120,70,200,.65)" },
 };
 
 function posFromEntity(layer: HTMLElement, entityId: string): { x: number; y: number } | null {
@@ -298,7 +350,7 @@ export function projectileAtClient(
 
   // Soft blurred halo riding just behind the core for a bigger, more magical glow.
   const halo = document.createElement("div");
-  const haloSize = spec.size * 2.4;
+  const haloSize = spec.size * 3;
   halo.style.cssText = `position:absolute;left:${from.x}px;top:${from.y}px;width:${haloSize}px;height:${haloSize}px;margin:-${haloSize / 2}px 0 0 -${haloSize / 2}px;border-radius:50%;background:radial-gradient(circle,${spec.glow},transparent 70%);filter:blur(2px);pointer-events:none;z-index:1;`;
   layer.appendChild(halo);
 
@@ -317,13 +369,14 @@ export function projectileAtClient(
   halo.animate(keyframes, { duration: spec.dur, easing: "cubic-bezier(.25,.1,.2,1)", fill: "forwards" }).onfinish = () => halo.remove();
   setTimeout(() => halo.remove(), spec.dur + 300);
 
-  const trailCount = 16;
+  const trailCount = 22;
   for (let i = 1; i <= trailCount; i++) {
     setTimeout(() => {
       const t = i / trailCount;
-      const tx = from.x + dx * t + (arc * Math.sin(t * Math.PI)) * 0.15;
-      const ty = from.y + dy * t - arc * Math.sin(t * Math.PI);
-      spawnTrailParticle(layer, tx, ty, spec.trail[i % spec.trail.length]!, rand(4, 8));
+      const jitter = rand(-4, 4);
+      const tx = from.x + dx * t + (arc * Math.sin(t * Math.PI)) * 0.15 + jitter;
+      const ty = from.y + dy * t - arc * Math.sin(t * Math.PI) + jitter;
+      spawnTrailParticle(layer, tx, ty, spec.trail[i % spec.trail.length]!, rand(5, 11));
     }, (spec.dur / trailCount) * i * 0.85);
   }
 
@@ -355,7 +408,7 @@ export function beamAtClient(
 
   // Wide soft outer glow beam sits under the bright core beam for extra depth.
   const glowBeam = document.createElement("div");
-  glowBeam.style.cssText = `position:absolute;left:${from.x}px;top:${from.y}px;width:${len}px;height:14px;margin:-7px 0 0 0;transform-origin:0 50%;transform:rotate(${ang}deg);background:linear-gradient(90deg,transparent,${spec.glow},transparent);filter:blur(3px);border-radius:8px;pointer-events:none;opacity:0;`;
+  glowBeam.style.cssText = `position:absolute;left:${from.x}px;top:${from.y}px;width:${len}px;height:22px;margin:-11px 0 0 0;transform-origin:0 50%;transform:rotate(${ang}deg);background:linear-gradient(90deg,transparent,${spec.glow},transparent);filter:blur(4px);border-radius:12px;pointer-events:none;opacity:0;`;
   layer.appendChild(glowBeam);
   glowBeam.animate(
     [{ opacity: 0, transform: `rotate(${ang}deg) scaleX(0.1)` }, { opacity: 0.6, transform: `rotate(${ang}deg) scaleX(1)`, offset: 0.25 }, { opacity: 0.4, transform: `rotate(${ang}deg) scaleX(1)`, offset: 0.7 }, { opacity: 0, transform: `rotate(${ang}deg) scaleX(1.05)` }],
@@ -364,7 +417,7 @@ export function beamAtClient(
   setTimeout(() => glowBeam.remove(), spec.dur + 200);
 
   const beam = document.createElement("div");
-  beam.style.cssText = `position:absolute;left:${from.x}px;top:${from.y}px;width:${len}px;height:6px;transform-origin:0 50%;transform:rotate(${ang}deg);background:linear-gradient(90deg,transparent,${spec.glow},${spec.core},${spec.glow},transparent);box-shadow:0 0 16px ${spec.glow};border-radius:4px;pointer-events:none;opacity:0;`;
+  beam.style.cssText = `position:absolute;left:${from.x}px;top:${from.y}px;width:${len}px;height:8px;margin:-4px 0 0 0;transform-origin:0 50%;transform:rotate(${ang}deg);background:linear-gradient(90deg,transparent,${spec.glow},${spec.core},${spec.glow},transparent);box-shadow:0 0 22px ${spec.glow};border-radius:5px;pointer-events:none;opacity:0;`;
   layer.appendChild(beam);
 
   beam.animate(
@@ -375,9 +428,10 @@ export function beamAtClient(
   if (kind === "lightning") {
     // Main jagged bolt plus 2 thinner forked branches peeling off partway through.
     const branches = [
-      { offset: 0, segs: 6, width: 3, alpha: 1 },
-      { offset: rand(0.25, 0.45), segs: 3, width: 2, alpha: 0.7 },
-      { offset: rand(0.45, 0.65), segs: 3, width: 2, alpha: 0.7 },
+      { offset: 0, segs: 6, width: 5, alpha: 1 },
+      { offset: rand(0.2, 0.4), segs: 3, width: 3, alpha: 0.8 },
+      { offset: rand(0.4, 0.6), segs: 3, width: 3, alpha: 0.8 },
+      { offset: rand(0.55, 0.75), segs: 2, width: 2, alpha: 0.65 },
     ];
     for (const branch of branches) {
       const segs = branch.segs;
@@ -462,7 +516,7 @@ function crawlArcsAtClient(layer: HTMLElement, clientX: number, clientY: number,
       const segLen = Math.hypot(nx - cx, ny - cy);
       const segAng = Math.atan2(ny - cy, nx - cx) * (180 / Math.PI);
       const seg = document.createElement("div");
-      seg.style.cssText = `position:absolute;left:${cx}px;top:${cy}px;width:${segLen}px;height:2px;transform-origin:0 50%;transform:rotate(${segAng}deg);background:${color};box-shadow:0 0 8px ${color};pointer-events:none;opacity:0;`;
+      seg.style.cssText = `position:absolute;left:${cx}px;top:${cy}px;width:${segLen}px;height:3px;transform-origin:0 50%;transform:rotate(${segAng}deg);background:${color};box-shadow:0 0 12px ${color};pointer-events:none;opacity:0;`;
       layer.appendChild(seg);
       const delay = s * 30;
       setTimeout(() => {
@@ -482,7 +536,7 @@ function raysAtClient(layer: HTMLElement, clientX: number, clientY: number, colo
   for (let i = 0; i < count; i++) {
     const ang = (i / count) * 360 + rand(-8, 8);
     const ray = document.createElement("div");
-    ray.style.cssText = `position:absolute;left:${x}px;top:${y}px;width:3px;height:${len}px;margin:-${len}px -1.5px 0 -1.5px;transform-origin:50% 100%;transform:rotate(${ang}deg) scaleY(0);background:linear-gradient(180deg,${color},transparent);pointer-events:none;opacity:0;`;
+    ray.style.cssText = `position:absolute;left:${x}px;top:${y}px;width:5px;height:${len}px;margin:-${len}px -2.5px 0 -2.5px;transform-origin:50% 100%;transform:rotate(${ang}deg) scaleY(0);background:linear-gradient(180deg,${color},transparent);box-shadow:0 0 10px ${color};pointer-events:none;opacity:0;`;
     layer.appendChild(ray);
     ray.animate(
       [
@@ -502,25 +556,29 @@ export function runTravelImpact(layer: HTMLElement, targetId: string, kind: Trav
   const pos = el ? centerOf(el) : centerFromSnapshot(targetId);
   if (!pos) return;
 
+  flareAtClient(layer, pos.x, pos.y, spec.glow, 70 + intensity * 30);
   burstAtClient(layer, pos.x, pos.y, spec.impact, intensity);
-  shockwaveAtClient(layer, pos.x, pos.y, spec.ring, 48 + intensity * 8);
+  shockwaveAtClient(layer, pos.x, pos.y, spec.ring, 52 + intensity * 12);
+  setTimeout(() => shockwaveAtClient(layer, pos.x, pos.y, spec.ring, 38 + intensity * 8), 90);
+  // Damage elements slam the target; heals/buffs (nature, holy, steel) glow instead of recoiling.
+  if (kind !== "nature" && kind !== "holy" && kind !== "steel") punchEntity(targetId, intensity);
 
   switch (kind) {
     case "fire":
-      setTimeout(() => burstAtClient(layer, pos.x, pos.y, "emberSmoke", Math.max(0.6, intensity * 0.85)), 90);
+      setTimeout(() => burstAtClient(layer, pos.x, pos.y, "emberSmoke", Math.max(0.7, intensity)), 90);
       break;
     case "lightning":
-      crawlArcsAtClient(layer, pos.x, pos.y, spec.core, 3);
+      crawlArcsAtClient(layer, pos.x, pos.y, spec.core, 5, 58);
       break;
     case "frost":
-      shockwaveAtClient(layer, pos.x, pos.y, "rgba(255,255,255,.85)", 30);
+      shockwaveAtClient(layer, pos.x, pos.y, "rgba(255,255,255,.85)", 36);
       break;
     case "shadow":
-      crawlArcsAtClient(layer, pos.x, pos.y, spec.core, 2, 34);
+      crawlArcsAtClient(layer, pos.x, pos.y, spec.core, 3, 44);
       break;
     case "holy":
     case "nature":
-      raysAtClient(layer, pos.x, pos.y, spec.glow, 8, 44);
+      raysAtClient(layer, pos.x, pos.y, spec.glow, 12, 62);
       break;
   }
 }

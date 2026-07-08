@@ -24,12 +24,12 @@ let shakeSeq = 0;
 export function shakeElement(el: HTMLElement | null, intensity = 1): void {
   if (!el) return;
   const reduced = prefersReducedMotion();
-  const amp = Math.min(14, 3 + intensity * 6) * (reduced ? 0.35 : 1);
+  const amp = Math.min(20, 4 + intensity * 9) * (reduced ? 0.35 : 1);
   if (amp < 0.5) return;
-  const dur = reduced ? 180 : 320;
+  const dur = reduced ? 180 : 380;
   const id = ++shakeSeq;
   const frames: Keyframe[] = [{ transform: "translate(0,0)" }];
-  const steps = 6;
+  const steps = 8;
   for (let i = 1; i < steps; i++) {
     const decay = 1 - i / steps;
     frames.push({

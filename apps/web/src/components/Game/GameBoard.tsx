@@ -17,7 +17,7 @@ import { CARD_BACK_DEFAULT, CARD_BACK_RADIUS, cardBackImage } from "@/lib/cardBa
 import GameIcon from "@/components/UI/GameIcon";
 import { playSound } from "@/lib/sounds";
 import { playSynth } from "@/lib/synthSfx";
-import { burstAtClient, burstAtElement, shockwaveAtClient, floatTextAtClient, entityElement, centerOf, setFxSnapshotCenters, travelBetweenEntities, travelKindForDamage, travelKindForBuff, runTravelImpact, pulseRingAtEntity, slashAtClient, type BurstKind, type TravelKind } from "./fx";
+import { burstAtClient, burstAtElement, shockwaveAtClient, floatTextAtClient, entityElement, centerOf, setFxSnapshotCenters, travelBetweenEntities, travelKindForDamage, travelKindForBuff, runTravelImpact, pulseRingAtEntity, slashAtClient, flareAtClient, punchEntity, type BurstKind, type TravelKind } from "./fx";
 import { shakeElement, flashScreen } from "./screenFx";
 import { api } from "@/lib/api";
 import { useIsMobile } from "@/hooks/useViewport";
@@ -419,25 +419,28 @@ export default function GameBoard() {
 
       const impact = (atkPos?: { x: number; y: number }) => {
         playSound("attack", 0.75);
+        flareAtClient(layer, defPos.x, defPos.y, kind === "blood" ? "rgba(255,120,80,.9)" : "rgba(235,242,255,.95)", 70 + intensity * 35);
         burstAtClient(layer, defPos.x, defPos.y, kind, intensity);
         shockwaveAtClient(layer, defPos.x, defPos.y, ringColor);
+        setTimeout(() => shockwaveAtClient(layer, defPos.x, defPos.y, ringColor, 40), 90);
         slashAtClient(layer, defPos.x, defPos.y, kind === "blood" ? "#ffb199" : "#eef4ff");
+        punchEntity(defenderId, intensity);
         playSynth(kind === "blood" ? "fireImpact" : "steelClang", Math.min(1, 0.5 + intensity * 0.3));
         // Damage number on the defender at the moment of impact — works even for
         // a lethal blow where the minion is about to leave the board.
         if (defDmg > 0) {
-          floatTextAtClient(layer, defPos.x, defPos.y - 10, `-${defDmg}`, "#ff6a5c");
+          floatTextAtClient(layer, defPos.x, defPos.y - 10, `-${defDmg}`, "#ff6a5c", Math.min(44, 24 + defDmg * 2.5));
           combatFloatSuppress.current.add(defenderId);
         }
         // Retaliation damage sprays + number at the attacker's (moved) position
         if (atkDmg > 0 && atkPos) {
           burstAtClient(layer, atkPos.x, atkPos.y, "blood", 0.7);
           slashAtClient(layer, atkPos.x, atkPos.y, "#ffb199");
-          floatTextAtClient(layer, atkPos.x, atkPos.y - 10, `-${atkDmg}`, "#ff6a5c");
+          floatTextAtClient(layer, atkPos.x, atkPos.y - 10, `-${atkDmg}`, "#ff6a5c", Math.min(44, 24 + atkDmg * 2.5));
           combatFloatSuppress.current.add(attackerId);
         }
         if (defDmg >= 3 || atkDmg >= 3) shakeElement(boardRootRef.current, intensity);
-        if (defDmg >= 6) flashScreen(flashLayerRef.current, kind === "blood" ? "rgba(255,80,60,.4)" : "rgba(220,230,245,.35)", Math.min(0.4, 0.15 + defDmg * 0.03));
+        if (defDmg >= 5) flashScreen(flashLayerRef.current, kind === "blood" ? "rgba(255,80,60,.4)" : "rgba(220,230,245,.35)", Math.min(0.4, 0.15 + defDmg * 0.03));
       };
 
       if (!attackerEl) {
@@ -607,10 +610,14 @@ export default function GameBoard() {
           playSound("destroy", 0.8);
           playSynth("fireImpact", 0.7);
           if (fxLayerRef.current && spot) {
-            burstAtClient(fxLayerRef.current, spot.x, spot.y, "death", 1.3);
-            shockwaveAtClient(fxLayerRef.current, spot.x, spot.y, "rgba(130,130,150,.5)", 52);
+            flareAtClient(fxLayerRef.current, spot.x, spot.y, "rgba(255,140,80,.85)", 110);
+            burstAtClient(fxLayerRef.current, spot.x, spot.y, "death", 1.5);
+            shockwaveAtClient(fxLayerRef.current, spot.x, spot.y, "rgba(150,150,170,.6)", 62);
+            setTimeout(() => {
+              if (fxLayerRef.current) burstAtClient(fxLayerRef.current, spot.x, spot.y, "emberSmoke", 0.8);
+            }, 110);
           }
-          shakeElement(boardRootRef.current, 0.9);
+          shakeElement(boardRootRef.current, 1);
           addToast("💀 Minion destroyed", "#ff8888");
         };
         if (deathAt > 0) setTimeout(fireDeath, deathAt);
