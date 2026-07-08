@@ -434,18 +434,18 @@ function perCardLegendaryRate(packsPerLegendary: number): number {
 const PACK_RARITY_ODDS: Record<string, { legendary: number; epic: number; rare: number }> = {
   standard: {
     legendary: perCardLegendaryRate(50), // ~1 legendary per 50 packs
-    epic: 0.12,
-    rare: 0.23,
+    epic: 0.05,
+    rare: 0.18,
   },
   season: {
     legendary: perCardLegendaryRate(100), // ~1 legendary per 100 packs
-    epic: 0.10,
-    rare: 0.21,
+    epic: 0.05,
+    rare: 0.18,
   },
   faction: {
     legendary: perCardLegendaryRate(50),
-    epic: 0.12,
-    rare: 0.23,
+    epic: 0.05,
+    rare: 0.18,
   },
 };
 
