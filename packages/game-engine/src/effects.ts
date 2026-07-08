@@ -201,12 +201,42 @@ function resolveEffect(effect: CardEffect, ctx: EffectContext): void {
 
     case "buff_attack_health": {
       const amount = (params.amount as number) ?? 0;
+      const copyHighest = params.copy_highest_cost_on_board === true;
       const targets = resolveTargets(effect.target, ctx, activePlayer, opponent);
+
+      let copyAtk: number | undefined;
+      let copyHp: number | undefined;
+      if (copyHighest) {
+        const excludeId = ctx.sourceInstanceId ?? ctx.targetInstanceId;
+        const pool = [
+          ...activePlayer.board.filter((s): s is MinionSlot => s !== null),
+          ...opponent.board.filter((s): s is MinionSlot => s !== null),
+        ].filter((m) => m.instanceId !== excludeId);
+        if (pool.length > 0) {
+          let maxCost = -1;
+          for (const m of pool) {
+            const c = m.card.cost ?? 0;
+            if (c > maxCost) maxCost = c;
+          }
+          const tied = pool.filter((m) => (m.card.cost ?? 0) === maxCost);
+          const best = tied[Math.floor(ctx.rng() * tied.length)]!;
+          copyAtk = best.currentAttack;
+          copyHp = best.currentHealth;
+        }
+      }
+
       for (const t of targets) {
         if (t.type === "minion") {
-          t.slot.currentAttack += amount;
-          t.slot.maxHealth += amount;
-          t.slot.currentHealth += amount;
+          if (copyHighest && copyAtk !== undefined && copyHp !== undefined) {
+            t.slot.currentAttack = copyAtk;
+            t.slot.maxHealth = copyHp;
+            t.slot.currentHealth = copyHp;
+            t.slot.tempAttackBoost = 0;
+          } else {
+            t.slot.currentAttack += amount;
+            t.slot.maxHealth += amount;
+            t.slot.currentHealth += amount;
+          }
           ctx.animations.push({
             type: "effect_vfx",
             data: { kind: "buff", sourceId: fxSourceId(ctx), targetId: t.slot.instanceId },
@@ -643,12 +673,14 @@ function resolveTargets(
         { type: "hero", playerId: activePlayer.playerId },
         { type: "hero", playerId: opponent.playerId },
       ];
-    case "self":
-      if (ctx.targetInstanceId) {
-        const slot = findMinionByInstanceId(ctx.targetInstanceId, activePlayer, opponent);
+    case "self": {
+      const id = ctx.targetInstanceId ?? ctx.sourceInstanceId;
+      if (id) {
+        const slot = findMinionByInstanceId(id, activePlayer, opponent);
         if (slot) return [slot];
       }
       return [];
+    }
     case "all_minions_friendly":
       return activePlayer.board.filter((s): s is MinionSlot => s !== null).map((s) => ({ type: "minion" as const, slot: s, playerId: activePlayer.playerId }));
     case "all_minions_enemy":
